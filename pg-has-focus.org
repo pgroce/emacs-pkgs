@@ -1,0 +1,50 @@
+#+STYLE: <link rel="stylesheet" type="text/css" href="style.css">
+#+STARTUP: indent
+#+TITLE: pg-has-focus: Window focus predicate
+
+Emacs 24+ has nifty the duo =focus-in-hook= and =focus-out-hook=, which fire when Emacs gets or loses the OS focus. This is great for things that have to do stuff when the app is coming into/out of focus (e.g., update the cursor behavior).
+
+A lot of things, though, don't do anything when the app gets/loses focus, but behave differently depending on whether it has focus when they run. (E.g., mail or IM notifications). There is no general way to check if Emacs currently has focus. The current workaround is for everything that cares to add a couple functions to these hooks to update their state.
+
+I'd rather update state once, and have everything that cares check it. Fortunately, this is pretty easy to do.
+
+* Package Header
+
+#+BEGIN_SRC emacs-lisp
+  ;;; pg-has-focus.el --- Detect focus changes
+
+  ;; Copyright (C) 2017 Phil Groce
+
+  ;; Author: Phil Groce <pgroce@gmail.com>
+  ;; Version: 0.1
+  ;; Keywords: gui
+#+END_SRC
+
+
+
+* Requires
+
+This package has no dependencies.
+
+* Code
+
+#+BEGIN_SRC emacs-lisp
+  (setq pg/--emacs-has-focus t)
+  (defun pg/emacs-has-focus-p ()
+    "Returns true if Emacs is the selected app by the OS."
+    pg/--emacs-has-focus)
+
+  (defun pg/update-focus-in () (setq pg/--emacs-has-focus t))
+  (defun pg/update-focus-out () (setq pg/--emacs-has-focus nil))
+
+  (add-hook 'focus-out-hook 'pg/update-focus-out)
+  (add-hook 'focus-in-hook 'pg/update-focus-in)
+#+END_SRC
+
+
+* Provides
+
+#+BEGIN_SRC emacs-lisp
+  (provide 'pg-has-focus)
+  ;;; pg-has-focus.el ends here
+#+END_SRC
