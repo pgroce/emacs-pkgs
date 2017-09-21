@@ -7,7 +7,7 @@ ifndef EMACS
 EMACS=`which emacs`
 endif
 
-ELPA=./elpa
+ELPA=./docs/elpa
 
 all:
 	for i in *.org; do \
