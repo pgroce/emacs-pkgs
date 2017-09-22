@@ -1,6 +1,6 @@
 #+STYLE: <link rel="stylesheet" type="text/css" href="style.css">
 #+STARTUP: indent
-#+TITLE: pg-terminal-config: Window system configuration
+#+TITLE: pg-terminal: Window system configuration
 
 Starting in Emacs 23, Emacs handles OS X and other windowing systems as different "terminals." (An abstraction extended -- perhaps too far -- from old-school physical terminals like VT100s, and later virtual terminals like xterm.) More information is available in [[http://www.gnu.org/software/emacs/manual/html_node/elisp/Multiple-Terminals.html#Multiple-Terminals][this section]] and [[http://www.gnu.org/software/emacs/manual/html_node/emacs/Mac-OS-_002f-GNUstep.html#Mac-OS-_002f-GNUstep][this section]] of the Emacs manual.
 
@@ -8,11 +8,11 @@ Emacs provides a single =term-setup-hook=, but having a hook for each terminal/w
 
 | Hook                | Run when frame is displayed on        |
 |---------------------+---------------------------------------|
-| =pg/t-setup-hook=   | A text terminal                       |
-| =pg/x-setup-hook=   | An X GUI terminal                     |
-| =pg/w32-setup-hook= | A Windows GUI terminal                |
-| =pg/ns-setup-hook=  | An OS X GUI terminal                  |
-| =pg/pc-setup-hook=  | An MS-DOS terminal (I'm so, so sorry) |
+| =pg-terminal-t-setup-hook=   | A text terminal                       |
+| =pg-terminal-x-setup-hook=   | An X GUI terminal                     |
+| =pg-terminal-w32-setup-hook= | A Windows GUI terminal                |
+| =pg-terminal-ns-setup-hook=  | An OS X GUI terminal                  |
+| =pg-terminal-pc-setup-hook=  | An MS-DOS terminal (I'm so, so sorry) |
 
 Each hook will, by default, log itself when it runs, so it's clear which hook is running when.
 
@@ -37,39 +37,44 @@ This package has no dependencies.
 
 #+BEGIN_SRC emacs-lisp
 
-  (defvar pg/t-setup-hook '()
+  (defvar pg-terminal-t-setup-hook '()
     "Run in term-setup-hook to customize Emacs run on UNIX text
     terminals (including OS X)")
-  (add-hook 'pg/t-setup-hook (lambda () (message "Running pg/t-setup-hook")))
+  (add-hook 'pg-terminal-t-setup-hook
+            (lambda () (message "Running pg-terminal-t-setup-hook")))
 
-  (defvar pg/x-setup-hook '()
+  (defvar pg-terminal-x-setup-hook '()
     "Run in term-setup-hook to customize Emacs run on UNIX
     X-Windows (including OS X?)")
-  (add-hook 'pg/t-setup-hook (lambda () (message "Running pg/x-setup-hook")))
+  (add-hook 'pg-terminal-t-setup-hook
+            (lambda () (message "Running pg-terminal-x-setup-hook")))
 
-  (defvar pg/w32-setup-hook '()
+  (defvar pg-terminal-w32-setup-hook '()
     "Run in term-setup-hook to customize Emacs run on
     Windows (GUI)")
-  (add-hook 'pg/t-setup-hook (lambda () (message "Running pg/w32-setup-hook")))
+  (add-hook 'pg-terminal-t-setup-hook
+            (lambda () (message "Running pg-terminal-w32-setup-hook")))
 
-  (defvar pg/ns-setup-hook '()
+  (defvar pg-terminal-ns-setup-hook '()
     "Run in term-setup-hook to customize Emacs run on OS
     X (GUI)")
-  (add-hook 'pg/t-setup-hook (lambda () (message "Running pg/ns-setup-hook")))
+  (add-hook 'pg-terminal-t-setup-hook
+            (lambda () (message "Running pg-terminal-ns-setup-hook")))
 
-  (defvar pg/pc-setup-hook '()
+  (defvar pg-terminal-pc-setup-hook '()
     "Run in term-setup-hook to customize Emacs run on Windows
     text terminals (so-called \"DOS terminals\".)")
-  (add-hook 'pg/t-setup-hook (lambda () (message "Running pg/pc-setup-hook")))
+  (add-hook 'pg-terminal-t-setup-hook
+            (lambda () (message "Running pg-terminal-pc-setup-hook")))
 
   (add-hook 'term-setup-hook
             (lambda ()
               (case window-system
-                ('t (run-hooks 'pg/t-setup-hook))
-                ('x (run-hooks 'pg/x-setup-hook))
-                ('w32 (run-hooks 'pg/w32-setup-hook))
-                ('ns (run-hooks 'pg/ns-setup-hook))
-                ('pc (run-hooks 'pg/pc-setup-hook)))))
+                ('t (run-hooks 'pg-terminal-t-setup-hook))
+                ('x (run-hooks 'pg-terminal-x-setup-hook))
+                ('w32 (run-hooks 'pg-terminal-w32-setup-hook))
+                ('ns (run-hooks 'pg-terminal-ns-setup-hook))
+                ('pc (run-hooks 'pg-terminal-pc-setup-hook)))))
 #+END_SRC
 
 * Provides
