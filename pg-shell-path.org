@@ -2,9 +2,9 @@
 #+STARTUP: indent
 #+TITLE: pg-shell-path: Operations on shell paths
 
- These functions simplify the manipulation and description of environment variables with shell paths.
+These functions simplify the manipulation and description of environment variables with shell paths.
 
-Shell paths are strings representing lists of paths, separated by colons. PATH, CLASSPATH, MANPATH, and many other environment variables are shell paths with this structure. Emacs sometimes has to care about shell paths when defining environments for subshells to run.
+Shell paths are strings representing lists of paths, separated by colons. =PATH=, =CLASSPATH=, =MANPATH=, and many other environment variables are shell paths with this structure. Emacs sometimes has to care about shell paths when defining environments for subshells to run.
 
 This library defines a number of functions for manipulating shell paths programmatically in elisp, and three commands for users to manipulate and list shell paths ad-hoc.
 
@@ -33,93 +33,83 @@ This library defines a number of functions for manipulating shell paths programm
 
 *** Private functions
 
-=pg/--shell-pathify= and =pg/--shell-depathify-string= do the heavy lifting (such as it is) of this library -- they split shell paths into lists and combine lists into shell paths. =pg/--shell-depathify= is provided for symmetry with =pg/--shell-pathify=. (I suppose more consistent naming would be nice, but hey, private API.)
+=pg-shell-path--pathify= and =pg-shell-path--depathify-string= do the heavy lifting (such as it is) of this library -- they split shell paths into lists and combine lists into shell paths. =pg-shell-path--depathify= is provided for symmetry with =pg-shell-path--pathify=. (I suppose more consistent naming would be nice, but hey, private API.)
 
 #+BEGIN_SRC emacs-lisp
-   (defun pg/--shell-pathify (pathlist)
+   (defun pg-shell-path--pathify (pathlist)
      "Convert a list of strings into a shell path specification."
      (if pathlist
          (cl-reduce (lambda (x y): (concat (s-trim x) ":" (s-trim y))) pathlist)
        nil))
 
 
-   (defun pg/--shell-depathify-string (pathspec)
+   (defun pg-shell-path--depathify-string (pathspec)
      "Convert a shell path specification PATHSPEC into a list of
    strings. If PATHSPEC is nil, returns nil."
      (if pathspec (split-string pathspec ":") nil))
 
 
-   (defun pg/--shell-depathify (pathvar)
+   (defun pg-shell-path--depathify (pathvar)
      "Convert the value of the environment variable PATHVAR into a
    list of strings"
-     (pg/--shell-depathify-string (getenv pathvar)))
+     (pg-shell-path--depathify-string (getenv pathvar)))
 #+END_SRC
 
 *** Public functions
 
-These functions have been renamed to be more conventional with modern Emacs (Modulo the =pg/= prefix I use for all my functions.) At some point I need to purge the old references, since they're all still in my config codebase.
-
-**** =pg/shell-path-append=
-
-***** Code
-
-#+BEGIN_SRC emacs-lisp
-   (defun pg/shell-path-append (pathvar newpaths)
-     "Append list of NEWPATHS to the environment variable PATHVAR"
-     (let* ((oldpaths (pg/--shell-depathify pathvar))
-            (finalpath
-             (or (and oldpaths
-                      (pg/--shell-pathify (list
-                                           (pg/--shell-pathify oldpaths)
-                                           (pg/--shell-pathify newpaths))))
-                 (pg/--shell-pathify newpaths))))
-       (setenv pathvar finalpath)))
-
-   (defalias 'append-shell-path 'pg/shell-path-append)
-#+END_SRC
-
-
-**** Everything else
+**** Code
 
  #+BEGIN_SRC emacs-lisp
-   (defun pg/shell-path-prepend (pathvar newpaths)
-     "Prepend list of NEWPATHS to the environment variable PATHVAR"
-     (let* ((oldpaths (pg/--shell-depathify pathvar))
-            (finalpath
-             (or (and oldpaths
-                      (pg/--shell-pathify (list
-                                           (pg/--shell-pathify newpaths)
-                                           (pg/--shell-pathify oldpaths))))
-                 (pg/--shell-pathify newpaths))))
-       (setenv pathvar finalpath)))
-
-   (defalias 'prepend-shell-path 'pg/shell-path-prepend)
-
-   (defun pg/shell-path-replace (pathvar newpaths)
-     "Replace PATHVAR with NEWPATHS"
-     (setenv pathvar (pg/--shell-pathify newpaths)))
-
-   (defalias 'replace-shell-path 'pg/shell-path-replace)
+   ;;;###autoload
+     (defun pg-shell-path-append (pathvar newpaths)
+       "Append list of NEWPATHS to the environment variable PATHVAR"
+       (let* ((oldpaths (pg-shell-path--depathify pathvar))
+              (finalpath
+               (or (and oldpaths
+                        (pg-shell-path--pathify
+                         (list
+                          (pg-shell-path--pathify oldpaths)
+                          (pg-shell-path--pathify newpaths))))
+                   (pg-shell-path--pathify newpaths))))
+         (setenv pathvar finalpath)))
 
 
-   (defun pg/shell-path-remove (pathvar path)
-     "Remove PATH from PATHVAR"
-     (let* ((oldpaths (pg/--shell-depathify pathvar))
-            (finalpath (pg/--shell-pathify (remove-if
-                                            '(lambda (x) (string= x path))
-                                            oldpaths))))
-       (setenv pathvar finalpath)))
+   ;;;###autoload
+    (defun pg-shell-path-prepend (pathvar newpaths)
+      "Prepend list of NEWPATHS to the environment variable PATHVAR"
+      (let* ((oldpaths (pg-shell-path--depathify pathvar))
+             (finalpath
+              (or (and oldpaths
+                       (pg-shell-path--pathify
+                        (list
+                         (pg-shell-path--pathify newpaths)
+                         (pg-shell-path--pathify oldpaths))))
+                  (pg-shell-path--pathify newpaths))))
+        (setenv pathvar finalpath)))
 
-   (defalias 'remove-from-shell-path 'pg/shell-path-remove)
 
-   (defun pg/shell-path-spec-as-lines (pathspec)
-     "Convert a colon-separated path specification to a series of
-   lines for display"
-     (mapconcat (lambda (x) (concat "    " x))
-                (pg/--shell-depathify-string pathspec)
-                "\n"))
+    ;;;###autoload
+    (defun pg-shell-path-replace (pathvar newpaths)
+      "Replace PATHVAR with NEWPATHS"
+      (setenv pathvar (pg-shell-path--pathify newpaths)))
 
-   (defalias 'pathspec-as-lines 'pg/shell-path-spec-as-lines)
+    ;;;###autoload
+    (defun pg-shell-path-remove (pathvar path)
+      "Remove PATH from PATHVAR"
+      (let* ((oldpaths (pg-shell-path--depathify pathvar))
+             (finalpath (pg-shell-path--pathify
+                         (remove-if
+                          '(lambda (x) (string= x path))
+                          oldpaths))))
+        (setenv pathvar finalpath)))
+
+    ;;;###autoload
+    (defun pg-shell-path-spec-as-lines (pathspec)
+      "Convert a colon-separated path specification to a series of
+    lines for display"
+      (mapconcat (lambda (x) (concat "    " x))
+                 (pg-shell-path--depathify-string pathspec)
+                 "\n"))
  #+END_SRC
 
 ** Commands
@@ -127,7 +117,7 @@ These functions have been renamed to be more conventional with modern Emacs (Mod
 The next three commands expose the path manipulation functionality as commands:
 
 #+BEGIN_SRC emacs-lisp
-  (defun pg/shell-path-substitute (pathvar path-a path-b)
+  (defun pg-shell-path-substitute (pathvar path-a path-b)
     "Replace instances of PATH-A in PATHVAR with PATH-B"
     (interactive "sPATHVAR: \nDDirectory to replace: \nDReplace with: ")
     (let* ((oldpaths (shell-depathify pathvar))
@@ -138,9 +128,9 @@ The next three commands expose the path manipulation functionality as commands:
            (finalpath (shell-pathify (mapcar repl-fn oldpaths))))
       (setenv pathvar finalpath)))
 
-  (defalias 'replace-in-shell-path 'pg/shell-path-substitute)
+  (defalias 'replace-in-shell-path 'pg-shell-path-substitute)
 
-  (defun pg/shell-path (arg pathvar newpath)
+  (defun pg-shell-path (arg pathvar newpath)
     "Prepend NEWPATH to PATHVAR. If a prefix argument is specified,
   append the directory instead."
     (interactive "p\nsShell path var: \nDDirectory to add: ")
@@ -148,14 +138,11 @@ The next three commands expose the path manipulation functionality as commands:
         (append-shell-path pathvar (list (expand-file-name newpath)))
       (prepend-shell-path pathvar (list (expand-file-name newpath)))))
 
-  (defalias 'shell-path 'pg/shell-path)
-
-  (defun print-shell-path (pathvar)
+  (defun pg-shell-path-print (pathvar)
     "Print PATHVAR as a list to the console."
     (interactive "sPATHVAR: ")
     (message "%s is:\n%s" pathvar (pathspec-as-lines (getenv pathvar))))
 
-  (defalias 'print-shell-path 'pg/shell-path-print)
 #+END_SRC
 
 
