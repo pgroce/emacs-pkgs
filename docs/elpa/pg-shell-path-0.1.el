@@ -100,8 +100,8 @@ lines for display"
 append the directory instead."
   (interactive "p\nsShell path var: \nDDirectory to add: ")
   (if arg
-      (append-shell-path pathvar (list (expand-file-name newpath)))
-    (prepend-shell-path pathvar (list (expand-file-name newpath)))))
+      (pg-shell-path-append pathvar (list (expand-file-name newpath)))
+    (pg-shell-path-prepend pathvar (list (expand-file-name newpath)))))
 
 (defun pg-shell-path-print (pathvar)
   "Print PATHVAR as a list to the console."
