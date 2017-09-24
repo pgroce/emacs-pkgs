@@ -5,6 +5,7 @@
 ;; Author: Phil Groce <pgroce@gmail.com>
 ;; Version: 0.1
 ;; Keywords: gui
+;; Package-Requires: (s)
 
 (require 's)
 

@@ -10,6 +10,8 @@ This library defines a number of functions for manipulating shell paths programm
 
 * Package Header
 
+It looks wierd when you depend on a package named =s=.
+
 #+BEGIN_SRC emacs-lisp
   ;;; pg-shell-path.el --- Operations on shell paths
 
@@ -18,6 +20,7 @@ This library defines a number of functions for manipulating shell paths programm
   ;; Author: Phil Groce <pgroce@gmail.com>
   ;; Version: 0.1
   ;; Keywords: gui
+  ;; Package-Requires: (s)
 #+END_SRC
 
 
