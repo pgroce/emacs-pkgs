@@ -57,13 +57,13 @@ This package has no dependencies.
   (defun pg-terminal-setup-hooks ()
     (add-hook 'pg-terminal-t-setup-hook
               (lambda () (message "Running pg-terminal-t-setup-hook")))
-    (add-hook 'pg-terminal-t-setup-hook
+    (add-hook 'pg-terminal-x-setup-hook
               (lambda () (message "Running pg-terminal-x-setup-hook")))
-    (add-hook 'pg-terminal-t-setup-hook
+    (add-hook 'pg-terminal-w32-setup-hook
               (lambda () (message "Running pg-terminal-w32-setup-hook")))
-    (add-hook 'pg-terminal-t-setup-hook
+    (add-hook 'pg-terminal-ns-setup-hook
               (lambda () (message "Running pg-terminal-ns-setup-hook")))
-    (add-hook 'pg-terminal-t-setup-hook
+    (add-hook 'pg-terminal-pg-setup-hook
               (lambda () (message "Running pg-terminal-pc-setup-hook")))
     (add-hook 'term-setup-hook
               (lambda ()
