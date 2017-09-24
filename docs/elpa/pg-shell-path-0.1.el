@@ -28,55 +28,59 @@ list of strings"
   (pg-shell-path--depathify-string (getenv pathvar)))
 
 ;;;###autoload
-  (defun pg-shell-path-append (pathvar newpaths)
-    "Append list of NEWPATHS to the environment variable PATHVAR"
-    (let* ((oldpaths (pg-shell-path--depathify pathvar))
-           (finalpath
-            (or (and oldpaths
-                     (pg-shell-path--pathify
-                      (list
-                       (pg-shell-path--pathify oldpaths)
-                       (pg-shell-path--pathify newpaths))))
-                (pg-shell-path--pathify newpaths))))
-      (setenv pathvar finalpath)))
+(defun pg-shell-path-append (pathvar newpaths)
+  "Append list of NEWPATHS to the environment variable PATHVAR"
+  (let* ((oldpaths (pg-shell-path--depathify pathvar))
+         (finalpath
+          (or (and oldpaths
+                   (pg-shell-path--pathify
+                    (list
+                     (pg-shell-path--pathify oldpaths)
+                     (pg-shell-path--pathify newpaths))))
+              (pg-shell-path--pathify newpaths))))
+    (setenv pathvar finalpath)))
+
+;;;###autoload
+(defun pg-shell-path-contains-p (pathvar item)
+  "Returns a true value if ITEM is not in PATHVAR, else nil"
+  (member item (pg-shell-path--depathify pathvar)))
+
+;;;###autoload
+(defun pg-shell-path-prepend (pathvar newpaths)
+  "Prepend list of NEWPATHS to the environment variable PATHVAR"
+  (let* ((oldpaths (pg-shell-path--depathify pathvar))
+         (finalpath
+          (or (and oldpaths
+                   (pg-shell-path--pathify
+                    (list
+                     (pg-shell-path--pathify newpaths)
+                     (pg-shell-path--pathify oldpaths))))
+              (pg-shell-path--pathify newpaths))))
+    (setenv pathvar finalpath)))
 
 
 ;;;###autoload
- (defun pg-shell-path-prepend (pathvar newpaths)
-   "Prepend list of NEWPATHS to the environment variable PATHVAR"
-   (let* ((oldpaths (pg-shell-path--depathify pathvar))
-          (finalpath
-           (or (and oldpaths
-                    (pg-shell-path--pathify
-                     (list
-                      (pg-shell-path--pathify newpaths)
-                      (pg-shell-path--pathify oldpaths))))
-               (pg-shell-path--pathify newpaths))))
-     (setenv pathvar finalpath)))
+(defun pg-shell-path-replace (pathvar newpaths)
+  "Replace PATHVAR with NEWPATHS"
+  (setenv pathvar (pg-shell-path--pathify newpaths)))
 
+;;;###autoload
+(defun pg-shell-path-remove (pathvar path)
+  "Remove PATH from PATHVAR"
+  (let* ((oldpaths (pg-shell-path--depathify pathvar))
+         (finalpath (pg-shell-path--pathify
+                     (remove-if
+                      '(lambda (x) (string= x path))
+                      oldpaths))))
+    (setenv pathvar finalpath)))
 
- ;;;###autoload
- (defun pg-shell-path-replace (pathvar newpaths)
-   "Replace PATHVAR with NEWPATHS"
-   (setenv pathvar (pg-shell-path--pathify newpaths)))
-
- ;;;###autoload
- (defun pg-shell-path-remove (pathvar path)
-   "Remove PATH from PATHVAR"
-   (let* ((oldpaths (pg-shell-path--depathify pathvar))
-          (finalpath (pg-shell-path--pathify
-                      (remove-if
-                       '(lambda (x) (string= x path))
-                       oldpaths))))
-     (setenv pathvar finalpath)))
-
- ;;;###autoload
- (defun pg-shell-path-spec-as-lines (pathspec)
-   "Convert a colon-separated path specification to a series of
- lines for display"
-   (mapconcat (lambda (x) (concat "    " x))
-              (pg-shell-path--depathify-string pathspec)
-              "\n"))
+;;;###autoload
+(defun pg-shell-path-spec-as-lines (pathspec)
+  "Convert a colon-separated path specification to a series of
+lines for display"
+  (mapconcat (lambda (x) (concat "    " x))
+             (pg-shell-path--depathify-string pathspec)
+             "\n"))
 
 (defun pg-shell-path-substitute (pathvar path-a path-b)
   "Replace instances of PATH-A in PATHVAR with PATH-B"
