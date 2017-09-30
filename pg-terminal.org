@@ -4,17 +4,9 @@
 
 Starting in Emacs 23, Emacs handles OS X and other windowing systems as different "terminals." (An abstraction extended -- perhaps too far -- from old-school physical terminals like VT100s, and later virtual terminals like xterm.) More information is available in [[http://www.gnu.org/software/emacs/manual/html_node/elisp/Multiple-Terminals.html#Multiple-Terminals][this section]] and [[http://www.gnu.org/software/emacs/manual/html_node/emacs/Mac-OS-_002f-GNUstep.html#Mac-OS-_002f-GNUstep][this section]] of the Emacs manual.
 
-Emacs provides a single =term-setup-hook=, but having a hook for each terminal/window system enables a more declarative configuration style, so that's what I've implmented here. These hooks correspond to the possible values of =window-system=:
+This package simplifies the addition of terminal-specific configuration code  via terminal-specific macros. Code wrapped in these macros will execute in the =emacs-startup-hook= if and only if the window system is the one appropriate to the macro. In other words, wrap code in one of these macros and it will only execute in the relevant window system.
 
-| Hook                | Run when frame is displayed on        |
-|---------------------+---------------------------------------|
-| =pg-terminal-t-setup-hook=   | A text terminal                       |
-| =pg-terminal-x-setup-hook=   | An X GUI terminal                     |
-| =pg-terminal-w32-setup-hook= | A Windows GUI terminal                |
-| =pg-terminal-ns-setup-hook=  | An OS X GUI terminal                  |
-| =pg-terminal-pc-setup-hook=  | An MS-DOS terminal (I'm so, so sorry) |
-
-Each hook will, by default, log itself when it runs, so it's clear which hook is running when.
+Since these macros add code to =emacs-startup-hook=, the wrapped code will run after window-system initialization is run, so these macros can be used to "deconfigure" anything the terminal setup file configures.
 
 * Package Header
 
@@ -24,7 +16,7 @@ Each hook will, by default, log itself when it runs, so it's clear which hook is
   ;; Copyright (C) 2017 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.1
+  ;; Version: 0.2
   ;; Keywords: gui
 #+END_SRC
 
@@ -35,44 +27,32 @@ This package has no dependencies.
 
 * Code
 
+
 #+BEGIN_SRC emacs-lisp
+  (defmacro pg-terminal-t (&rest body)
+    "Arrange for BODY to be executed after terminal setup if the window-system is `t` (TTY terminal)"
+    `((when (eq (window-system) 't)
+        (add-hook 'emacs-startup-hook (lambda () ,@body)))))
 
-  (defcustom pg-terminal-t-setup-hook '()
-    "Run in term-setup-hook to customize Emacs run on UNIX text
-    terminals (including OS X)")
-  (defcustom pg-terminal-x-setup-hook '()
-    "Run in term-setup-hook to customize Emacs run on UNIX
-    X-Windows (including OS X?)")
-  (defcustom pg-terminal-w32-setup-hook '()
-    "Run in term-setup-hook to customize Emacs run on
-    Windows (GUI)")
-  (defcustom pg-terminal-ns-setup-hook '()
-    "Run in term-setup-hook to customize Emacs run on OS
-    X (GUI)")
-  (defcustom pg-terminal-pc-setup-hook '()
-    "Run in term-setup-hook to customize Emacs run on Windows
-    text terminals (so-called \"DOS terminals\".)")
+  (defmacro pg-terminal-x (&rest body)
+    "Arrange for BODY to be executed after terminal setup if the window-system is `x` (X Windows GUI)"
+    `((when (eq (window-system) 'x)
+        (add-hook 'emacs-startup-hook (lambda () ,@body)))))
 
-  ;;;###autoload
-  (defun pg-terminal-setup-hooks ()
-    (add-hook 'pg-terminal-t-setup-hook
-              (lambda () (message "Running pg-terminal-t-setup-hook")))
-    (add-hook 'pg-terminal-x-setup-hook
-              (lambda () (message "Running pg-terminal-x-setup-hook")))
-    (add-hook 'pg-terminal-w32-setup-hook
-              (lambda () (message "Running pg-terminal-w32-setup-hook")))
-    (add-hook 'pg-terminal-ns-setup-hook
-              (lambda () (message "Running pg-terminal-ns-setup-hook")))
-    (add-hook 'pg-terminal-pg-setup-hook
-              (lambda () (message "Running pg-terminal-pc-setup-hook")))
-    (add-hook 'term-setup-hook
-              (lambda ()
-                (case window-system
-                  ('t (run-hooks 'pg-terminal-t-setup-hook))
-                  ('x (run-hooks 'pg-terminal-x-setup-hook))
-                  ('w32 (run-hooks 'pg-terminal-w32-setup-hook))
-                  ('ns (run-hooks 'pg-terminal-ns-setup-hook))
-                  ('pc (run-hooks 'pg-terminal-pc-setup-hook))))))
+  (defmacro pg-terminal-w32 (&rest body)
+    "Arrange for BODY to be executed after terminal setup if the window-system is `w32` (MS Windows)"
+    `((when (eq (window-system) 'w32)
+        (add-hook 'emacs-startup-hook (lambda () ,@body)))))
+
+  (defmacro pg-terminal-ns (&rest body)
+    "Arrange for BODY to be executed after terminal setup if the window-system is `ns` (NeXTStep/OS X)"
+    `((when (eq (window-system) 'ns)
+        (add-hook 'emacs-startup-hook (lambda () ,@body)))))
+
+  (defmacro pg-terminal-pc (&rest body)
+    "Arrange for BODY to be executed after terminal setup if the window-system is `pc` (DOS console)"
+    `((when (eq (window-system) 'pc)
+        (add-hook 'emacs-startup-hook (lambda () ,@body)))))
 #+END_SRC
 
 * Provides
