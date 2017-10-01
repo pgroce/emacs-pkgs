@@ -1,0 +1,67 @@
+#+STYLE: <link rel="stylesheet" type="text/css" href="style.css">
+#+STARTUP: indent
+#+TITLE: pg-url-armor: Set off URLs in text
+
+This is the wonderful thing about running my own package archive; I can make packages for the most trivial things.
+
+URLs are often parsed incorrectly because other punctuation around them is a valid character in an url. (Most frequently, parsers often think URLs at the end of a sentence should include the period that ends the sentence.) To guard against this, it's sensible to put URLs in angle brackets. I'm calling this "armoring" the URL, guarding against ambiguous parses.
+
+This package provides a function for armoring URLs and one for yanking a URI and automatically "armoring" it in angle brackets.
+
+* Package Header
+
+#+BEGIN_SRC emacs-lisp
+  ;;; pg-url-armor.el --- Set off URLs in text
+
+  ;; Copyright (C) 2017 Phil Groce
+
+  ;; Author: Phil Groce <pgroce@gmail.com>
+  ;; Version: 0.1
+#+END_SRC
+
+
+* Requires
+
+=thingatpt= is provided in Emacs.
+
+#+BEGIN_SRC emacs-lisp
+  (require 'thingatpt)
+#+END_SRC
+
+* Code
+
+#+BEGIN_SRC emacs-lisp
+  ;;;###autoload
+  (defun pg/armor-url-at-point ()
+    "Add angle brackets to the beginning and end of the URL at
+    point."
+    (interactive)
+    (let ((bounds (bounds-of-thing-at-point 'url)))
+      (when bounds
+        (let* ((beg (car bounds))
+               (end (cdr bounds)))
+          (save-excursion
+            (when (or (not (equal (char-to-string (char-before beg)) "<"))
+                      (not (equal (char-to-string (char-after end)) ">")))
+              (goto-char beg)
+              (kill-new (buffer-substring beg end))
+              (delete-region beg end)
+              (insert (format "<%s>" (current-kill 0 t)))))))))
+
+  ;;;###autoload
+  (defun pg/yank-armored ()
+    "Yank a URI or email (presumably, but it could be anything) and
+    enclose it in angle brackets."
+    (interactive)
+    (insert "<")
+    (yank)
+    (insert ">"))
+#+END_SRC
+
+
+* Provides
+
+#+BEGIN_SRC emacs-lisp
+  (provide 'pg-terminal-config)
+  ;;; pg-terminal-config.el ends here
+#+END_SRC
