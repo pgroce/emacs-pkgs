@@ -77,6 +77,51 @@ This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with
     (set var (pg-util-list-add-unique (symbol-value var) values)))
 
   ;;;###autoload
+  (defun pg-util-list-update-1 (l elt matcher &optional no-match-action)
+    "Update matching item in L with ELT.
+
+  This function returns a copy of L with the first matching item in
+  L replaced with ELT.  MATCHER takes an element in L and returns a
+  true value if they match and nil otherwise.  It is up to MATCHER
+  to define how items match.
+
+  NO-MATCH-ACTION determines what happens if no item in L matches
+  ELT.  If NO-MATCH-ACTION is the symbol `prepend', ELT will be
+  prepended onto L. If it is the symbol `append', ELT will be
+  appended to L. Otherwise (the default), L will not be changed."
+    (let ((match-idx (-find-index matcher l)))
+      (if (eq nil match-idx)
+          (if (eq no-match-action 'prepend)
+              (cons elt l)
+            (if (eq no-match-action 'append)
+                (append l (list elt))
+              l))
+        (-replace-at match-idx elt l))))
+
+  ;;;###autoload
+  (defun pg-util-list-update (l1 l2 matcher &optional no-match-action)
+    "Update L1 with matching elements in L2, according to MATCHER.
+
+  This function returns a new list, with each element in L1 that
+  matches an element in L2 replaced with the matching element,
+  using `pg-util-list-update-1'.
+
+  MATCHER is a function that takes two arguments representing items
+  in L1 and L2, respectively, and returns a true value if they
+  \"match\", otherwise nil.
+
+  The semantics of NO-MATCH-ACTION are equivalent to those in
+  `pg-util-list-update-1'."
+    (let ((rc l1))
+      (cl-dolist (elt2 l2 rc)
+        (let ((matcher-all matcher)
+              (matcher-1 (lambda (elt1) (funcall matcher-all elt1 elt2))))
+          (setq rc (pg-util-list-update-1
+                    rc
+                    elt2
+                    matcher-1
+                    no-match-action))))))
+
   ;;;###autoload
   (defun pg-util-alist-update (a1 a2)
     "Return a new alist with the elements in A1, updated by A2. If
