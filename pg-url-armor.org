@@ -62,6 +62,6 @@ This package provides a function for armoring URLs and one for yanking a URI and
 * Provides
 
 #+BEGIN_SRC emacs-lisp
-  (provide 'pg-terminal-config)
-  ;;; pg-terminal-config.el ends here
+  (provide 'pg-url-armor)
+  ;;; pg-url-armor.el ends here
 #+END_SRC
