@@ -17,7 +17,7 @@ Many of these functions come from [[mwd5i@mwd5i.org][Michael Duggan]]. Thanks, D
 
   ;; Author: Phil Groce <pgroce@gmail.com>
   ;; Version: 0.2
-  ;; Package-Requires: (dash)
+  ;; Package-Requires: ((dash "2.13.0"))
   ;; Keywords: utility
 #+END_SRC
 
@@ -28,6 +28,7 @@ Many of these functions come from [[mwd5i@mwd5i.org][Michael Duggan]]. Thanks, D
 
 #+BEGIN_SRC emacs-lisp
   (require 'cl)
+  (require 'dash)
 #+END_SRC
 
 * Code
@@ -50,7 +51,6 @@ This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with
 #+END_SRC
 *** List manipulation
 
-TODO: prefix these functions with =pg/=.
 
 #+begin_src emacs-lisp
   ;;;###autoload
@@ -73,9 +73,10 @@ TODO: prefix these functions with =pg/=.
   ;;;###autoload
   (defun pg-util-list-add-unique-var (var values)
     "Update the list in VAR with the new values in VALUES using
-    `pg-util-list-add-unique'. (Deprecated alias: `add-unique'.)"
+    `pg-util-list-add-unique'."
     (set var (pg-util-list-add-unique (symbol-value var) values)))
 
+  ;;;###autoload
   ;;;###autoload
   (defun pg-util-alist-update (a1 a2)
     "Return a new alist with the elements in A1, updated by A2. If
