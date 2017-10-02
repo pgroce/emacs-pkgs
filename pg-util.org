@@ -16,7 +16,7 @@ Many of these functions come from [[mwd5i@mwd5i.org][Michael Duggan]]. Thanks, D
   ;; Copyright (C) 2017 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.2
+  ;; Version: 0.1
   ;; Package-Requires: ((dash "2.13.0"))
   ;; Keywords: utility
 #+END_SRC
