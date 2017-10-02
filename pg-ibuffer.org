@@ -1,0 +1,233 @@
+#+STYLE: <link rel="stylesheet" type="text/css" href="style.css">
+#+STARTUP: indent
+#+TITLE: pg-ibuffer: Improvements to ibuffer
+
+
+This package introduces the function =pg-ibuffer-modify-saved-filter-groups= (aliased to the more convenient =pg-ibuffer=, which is used to programmatically modify =ibuffer-saved-filter-groups=, one of the primary ways of customizing the display of =ibuffer= and the one most useful to change when new modes are added, etc.
+
+=ibuffer-saved-filter-groups= has the following structure:
+
+#+BEGIN_SRC emacs-lisp :tangle no
+
+  '(("default"
+     ("dired" (mode . dired-mode))
+     ("perl" (mode . cperl-mode))
+     ("python" (mode . python-mode))
+     ;; ...
+     )
+    ("alternate"
+     ("TRAMP" (name . "^\\*tramp"))
+     ("Man Pages" (name . "^\\*Man"))
+     ;; ...
+     ))
+#+END_SRC
+
+Each entry is a /filter group/. The first element of a filter group is a name ("default" and "alternate" in this example), followed by zero or more /qualifiers/. A qualifer is a cons cell; the =car= is a symbol (valid ones are defined in =ibuffer-filtering-alist=) and the =cdr= is a value dependent on the =car=. In the example, two qualifiers are used; the =mode= qualifier tests what mode a buffer is in, and the =name= mode tests a buffer name against a regular explression.
+
+Setting this up cleanly can make =ibuffer= a tremendously useful tool when an Emacs session contains many open buffers. It's problematic to "set it and forget it," however.
+
+ * It may be useful to programmatically create filter groups. The [[https://github.com/purcell/ibuffer-projectile][ibuffer-projectile]] project does this.
+ * =ibuffer= is a cross-cutting concern, and in order to organize our configuration, it may be desirable to distribute configuration among the various modules that may be affected. (E.g., Python config, =dired= config, etc.)
+
+=pg-ibuffer= provides a way for configuration code to modify the saved filter groups as appropriate.
+
+* Package Header
+
+#+BEGIN_SRC emacs-lisp
+  ;;; pg-ibuffer.el --- Improvements to ibuffer
+
+  ;; Copyright (C) 2017 Phil Groce
+
+  ;; Author: Phil Groce <pgroce@gmail.com>
+  ;; Version: 0.1
+  ;; Package-Requires: ((dash "2.13.0"))
+  ;; Keywords: ibuffer
+#+END_SRC
+
+* Requires
+
+#+BEGIN_SRC emacs-lisp
+  (require 'dash)
+#+END_SRC
+
+* Code
+
+#+BEGIN_SRC emacs-lisp
+  ;;; Nomenclature
+  ;;
+  ;; ibuffer-saved-filter-groups is a list of filter groups.
+  ;; A filter group = (name divs).
+  ;; A div = (dname qualifier).
+  ;; A qualifier = (name . <str>) | (mode . <mode-sym>)
+
+
+  ;; (pg-ibuffer-modify-filter-groups
+  ;;  '("default"
+  ;;    ("python" (mode . python-mode))
+  ;;    ("psp"    (mode . psp)))
+  ;;  '("programming" ("python" (mode . python-mode))))
+
+
+  (defun pg-ibuffer--get-fg (fgs group-name)
+    "Return group in FGS named GROUP-NAME.
+
+  If GROUP-NAME isn't in FGS, return nil."
+    (let ((idx (--find-index (string= group-name (car it)) fgs)))
+      (if (eq idx nil)
+          nil
+        (nth idx fgs))))
+
+
+
+  (defun pg-ibuffer--merge-filter-groups (old-group new-group)
+    "Merge OLD-GROUP and NEW-GROUP to create new filter group.
+
+  The new filter group takes the name from NEW-GROUP.
+
+  If NEW-GROUP is nil, return OLD-GROUP. If OLD-GROUP is nil,
+  return NEW-GROUP. If both are nil, return nil."
+    (if (eq nil old-group)
+        (if (eq nil new-group)
+            ;; Both nil, return empty group
+            nil
+          new-group)
+      (if (eq nil new-group)
+          old-group
+        (let* ((old-divs (cdr old-group))
+               (new-divs (cdr new-group))
+               ;; Divs , like filter groups, start with the string name of
+               ;; the qualifier, so we'll match on that.
+               (matcher (lambda (a b) (string= (car a) (car b))))
+               (merged-divs (pg-util-list-update
+                             old-divs new-divs matcher 'append)))
+          (list (car new-group) merged-divs)))))
+
+
+
+  (defun pg-ibuffer--update-filter-group (fgs mod-group)
+    "Return a copy of FGS with MOD-GROUP merged into it.
+
+  If MOD-GROUP is nil, return FGS unchanged."
+    (if (eq nil mod-group)
+        fgs
+      (let* ((old-group (pg-ibuffer--get-fg fgs (car mod-group))))
+        (if (eq nil old-group)
+            ;; Group isn't in fgs, so add it and return it
+            (append fgs (list mod-group))
+          ;; Merge the filter qualifiers from the group with the ones
+          ;; from mod-group and return updated list.
+          (let* ((merged-group (pg-ibuffer--merge-filter-groups
+                                old-group mod-group))
+                 (matcher (lambda (a) (string= (car a) (car merged-group)))))
+            (pg-util-list-update-1 fgs merged-group matcher))))))
+
+
+  (defun pg-ibuffer--modify-filter-groups (fgs mod-groups)
+    "Modify FGS non-destructively using MOD-GROUPS.
+
+  This function does the work for `pg-ibuffer-modify-filter-groups'
+  and `pg-ibuffer-modify-saved-filter-groups'."
+    (cl-dolist (m mod-groups fgs)
+      (setq fgs (pg-ibuffer--update-filter-group fgs m))))
+
+
+
+  ;;; Public functions
+
+
+  ;;;###autoload
+  (defun pg-ibuffer-modify-filter-groups (fgs &rest mod-groups)
+    "Non-destructively modify FGS with MOD-GROUPS.
+
+  FGS has the same structure as
+  `ibuffer-saved-filter-groups'. MOD-GROUPS has the same semantics
+  as in `pg-ibuffer-modify-saved-filter-groups'. (Calling the
+  latter function is equivalent to calling this function and
+  setting `ibuffer-saved-filter-groups' with the output.)
+
+  Returns a new copy of FGS, suitably modified."
+    (pg-ibuffer--modify-filter-groups fgs mod-groups))
+
+  ;;;###autoload
+  (defun pg-ibuffer-modify-saved-filter-groups (&rest mod-groups)
+    "Add MOD-GROUPS to ibuffer filter groups.
+
+  Each mod-group should be have the following structure:
+
+    (\"STRING\"  QUALIFIERS)
+
+  This structure mirrors the structure of `ibuffer-saved-filter-groups'.
+
+  The filtering groups specified in this function will be added if
+  they do not exist. If they do exist, their qualifiers will be
+  merged into the existing group, replacing any preexisting
+  qualifiers with the same string identifier."
+    (setq ibuffer-saved-filter-groups
+          (pg-ibuffer--modify-filter-groups ibuffer-saved-filter-groups
+                                            mod-groups)))
+
+
+  (defalias 'pg-ibuffer 'pg-ibuffer-modify-saved-filter-groups)
+
+
+  ;;; Cruft for testing TODO: Remove and/or turn into a test file
+
+  '(let* ((t1-in '(("a"
+                   ("a1" (name . "foo"))
+                   ("a2" (mode . bar)))
+                  ("b"
+                   ("b1" (name . "bar"))))))
+    (pg-ibuffer-modify-filter-groups
+     ibuffer-saved-filter-groups
+     '("a" ("a1" (name . "changed")))))
+
+  '(let* ((t1-in '(("a"
+                   ("a1" (name . "foo"))
+                   ("a2" (mode . bar)))
+                  ("b"
+                   ("b1" (name . "bar")))))
+         (old-group (pg-ibuffer--get-fg t1-in"a"))
+         (new-group '("A" ("a0" (name . "changed")))))
+    (pg-ibuffer--merge-filter-groups old-group new-group)
+    (pg-ibuffer--merge-filter-groups old-group nil)
+    (pg-ibuffer--merge-filter-groups nil new-group)
+    (pg-ibuffer--merge-filter-groups nil nil))
+
+  '(let* ((fgs '(("a"
+                 ("a1" (name . "foo"))
+                 ("a2" (mode . bar)))
+                ("b"
+                 ("b1" (name . "bar")))))
+         (mod-group '("c" ("a0" (name . "changed")))))
+    (format "%s" (pg-ibuffer--update-filter-group fgs mod-group))
+    (format "%s" (pg-ibuffer--update-filter-group fgs nil)))
+
+
+
+
+  '(let* ((fgs '(("a"
+                 ("a1" (name . "foo"))
+                 ("a2" (mode . bar)))
+                ("b"
+                 ("b1" (name . "bar")))))
+         (mod-groups-1 '(("a" ("a1" (name . "changed")))))
+         (mod-groups-2 '(("a" ("a1" (name . "changed")))
+                         ("b" ("b1" (name . "changed"))))))
+    (format "%s" (pg-ibuffer--modify-filter-groups fgs mod-groups-2)))
+
+  '(let* ((fgs '(("a"
+                 ("a1" (name . "foo"))
+                 ("a2" (mode . bar)))
+                ("b"
+                 ("b1" (name . "bar")))))
+         (a '("a" ("a1" (name . "changed"))))
+         (b '("b" ("b1" (name . "changed")))))
+    (format "%s" (pg-ibuffer-modify-filter-groups fgs a b)))
+#+END_SRC
+
+* Provides
+
+#+BEGIN_SRC emacs-lisp
+  (provide 'pg-ibuffer)
+  ;;; pg-ibuffer.el ends here
+#+END_SRC
