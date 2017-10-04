@@ -8,7 +8,7 @@
 (require 'thingatpt)
 
 ;;;###autoload
-(defun pg/armor-url-at-point ()
+(defun pg-url-armor-at-point ()
   "Add angle brackets to the beginning and end of the URL at
   point."
   (interactive)
@@ -25,7 +25,7 @@
             (insert (format "<%s>" (current-kill 0 t)))))))))
 
 ;;;###autoload
-(defun pg/yank-armored ()
+(defun pg-url-armor-yank ()
   "Yank a URI or email (presumably, but it could be anything) and
   enclose it in angle brackets."
   (interactive)

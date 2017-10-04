@@ -31,5 +31,5 @@
   `((when (eq (window-system) 'pc)
       (add-hook 'emacs-startup-hook (lambda () ,@body)))))
 
-(provide 'pg-terminal-config)
+(provide 'pg-terminal)
 ;;; pg-terminal.el ends here
