@@ -1,8 +1,8 @@
 (1
  (pg-util .
-	  [(0 2)
+	  [(0 1)
 	   ((dash
-	     (0)))
+	     (2 13 0)))
 	   "Utility functions" single
 	   ((:authors
 	     ("Phil Groce" . "pgroce@gmail.com"))
@@ -13,12 +13,12 @@
 		((:authors
 		  ("Phil Groce" . "pgroce@gmail.com"))
 		 (:maintainer "Phil Groce" . "pgroce@gmail.com"))])
- (pg-terminal-config .
-		     [(0 2)
-		      nil "Window system configuration" single
-		      ((:authors
-			("Phil Groce" . "pgroce@gmail.com"))
-		       (:maintainer "Phil Groce" . "pgroce@gmail.com"))])
+ (pg-terminal .
+	      [(0 1)
+	       nil "Window system configuration" single
+	       ((:authors
+		 ("Phil Groce" . "pgroce@gmail.com"))
+		(:maintainer "Phil Groce" . "pgroce@gmail.com"))])
  (pg-shell-path .
 		[(0 1)
 		 ((s
@@ -33,10 +33,24 @@
 	       ((:authors
 		 ("Phil Groce" . "pgroce@gmail.com"))
 		(:maintainer "Phil Groce" . "pgroce@gmail.com"))])
+ (pg-ibuffer .
+	     [(0 1)
+	      ((dash
+		(2 13 0)))
+	      "Improvements to ibuffer" single
+	      ((:authors
+		("Phil Groce" . "pgroce@gmail.com"))
+	       (:maintainer "Phil Groce" . "pgroce@gmail.com"))])
  (pg-has-focus .
 	       [(0 1)
 		nil "Detect focus changes" single
 		((:authors
 		  ("Phil Groce" . "pgroce@gmail.com"))
-		 (:maintainer "Phil Groce" . "pgroce@gmail.com"))]))
+		 (:maintainer "Phil Groce" . "pgroce@gmail.com"))])
+ (pg-compile-buffers .
+		     [(0 1)
+		      nil "Toggle reuse of compile buffers" single
+		      ((:authors
+			("Phil Groce" . "pgroce@gmail.com"))
+		       (:maintainer "Phil Groce" . "pgroce@gmail.com"))]))
 
