@@ -58,6 +58,6 @@ This package has no dependencies.
 * Provides
 
 #+BEGIN_SRC emacs-lisp
-  (provide 'pg-terminal-config)
+  (provide 'pg-terminal)
   ;;; pg-terminal.el ends here
 #+END_SRC
