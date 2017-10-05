@@ -11,7 +11,7 @@
 (require 'dash)
 
 ;;;###autoload
-(defmacro pg/spy (x)
+(defmacro pg-util-spy (x)
   "Print the form and value of x to the message buffer, then
 return x. x is only evaluated once."
   (let ((pg/x (make-symbol "x")))

@@ -49,8 +49,8 @@ return NEW-GROUP. If both are nil, return nil."
         new-group)
     (if (eq nil new-group)
         old-group
-      (let* ((old-divs (cdr old-group))
-             (new-divs (cdr new-group))
+      (let* ((old-divs (cadr old-group))
+             (new-divs (cadr new-group))
              ;; Divs , like filter groups, start with the string name of
              ;; the qualifier, so we'll match on that.
              (matcher (lambda (a b) (string= (car a) (car b))))
@@ -128,56 +128,73 @@ qualifiers with the same string identifier."
 
 ;;; Cruft for testing TODO: Remove and/or turn into a test file
 
+(setq pg-ref-fgs
+      '(("default"
+         (("text" (or
+                    (mode . text-mode)
+                    (mode . fundamental-mode)
+                    (mode . visual-line-mode)))
+          ("Man Pages" (name . "^\\*Man ")))))))
+
+(setq pg-ref-abstract-fgs
+      '(("a"
+         (("a1" (name . "foo"))
+          ("a2" (mode . bar)))))))))
+
+
+
 '(let* ((t1-in '(("a"
-                 ("a1" (name . "foo"))
-                 ("a2" (mode . bar)))
-                ("b"
-                 ("b1" (name . "bar"))))))
+                  (("a1" (name . "foo"))
+                   ("a2" (mode . bar))))
+                 ("b"
+                  (("b1" (name . "bar")))))))
   (pg-ibuffer-modify-filter-groups
-   ibuffer-saved-filter-groups
-   '("a" ("a1" (name . "changed")))))
+   t1-in
+   '("a" (("a1" (name . "changed"))))))
 
 '(let* ((t1-in '(("a"
-                 ("a1" (name . "foo"))
-                 ("a2" (mode . bar)))
+                 (("a1" (name . "foo"))
+                  ("a2" (mode . bar))))
                 ("b"
-                 ("b1" (name . "bar")))))
-       (old-group (pg-ibuffer--get-fg t1-in"a"))
-       (new-group '("A" ("a0" (name . "changed")))))
-  (pg-ibuffer--merge-filter-groups old-group new-group)
-  (pg-ibuffer--merge-filter-groups old-group nil)
-  (pg-ibuffer--merge-filter-groups nil new-group)
-  (pg-ibuffer--merge-filter-groups nil nil))
-
-'(let* ((fgs '(("a"
-               ("a1" (name . "foo"))
-               ("a2" (mode . bar)))
-              ("b"
-               ("b1" (name . "bar")))))
-       (mod-group '("c" ("a0" (name . "changed")))))
-  (format "%s" (pg-ibuffer--update-filter-group fgs mod-group))
-  (format "%s" (pg-ibuffer--update-filter-group fgs nil)))
+                 (("b1" (name . "bar"))))))
+       (old-group (pg-ibuffer--get-fg t1-in "a"))
+       (new-group '("a" (("a3" (name . "changed"))))))
+  (message "%s" (pg-ibuffer--merge-filter-groups old-group new-group))
+  (message "%s" (pg-ibuffer--merge-filter-groups old-group nil))
+  (message "%s" (pg-ibuffer--merge-filter-groups nil new-group))
+  (message "%s" (pg-ibuffer--merge-filter-groups nil nil)))
 
 
 
 
 '(let* ((fgs '(("a"
-               ("a1" (name . "foo"))
-               ("a2" (mode . bar)))
+                (("a1" (name . "foo"))
+                 ("a2" (mode . bar))))
               ("b"
-               ("b1" (name . "bar")))))
-       (mod-groups-1 '(("a" ("a1" (name . "changed")))))
-       (mod-groups-2 '(("a" ("a1" (name . "changed")))
-                       ("b" ("b1" (name . "changed"))))))
+               (("b1" (name . "bar"))))))
+       (mod-group '("a" (("a1" (name . "changed"))))))
+  (message "%s" (pg-ibuffer--update-filter-group fgs mod-group))
+  (message "%s" (pg-ibuffer--update-filter-group fgs nil)))
+
+
+
+'(let* ((fgs '(("a"
+               (("a1" (name . "foo"))
+                ("a2" (mode . bar))))
+              ("b"
+               (("b1" (name . "bar"))))))
+       (mod-groups-1 '(("a" (("a1" (name . "changed"))))))
+       (mod-groups-2 '(("a" (("a1" (name . "changed"))))
+                       ("b" (("b1" (name . "changed")))))))
   (format "%s" (pg-ibuffer--modify-filter-groups fgs mod-groups-2)))
 
 '(let* ((fgs '(("a"
-               ("a1" (name . "foo"))
-               ("a2" (mode . bar)))
+                (("a1" (name . "foo"))
+                 ("a2" (mode . bar))))
               ("b"
-               ("b1" (name . "bar")))))
-       (a '("a" ("a1" (name . "changed"))))
-       (b '("b" ("b1" (name . "changed")))))
+               (("b1" (name . "bar"))))))
+       (a '("a" (("a1" (name . "changed")))))
+       (b '("b" (("b1" (name . "changed"))))))
   (format "%s" (pg-ibuffer-modify-filter-groups fgs a b)))
 
 (provide 'pg-ibuffer)
