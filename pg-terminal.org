@@ -53,6 +53,8 @@ This package has no dependencies.
     "Arrange for BODY to be executed after terminal setup if the window-system is `pc` (DOS console)"
     `(when (eq (window-system) 'pc)
         (add-hook 'emacs-startup-hook (lambda () ,@body))))
+
+
 #+END_SRC
 
 * Provides

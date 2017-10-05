@@ -8,7 +8,6 @@ This package introduces the function =pg-ibuffer-modify-saved-filter-groups= (al
 =ibuffer-saved-filter-groups= has the following structure:
 
 #+BEGIN_SRC emacs-lisp :tangle no
-
   '(("default"
      ("dired" (mode . dired-mode))
      ("perl" (mode . cperl-mode))
