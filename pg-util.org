@@ -39,15 +39,15 @@ I stole this from the =dbg= macro in [[http://www.learningclojure.com/2010/09/cl
 
 The following function will =(message)= out a lisp form and its value, then return the value. The form is evaluated only once, so if the form has side-effects, they won't change when run in the debugging.
 
-This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with =(pg/spy (foo x))= and you get the form and value printed out.
+This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with =(pg-util-spy (foo x))= and you get the form and value printed out.
 
 #+BEGIN_SRC emacs-lisp
   ;;;###autoload
   (defmacro pg-util-spy (x)
     "Print the form and value of x to the message buffer, then
   return x. x is only evaluated once."
-    (let ((pg/x (make-symbol "x")))
-      `(let ((,pg/x ,x)) (message (format "%s = %s" ',x  ,pg/x)) ,pg/x)))
+    (let ((pg-util-x (make-symbol "x")))
+      `(let ((,pg-util-x ,x)) (message (format "%s = %s" ',x  ,pg-util-x)) ,pg-util-x)))
 #+END_SRC
 *** List manipulation
 
