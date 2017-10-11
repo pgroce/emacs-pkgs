@@ -29,9 +29,7 @@
 		  (:maintainer "Phil Groce" . "pgroce@gmail.com"))])
  (pg-sh .
 	[(0 1)
-	 ((tramp
-	   (0)))
-	 "Manage local and remote shells" single
+	 nil "Manage local and remote shells" single
 	 ((:authors
 	   ("Phil Groce" . "pgroce@gmail.com"))
 	  (:maintainer "Phil Groce" . "pgroce@gmail.com"))])

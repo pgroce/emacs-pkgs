@@ -4,10 +4,10 @@
 
 ;; Author: Phil Groce <pgroce@gmail.com>
 ;; Version: 0.1
-;; Package-Requires: (tramp)
 ;; Keywords: shell
 
 (require 'tramp)
+(require 'cl-lib)
 
 ;;;###autoload
 (defun pg-sh (&optional context def-dir)
