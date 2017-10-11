@@ -1,0 +1,112 @@
+#+STARTUP: indent
+#+TITLE: pg-sh: Manage local and remote shells
+
+(Not to be confused with =pg-shell-path=.)
+
+This package contains utility functions for rapidly creating and destroying shell buffers in Emacs, for both local and remote hosts.
+
+This package is organized around the idea is that creating and destroying shells should get out of the way and do what you mean. How that manifests can be slightly different for local shells versus remote ones. (And the liminal space between them, when you're logging in to VMs or containers on your local machine.)
+
+* Package Header
+
+
+
+#+BEGIN_SRC emacs-lisp
+  ;;; pg-sh.el --- Manage local and remote shells
+
+  ;; Copyright (C) 2017 Phil Groce
+
+  ;; Author: Phil Groce <pgroce@gmail.com>
+  ;; Version: 0.1
+  ;; Keywords: shell
+#+END_SRC
+
+
+* Code
+
+** Local shells
+
+=pg-sh-local= will create a shell buffer with the same cwd as the current buffer, or go to one if it already exists. If, however, you are already /in/ that buffer, calling =pg-sh= will destroy it.
+
+Thus, you can call up a shell with one keystroke, work in it until you are done, and dismiss it with the same keystroke.
+
+ #+BEGIN_SRC emacs-lisp
+   ;;; buff can be nil, in which case the default is the current buffer
+   (defun pg-sh--make-or-destroy-temporary-shell (buffname def-dir)
+     (if (string-match-p "^\\*temp-shell (" (buffer-name))
+         (let ((kill-buffer-query-functions '()))
+           (kill-buffer))
+       (let ((default-directory (if def-dir
+                                    (if (string-match-p "/$" def-dir)
+                                        def-dir
+                                      (concat def-dir "/"))
+                                  default-directory)))
+         (shell (concat "*temp-shell (" buffname ")*")))))
+
+   ;;;###autoload
+   (defun pg-sh ()
+     "Create a local shell buffer, or dismiss an active one.
+
+   If the current buffer is a shell buffer previously created with
+   `pg-sh-local', destroy it. If it's not, either create a new
+   shell buffer associated with this buffer, or jump to one if it
+   already exists."
+     (interactive)
+     (pg-sh--make-or-destroy-temporary-shell (buffer-name) nil))
+ #+END_SRC
+
+
+** Remote shells
+
+The default assumption with remote shells is not that you can just exit the process cleanly, because SSH connections contain multiple channels of communication (e.g., you may be using port forwarding to proxy other connections through this one), and because there may be remote state that needs to be cleaned up. Furthermore, it's common to want multiple remote shells out to another host, where it's less likely you'll want multiple shells closely associated with the same directory.
+
+Therefore, =pg-sh-ssh= does not dismiss the connection if you're already in an SSH buffer, but will instead create another one.
+
+#+BEGIN_SRC emacs-lisp
+  (defun pg-sh--ssh-hosts ()
+    "Return all the hosts configured in ~/.ssh/config via
+    tramp-parse-sconfig."
+    ;; tramp-parse-sconfig returns a list of tuples whose cars are
+    ;; always nil. The cdr is often nil, too, so the thing ends up
+    ;; looking like:
+    ;;
+    ;;  '(nil nil nil (nil "foo") nil (nil "bar")...)
+    ;;
+    ;; This function, given that, would return: '("foo" "bar")
+    (let ((not-nil-p (lambda (x) (not (equal x nil)))))
+      (mapcar
+       'car
+       (cl-remove-if-not
+        not-nil-p
+        (mapcar 'cdr (tramp-parse-sconfig "~/.ssh/config"))))))
+
+  (defun pg-sh--make-dumb-remote-terminal (remote-host)
+    "Make a remote connection via ssh. REMOTE-HOST is presumed to
+    be sufficient to `ssh' to figure things out."
+    (let* ((bdir (format "ssh:%s" remote-host))
+           (bname (generate-new-buffer-name bdir))
+           (buff (make-term bname "ssh" nil remote-host)))
+      (set-buffer buff)
+      (setq default-directory (format "/%s:" bdir))
+      (term-mode)
+      (term-char-mode)
+      (term-set-escape-char ?\C-x)
+      (switch-to-buffer buff)))
+
+  ;;;###autoload
+  (defun pg-sh-ssh ()
+    (interactive)
+    "Make a remote terminal from an SSH configuration entry. The
+    entry name is presumed to be sufficient to initiate the SSH
+    connection."
+    (pg-sh--make-dumb-remote-terminal
+     (completing-read "SSH config entry: " (pg-sh--ssh-hosts))))
+#+END_SRC
+
+
+* Provides
+
+#+BEGIN_SRC emacs-lisp
+  (provide 'pg-sh)
+  ;;; pg-sh.el ends here
+#+END_SRC
