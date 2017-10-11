@@ -14,8 +14,8 @@
 (defmacro pg-util-spy (x)
   "Print the form and value of x to the message buffer, then
 return x. x is only evaluated once."
-  (let ((pg/x (make-symbol "x")))
-    `(let ((,pg/x ,x)) (message (format "%s = %s" ',x  ,pg/x)) ,pg/x)))
+  (let ((pg-util-x (make-symbol "x")))
+    `(let ((,pg-util-x ,x)) (message (format "%s = %s" ',x  ,pg-util-x)) ,pg-util-x)))
 
 ;;;###autoload
 (defun pg-util-zip (lists)
@@ -156,6 +156,55 @@ copied or pasted."
       `(add-hook
         (quote,(intern (format "%s-hook" (symbol-name mode))))
         (lambda () (setq mode-name ,new-name))))
+
+(defun pg-util--library-name-at-point ()
+  (let* ((dirs (or find-function-source-path load-path))
+          (suffixes (find-library-suffixes))
+          (table (apply-partially 'locate-file-completion-table
+                                  dirs suffixes))
+          (def (thing-at-point 'symbol)))
+     (when (and def (not (test-completion def table)))
+       (setq def nil))
+     def))
+
+(defun pg-util--function-name-at-point ()
+  "Return the name of the function at point, or nil if point is
+not on a function name. (Contrast with `function-at-point', which assumes there's a function around somewhere and tries to find it. This just tells you if point is on a function, and if so which one.)"
+  (let ((symb (thing-at-point 'symbol)))
+    (if (functionp (intern symb))
+        symb
+      nil)))
+
+
+(defun pg-util--variable-name-at-point ()
+  "Return variable name at point, or nil if there is none."
+  (let ((v (variable-at-point)))
+    (if (equal 0 v) nil v)))
+
+;;;###autoload
+(defun pg-util-find-thing-at-point ()
+  "Find the library, function, or variable (in that order) at
+point, if it exists."
+  (interactive)
+  (let* ((symbcell (list (pg-util--library-name-at-point) 'lib))
+         (symbcell (if (car symbcell)
+                  symbcell
+                (list (pg-util--function-name-at-point) 'fun)))
+         (symbcell (if (car symbcell)
+                  symbcell
+                (list (pg-util--variable-name-at-point) 'var)))
+         (symb (car symbcell))
+         (symbtype (if symb
+                      (cadr symbcell)
+                    nil)))
+    (case symbtype
+      ('lib
+       (find-library symb))
+      ('fun
+       (find-function (intern symb)))
+      ('var
+       (find-variable symb))
+      (t (message "Can't ID symbol at point: %s" (thing-at-point 'symbol))))))
 
 (provide 'pg-util)
 ;;; pg-util.el ends here
