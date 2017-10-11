@@ -18,9 +18,16 @@ This package is organized around the idea is that creating and destroying shells
 
   ;; Author: Phil Groce <pgroce@gmail.com>
   ;; Version: 0.1
+  ;; Package-Requires: (tramp)
   ;; Keywords: shell
+
 #+END_SRC
 
+* Requires
+
+#+BEGIN_SRC emacs-lisp
+  (require 'tramp)
+#+END_SRC
 
 * Code
 
