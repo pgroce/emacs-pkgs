@@ -9,28 +9,43 @@
 
 (require 'tramp)
 
-;;; buff can be nil, in which case the default is the current buffer
-(defun pg-sh--make-or-destroy-temporary-shell (buffname def-dir)
-  (if (string-match-p "^\\*temp-shell (" (buffer-name))
-      (let ((kill-buffer-query-functions '()))
-        (kill-buffer))
-    (let ((default-directory (if def-dir
-                                 (if (string-match-p "/$" def-dir)
-                                     def-dir
-                                   (concat def-dir "/"))
-                               default-directory)))
-      (shell (concat "*temp-shell (" buffname ")*")))))
-
 ;;;###autoload
-(defun pg-sh ()
-  "Create a local shell buffer, or dismiss an active one.
+(defun pg-sh (&optional context def-dir)
+  "Make/destroy a temporary shell, as appropriate.
 
-If the current buffer is a shell buffer previously created with
-`pg-sh-local', destroy it. If it's not, either create a new
-shell buffer associated with this buffer, or jump to one if it
-already exists."
+Called with no arguments, this function will kill a temp-shell
+buffer if one is the current active buffer; otherwise, it will
+create one associated with the current active buffer, in that
+buffer's default directory.
+
+CONTEXT is the context with which the shell will be
+associated; by default, it is the name of the current active
+buffer.  If CONTEXT is the name of an existing temporary shell
+buffer, destroy it.  Otherwise, start a new temporary shell
+buffer associated with that context.
+
+If DEF-DIR is supplied, make that the shell's working directory."
   (interactive)
-  (pg-sh--make-or-destroy-temporary-shell (buffer-name) nil))
+  (let ((context (if context context (buffer-name))))
+    ;; Don't allow the creation of a temp-shell if the associated
+    ;; buffer doesn't exist. It can go away later, but requiring it to
+    ;; exist now makes things simpler (i.e., we know kill-buffer
+    ;; will work).
+
+    ;; If context is the name of a temp-shell buffer, kill it (if it
+    ;; exists)
+    (if (string-match-p "^\\*temp-shell (" context)
+        (if (get-buffer context)
+            (let ((kill-buffer-query-functions '()))
+              (kill-buffer))
+          (message "Refusing to kill nonexistent temp-shell '%s'" context))
+      ;; Otherwise, create a temp-shell for it
+      (let ((default-directory (if def-dir
+                                   (if (string-match-p "/$" def-dir)
+                                       def-dir
+                                     (concat def-dir "/"))
+                                 default-directory)))
+        (shell (concat "*temp-shell (" context ")*"))))))
 
 (defun pg-sh--ssh-hosts ()
   "Return all the hosts configured in ~/.ssh/config via
