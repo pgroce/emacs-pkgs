@@ -19,6 +19,14 @@
 	       ((:authors
 		 ("Phil Groce" . "pgroce@gmail.com"))
 		(:maintainer "Phil Groce" . "pgroce@gmail.com"))])
+ (pg-solarized-theme .
+		     [(0 1)
+		      ((solarized-theme
+			(0)))
+		      "Custom theme" single
+		      ((:authors
+			("Phil Groce" . "pgroce@gmail.com"))
+		       (:maintainer "Phil Groce" . "pgroce@gmail.com"))])
  (pg-shell-path .
 		[(0 1)
 		 ((s
