@@ -65,8 +65,11 @@ It looks wierd when you depend on a package named =s=.
  #+BEGIN_SRC emacs-lisp
    ;;;###autoload
    (defun pg-shell-path-append (pathvar newpaths)
-     "Append list of NEWPATHS to the environment variable PATHVAR"
-     (let* ((oldpaths (pg-shell-path--depathify pathvar))
+     "Append to environment variable PATHVAR the contents of NEWPATHS.
+
+   NEWPATHS can be a list of paths or a string (which is understood to be a single element to add to the path)."
+     (let* ((newpaths (if (stringp newpaths) (list newpaths) newpaths))
+            (oldpaths (pg-shell-path--depathify pathvar))
             (finalpath
              (or (and oldpaths
                       (pg-shell-path--pathify
