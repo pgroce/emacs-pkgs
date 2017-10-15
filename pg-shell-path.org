@@ -28,6 +28,7 @@ It looks wierd when you depend on a package named =s=.
 
 #+BEGIN_SRC emacs-lisp
   (require 's)
+  (require 'cl-lib)
 #+END_SRC
 
 * Code
