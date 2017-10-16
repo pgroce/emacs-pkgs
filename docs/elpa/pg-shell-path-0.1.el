@@ -5,27 +5,78 @@
 ;; Author: Phil Groce <pgroce@gmail.com>
 ;; Version: 0.1
 ;; Keywords: gui
-;; Package-Requires: (s)
+;; Package-Requires: (s dash)
 
 (require 's)
+(require 'dash)
+(require 'cl-lib)
 
 (defun pg-shell-path--pathify (pathlist)
   "Convert a list of strings into a shell path specification."
-  (if pathlist
-      (cl-reduce (lambda (x y): (concat (s-trim x) ":" (s-trim y))) pathlist)
-    nil))
+  (assert (listp pathlist))
+  (if (equal pathlist nil)
+      ""
+    (--reduce (concat acc ":" (s-trim it)) pathlist)))
 
 
 (defun pg-shell-path--depathify-string (pathspec)
   "Convert a shell path specification PATHSPEC into a list of
-strings. If PATHSPEC is nil, returns nil."
-  (if pathspec (split-string pathspec ":") nil))
+strings. If PATHSPEC is an empty string or whitespace, returns
+nil."
+  (assert (stringp pathspec))
+  (let ((pathspec (s-trim pathspec)))
+    (if (s-present? pathspec)
+        (split-string pathspec ":")
+      nil)))
 
 
 (defun pg-shell-path--depathify (pathvar)
   "Convert the value of the environment variable PATHVAR into a
 list of strings"
   (pg-shell-path--depathify-string (getenv pathvar)))
+
+(cl-defmacro pg-shell-path-with-string ((str &key as into) &rest body)
+  "Execute body in the context of a depathified shell path.
+
+STR is a string formatted as a shell path. (I.e., it is a string
+containing substrings delimited by colons.) It is turned into a
+list of strings and made available as the symbol named by AS. (If
+AS is not supplied, it is provided via the symbol \"it\".)
+
+BODY will be executed, and should return a list of strings. These
+will be converted back into a colon-delimited shell path, which
+will be the return value of the expression. If INTO is supplied,
+it refers to the name of an environment variable; the result of
+this expression will also be written to it."
+  (declare (indent defun))
+  `(let* ((into ,into)
+          (,(if as as 'it) (pg-shell-path--depathify-string ,str))
+          (result (pg-shell-path--pathify
+                   (progn ,@body))))
+     (when (stringp into)
+         (setenv into result))
+     result))
+
+(cl-defmacro pg-shell-path-with ((varname &key as into) &rest body)
+  "Execute body in the context of a depathified path environment variable.
+
+VARNAME is an environment variable containing a shell path. Its
+value will be retrieved from the environment, turned into a list
+of path elements, and bound to the symbol specified by AS. (If AS
+is not specified, it is bound to the symbol \"it\".)
+
+BODY is executed, and should return a list of strings. This list
+will be converted back into a colon-delimited shell path and
+returned to the caller. If INTO is supplied, it refers to the
+name of an environment variable; the result of this expression
+will also be written to it."
+  (declare (indent defun))
+  `(pg-shell-path-with-string ((getenv ,varname)
+                               :as ,as
+                               :into ,(if (equal into t)
+                                          varname
+                                        into))
+     ,@body))
 
 ;;;###autoload
 (defun pg-shell-path-append (pathvar newpaths)

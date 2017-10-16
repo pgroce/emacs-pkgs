@@ -30,6 +30,8 @@
  (pg-shell-path .
 		[(0 1)
 		 ((s
+		   (0))
+		  (dash
 		   (0)))
 		 "Operations on shell paths" single
 		 ((:authors
