@@ -49,13 +49,14 @@ will be the return value of the expression. If INTO is supplied,
 it refers to the name of an environment variable; the result of
 this expression will also be written to it."
   (declare (indent defun))
-  `(let* ((into ,into)
-          (,(if as as 'it) (pg-shell-path--depathify-string ,str))
-          (result (pg-shell-path--pathify
-                   (progn ,@body))))
-     (when (stringp into)
-         (setenv into result))
-     result))
+  (let ((-into (make-symbol "-into")))
+    `(let* ((,-into ,into)
+            (,(if as as 'it) (pg-shell-path--depathify-string ,str))
+            (result (pg-shell-path--pathify
+                     (progn ,@body))))
+       (when (stringp ,-into)
+         (setenv ,-into result))
+       result)))
 
 (cl-defmacro pg-shell-path-with ((varname &key as into) &rest body)
   "Execute body in the context of a depathified path environment variable.

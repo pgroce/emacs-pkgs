@@ -43,6 +43,14 @@
 	 ((:authors
 	   ("Phil Groce" . "pgroce@gmail.com"))
 	  (:maintainer "Phil Groce" . "pgroce@gmail.com"))])
+ (pg-s .
+       [(0 1)
+	((s
+	  (1 12 0)))
+	"String functions not in s.el" single
+	((:authors
+	  ("Phil Groce" . "pgroce@gmail.com"))
+	 (:maintainer "Phil Groce" . "pgroce@gmail.com"))])
  (pg-password .
 	      [(0 1)
 	       nil "Password utility functions" single
