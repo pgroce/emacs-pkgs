@@ -27,11 +27,22 @@ A string manipulation library to catch one or two things that aren't (yet?) impl
 * Code
 
 
-** Substring
+** Substrings
 
-These are the inverse functions to =s-trim-left= and =s-trim-right=. Instead of trimming the specified number of characters, they retain those characters and trim everything else.
+=s.el= includes =s-left= and =s-right= to take the /n/-most left or right substring of a string. It does not, however, contain inverses of those functions. While they are easy enough to write oneself, it's a lot more convenient to have them available as functions. Hence these functions.
 
-*** =pg-s-keep-left=
+If the descriptions below are insufficiently clear, here is how they work on the string "abcde":
+
+| Code                          | result |
+|-------------------------------+--------|
+| (s-left 2 "abcde")            | "ab"   |
+| (s-right 2 "abcde")           | "dc"   |
+| (pg-s-except-left 2 "abcde")  | "cde"  |
+| (pg-s-except-right 2 "abcde") | "abc"  |
+
+The omission of these functions in =s.el= is puzzling to me; it's analogous to =s-chop-prefix= and =s-chop-suffix= but with a fixed length instead of a string. I've probably missed it.
+
+*** =pg-s-except-left=
 
 #+BEGIN_SRC emacs-lisp
   (defun pg-s-except-left (num-chars s)
@@ -83,7 +94,6 @@ These are the inverse functions to =s-trim-left= and =s-trim-right=. Instead of 
 
 This function is handy when displaying strings in space-conscious ways (such as on the modeline or in the echo area.) It keeps the beginning and end of the string, putting a fill string (by default "...") in the middle to indicate that it has been omitted.
 
-*** Code
 
 #+BEGIN_SRC emacs-lisp
   (defun pg-s--halves (len)
@@ -135,7 +145,7 @@ This function is handy when displaying strings in space-conscious ways (such as 
             (s-trim-left (s-right r str))))))))
 #+END_SRC
 
-*** COMMENT Tests
+*** Tests
 
 #+BEGIN_SRC emacs-lisp
   (ert-deftest pg-s-truncate-middle-test ()
