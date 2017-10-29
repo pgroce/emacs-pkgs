@@ -37,8 +37,8 @@ These are the inverse functions to =s-trim-left= and =s-trim-right=. Instead of 
   (defun pg-s-except-left (num-chars s)
     "Returns everything after the first NUM-CHARS characters of S.
   This function is the inverse of `s-left'."
-    (let ((trim (abs (- num-chars (string-width s)))))
-      (s-right trim s)))
+    (let ((to-trim (abs (- num-chars (string-width s)))))
+      (s-right to-trim s)))
 #+END_SRC
 
 **** Tests
@@ -62,8 +62,8 @@ These are the inverse functions to =s-trim-left= and =s-trim-right=. Instead of 
   (defun pg-s-except-right (num-chars s)
     "Returns everything until the last NUM-CHARS characters of S.
   This function is the inverse of `s-right'"
-    (let ((trim (abs (- num-chars (string-width s)))))
-      (s-left trim s)))
+    (let ((to-trim (abs (- num-chars (string-width s)))))
+      (s-left to-trim s)))
 #+END_SRC
 **** Tests
 
