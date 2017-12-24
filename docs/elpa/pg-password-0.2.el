@@ -3,7 +3,7 @@
 ;; Copyright (C) 2017 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.1
+;; Version: 0.2
 ;; Keywords: gui
 
 (require 's)
@@ -45,7 +45,7 @@ VAR."
   (car (pg/list-from-diceware-entry entry-string)))
 
 ;;;###autoload
-(defun pg/gen-password (key numwords)
+(defun pg-password-gen (key numwords)
   "Generate a random diceware password. Inserts two lists into
 the buffer. The first is a set of numbers corresponding to the
 words in the wordlist, XORed with the key; if desired, this may
@@ -86,7 +86,7 @@ passwords often."
          "grep %d %s" decoded wl))))))
 
 ;;;###autoload
-(defun pg/decrypt-password-sexp (key)
+(defun pg-password-decrypt-sexp (key)
   "Lookup the list (sexp) of encrypted numbers at point in a
 wordlist file, returning the words. KEY is used to decrypt the
 numbers."

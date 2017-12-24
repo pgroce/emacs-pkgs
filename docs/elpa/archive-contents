@@ -52,7 +52,7 @@
 	  ("Phil Groce" . "pgroce@gmail.com"))
 	 (:maintainer "Phil Groce" . "pgroce@gmail.com"))])
  (pg-password .
-	      [(0 1)
+	      [(0 2)
 	       nil "Password utility functions" single
 	       ((:authors
 		 ("Phil Groce" . "pgroce@gmail.com"))
