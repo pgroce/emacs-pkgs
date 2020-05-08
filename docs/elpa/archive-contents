@@ -65,7 +65,7 @@
 		(:maintainer "Phil Groce" . "pgroce@gmail.com")
 		(:keywords "gui"))])
  (pg-pandoc .
-	    [(0 1)
+	    [(0 2)
 	     nil "Convert document formats with Pandoc" single
 	     ((:authors
 	       ("Phil Groce" . "pgroce@gmail.com"))
