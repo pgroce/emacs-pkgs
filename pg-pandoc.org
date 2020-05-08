@@ -9,9 +9,7 @@ For a long time I performed my conversions manually and ad-hoc, but this grew ti
 
 What pushed me over the edge was (1) the growing number of slightly different copies of the same code, (2) the desire to run Pandoc on whole buffers instead of subtrees, and (3) the realization that by the time I was done solving the first two, I'd be able to easily run Pandoc on buffers in other supported formats like Markdown. A few hours later, this package was born.
 
-* Usage
-
-** Prerequisites
+* Prerequisites
 
 Obviously you'll need to install Pandoc. Most Linux distributions have it included. On MacOs, =brew install pandoc= via [[https://brew.sh/][Homebrew]] works. Everything else depends on what you want to do with Pandoc.
 
@@ -20,15 +18,19 @@ Generating DOCX, PPTX, Markdown, or LaTeX files requires no prerequisites. To ge
 [[https://www.tug.org/mactex/][MacTeX]] does the job well on MacOS (either =brew install mactex= or  =brew install mactex-no-gui= will do for this package); I've also tested with [[https://tug.org/texlive/][TeXLive]] on Debian (specifically in [[https://docs.microsoft.com/en-us/windows/wsl/install-win10][Windows Subsystem for Linux]]). Either way, note that the default invocation will use [[http://xetex.sourceforge.net/][XeTeX]] as the typesetting engine instead of the more customary [[http://www.tug.org/applications/pdftex/][pdfTeX]]. This is because I prefer to be able to use the system fonts in my TeX instead of installing fonts to TeX in parallel. You can, of course, customize this, or any other part of how I use Pandoc in this package.
 
 
-** Commands
+* Usage
 
 =pg-pandoc-current-buffer= will run =pandoc= on the contents of the current buffer to generate a file containing the buffer contents in the desired target format. You will be prompted to choose an output format (=pdf=, =tex=, and =docx= are configured by default). A =pandoc= command will be generated, and can be customized before it is run.
 
 =pg-pandoc-org-subtree= will run =pandoc= on the subtree under point in the current buffer, assuming the buffer is an =org-mode= buffer. Prior to conversion, the headings will be promoted such that the top of the subtree is at the top level.
 
-*** Customizing output
+* Customizing output
 
-Out of the box, the =pandoc= commands all assume you're doing some customization using either a template file (LaTeX, PDF) or a reference document (DOCX). Just delete the =--template-file= or =--reference-document= option on the command-line to get the Pandoc defaults. You may consult the [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] for all the options it provides, particularly [[https://pandoc.org/MANUAL.html#options-affecting-specific-writers][how to customize a reference document for outputting Word documents]] (search for =--reference-doc=) and [[https://pandoc.org/MANUAL.html#templates][how templates are used to customize most text-based formats]], including the LaTeX that will be used to generate PDFs.
+The =pandoc= commands supplied by this package reflect my current preference to have a customized configuration file for each document in the same directory as the document. To generate a document with Pandoc's defaults, delete the =--template-file= or =--reference-document= option on the command-line.
+
+The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the available options it provides, particularly [[https://pandoc.org/MANUAL.html#options-affecting-specific-writers][how to customize a reference document for outputting Word documents]] (search for =--reference-doc=) and [[https://pandoc.org/MANUAL.html#templates][how templates are used to customize most text-based formats]], including the LaTeX that will be used to generate PDFs. You may customize the default commands by customizing the =pg-pandoc-commands= custom variable
+
+
 
 * To do
 
@@ -70,7 +72,7 @@ Out of the box, the =pandoc= commands all assume you're doing some customization
 - =%(out-name)= is a placeholder for the output file name
 - =%(in-format)= is a placeholder for the name of the input format. By default, this is either =org= (for org-mode files) or the name of the major-mode of the buffer, minus the =-mode= suffix.
 #+BEGIN_SRC emacs-lisp
-(defconst pg-pandoc-commands
+(defcustom pg-pandoc-commands
   '(("docx" . "pandoc -t docx -f %(in-format) -o %(out-name) --reference-doc=reference.docx")
     ("tex" . "pandoc -t latex -f %(in-format) -o %(out-name) --template=pdf-template.tex")
     ("pdf" . "pandoc -t pdf -f %(in-format) -o %(out-name) --template=pdf-template.tex --pdf-engine xelatex -N"))
@@ -83,7 +85,7 @@ Out of the box, the =pandoc= commands all assume you're doing some customization
 Private code that supports the rest of the public API. =pg-pandoc--org-headline= may be  interesting if you want to know how to programmatically navigate an org-mode file.
 
 #+BEGIN_SRC emacs-lisp
-  (defconst pg-pandoc--pandoc-command-history nil
+  (defcustom pg-pandoc--pandoc-command-history nil
     "History variable for use with `pg-pandoc-org-subtree' and
     `pg-pandoc-org'")
 
