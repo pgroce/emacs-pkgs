@@ -49,7 +49,7 @@ The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the av
   ;; Copyright (C) 2020 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.2
+  ;; Version: 0.3
   ;; Keywords: pandoc markdown org-mode latex pdf docx
 
 #+END_SRC
@@ -72,12 +72,17 @@ The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the av
 - =%(out-name)= is a placeholder for the output file name
 - =%(in-format)= is a placeholder for the name of the input format. By default, this is either =org= (for org-mode files) or the name of the major-mode of the buffer, minus the =-mode= suffix.
 #+BEGIN_SRC emacs-lisp
-(defcustom pg-pandoc-commands
-  '(("docx" . "pandoc -t docx -f %(in-format) -o %(out-name) --reference-doc=reference.docx")
-    ("tex" . "pandoc -t latex -f %(in-format) -o %(out-name) --template=pdf-template.tex")
-    ("pdf" . "pandoc -t pdf -f %(in-format) -o %(out-name) --template=pdf-template.tex --pdf-engine xelatex -N"))
-  "Commands to be used to invoke pandoc on org-mode output using
-  `pg-pandoc-subtree'")
+  (defcustom pg-pandoc-executable-name "pandoc"
+    "name (and path, if necessary) of pandoc executable")
+
+  (defcustom pg-pandoc-commands
+    '(("docx" . "%(pandoc) -t docx -f %(in-format) -o %(out-name) --reference-doc=reference.docx")
+      ("tex"  . "%(pandoc) -t latex -f %(in-format) -o %(out-name) --template=pdf-template.tex")
+      ("pdf"  . "%(pandoc) -t pdf -f %(in-format) -o %(out-name) --template=pdf-template.tex --pdf-engine xelatex -N")
+      ("md"   . "%(pandoc) -t markdown -f %(in-format) -o %(out-name)")
+      ("org"  . "%(pandoc) -t org -f %(in-format) -o %(out-name)"))
+    "Commands to be used to invoke pandoc on org-mode output using
+    `pg-pandoc-subtree'")
 #+END_SRC
 
 ** Helper code
@@ -119,7 +124,8 @@ Private code that supports the rest of the public API. =pg-pandoc--org-headline=
 
   (defun pg-pandoc--apply-command-template (tplt out-name in-fmt)
     (let ((vars-alist (list (list "out-name" out-name)
-                            (list "in-format" in-fmt))))
+                            (list "in-format" in-fmt)
+                            (list "pandoc" pg-pandoc-executable-name))))
       (cl-reduce (lambda (acc n)
                    (let ((lbl (car n))
                          (val (cadr n)))
