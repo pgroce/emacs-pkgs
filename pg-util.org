@@ -13,10 +13,10 @@ Many of these functions come from [[mwd5i@mwd5i.org][Michael Duggan]]. Thanks, D
 #+BEGIN_SRC emacs-lisp
   ;;; pg-util.el --- Utility functions
 
-  ;; Copyright (C) 2017 Phil Groce
+  ;; Copyright (C) 2017-2020 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.1
+  ;; Version: 0.2
   ;; Package-Requires: ((dash "2.13.0"))
   ;; Keywords: utility
 #+END_SRC
@@ -33,6 +33,9 @@ Many of these functions come from [[mwd5i@mwd5i.org][Michael Duggan]]. Thanks, D
 
 * Code
 
+*** Shorter command names
+
+The prefix for this library is =pg-util=, but the point of this library is to define frequently-used functions, and prepending them with =pg-util= all the time gets tiresome. Therefore, an exception: Each part of the API is defined as =pg-util-*= and also with the prefix =/=. For example, An alias for =pg-util-spy= is =/spy=.
 
 *** Debugging
 I stole this from the =dbg= macro in [[http://www.learningclojure.com/2010/09/clojure-macro-tutorial-part-i-getting.html][this Clojure macro tutorial]], and from the =spy= method of the [[http://clojure.github.io/clojure-contrib/branch-master/logging-api.html][Clojure logging API]].
@@ -48,6 +51,10 @@ This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with
   return x. x is only evaluated once."
     (let ((pg-util-x (make-symbol "x")))
       `(let ((,pg-util-x ,x)) (message (format "%s = %s" ',x  ,pg-util-x)) ,pg-util-x)))
+
+  (defalias '/spy 'pg-util-spy)
+
+
 #+END_SRC
 *** List manipulation
 
@@ -61,6 +68,8 @@ This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with
   4 7) (2 5 8) (3 6 9))"
     (apply #'mapcar* #'list lists))
 
+  (defalias '/zip 'pg-util-zip)
+
   ;;;###autoload
   (defun pg-util-list-add-unique (l1 l2)
     "Return a new list composed of the values in L1 and the values
@@ -70,11 +79,15 @@ This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with
     If there are duplicate values in L1, these will be preserved."
     (-concat l1 (--filter (not (memq it l1)) l2)))
 
+  (defalias '/list-add-unique 'pg-util-list-add-unique)
+
   ;;;###autoload
   (defun pg-util-list-add-unique-var (var values)
     "Update the list in VAR with the new values in VALUES using
     `pg-util-list-add-unique'."
     (set var (pg-util-list-add-unique (symbol-value var) values)))
+
+  (defalias '/list-add-unique-var 'pg-util-list-add-unique-var)
 
   ;;;###autoload
   (defun pg-util-list-update-1 (l elt matcher &optional no-match-action)
@@ -97,6 +110,8 @@ This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with
                 (append l (list elt))
               l))
         (-replace-at match-idx elt l))))
+
+  (defalias '/list-update-1 'pg-util-list-update-1)
 
   ;;;###autoload
   (defun pg-util-list-update (l1 l2 matcher &optional no-match-action)
@@ -122,6 +137,8 @@ This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with
                     matcher-1
                     no-match-action))))))
 
+  (defalias '/list-update 'pg-util-list-update)
+
   ;;;###autoload
   (defun pg-util-alist-update (a1 a2)
     "Return a new alist with the elements in A1, updated by A2. If
@@ -132,12 +149,16 @@ This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with
           (updated-a1 (--map (or (assoc (car it) a2) it) a1)))
       (-concat updated-a1 a2-only)))
 
+  (defalias '/alist-update 'pg-util-alist-update)
+
   ;;;###autoload
   (defun pg-util-alist-update-var (var values)
     "Update the alist in VAR with the new values in VALUES using
   `pg-util-alist-update'. Shorthand for `(set
   var (pg-util-alist-update (symbol-value-var) values)'."
     (set var (pg-util-alist-update (symbol-value var) values)))
+
+  (defalias '/alist-update-var 'pg-util-alist-update-var)
 
 
   ;;;###autoload
@@ -147,6 +168,8 @@ This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with
         nil
       (cons (caar in-alist) (pg-util-alist-keys (cdr in-alist)))))
 
+  (defalias '/alist-keys 'pg-util-alist-keys)
+
 
   ;;;###autoload
   (defun pg-util-plist-keys (in-plist)
@@ -154,6 +177,8 @@ This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with
     (if (null in-plist)
         nil
       (cons (car in-plist) (pg-util-plist-keys (cddr in-plist)))))
+
+  (defalias '/plist-keys 'pg-util-plist-keys)
 
 
   ;;; Note that hash-table-keys and hash-table-values live in subr-x
@@ -173,6 +198,8 @@ This function manipulates =auto-mode-alist=-like lists to my satisfaction.
            (filtered-amalist (--filter (not (equal ext (car it)))
                                           amalist)))
       (add-to-list 'filtered-amalist `(,ext . ,new-mode))))
+
+  (defalias '/update-auto-mode-alist 'pg-util-update-auto-mode-alist)
 #+END_SRC
 
 *** Am I in a minor mode?
@@ -187,6 +214,8 @@ There may be an easier way to detect if the current buffer features a particular
     (condition-case nil
         (and (symbolp minor-mode) (symbol-value minor-mode))
       ('error nil)))
+
+  (defalias '/minor-mode-active-p 'pg-util-minor-mode-active-p)
 #+END_SRC
 
 *** Clear out the kill ring
@@ -204,6 +233,8 @@ If your only concern is that end-users don't see the information in the history,
     (clear-this-command-keys)
     ;; Things get ugly with various histories, but try a little
     (setq minibuffer-history '()))
+
+  (defalias '/nuke-kill-ring 'pg-util-nuke-kill-ring)
 #+END_SRC
 
 *** "Diminishing" major modes
@@ -219,6 +250,8 @@ If your only concern is that end-users don't see the information in the history,
         `(add-hook
           (quote,(intern (format "%s-hook" (symbol-name mode))))
           (lambda () (setq mode-name ,new-name))))
+
+  (defalias '/diminish-major 'pg-util-diminish-major)
 #+END_SRC
 
 
@@ -238,6 +271,8 @@ If your only concern is that end-users don't see the information in the history,
          (setq def nil))
        def))
 
+  (defalias '/-library-name-at-point 'pg-util--library-name-at-point)
+
   (defun pg-util--function-name-at-point ()
     "Return the name of the function at point, or nil if point is
   not on a function name. (Contrast with `function-at-point', which assumes there's a function around somewhere and tries to find it. This just tells you if point is on a function, and if so which one.)"
@@ -246,11 +281,15 @@ If your only concern is that end-users don't see the information in the history,
           symb
         nil)))
 
+  (defalias '/-function-name-at-point 'pg-util--function-name-at-point)
+
 
   (defun pg-util--variable-name-at-point ()
     "Return variable name at point, or nil if there is none."
     (let ((v (variable-at-point)))
       (if (equal 0 v) nil v)))
+
+  (defalias '/-variable-name-at-point 'pg-util--variable-name-at-point)
 #+END_SRC
 
 The main function.
@@ -280,6 +319,8 @@ The main function.
         ('var
          (find-variable symb))
         (t (message "Can't ID symbol at point: %s" (thing-at-point 'symbol))))))
+
+  (defalias '/find-thing-at-point 'pg-util-find-thing-at-point)
 #+END_SRC
 
 
