@@ -111,8 +111,8 @@ Private code that supports the rest of the public API. =pg-pandoc--org-headline=
                  (match-beginning 4)
                  (match-end 4)))))))
 
-  (defun pg-pandoc--headline-to-file-name (headline)
-    "Downcase HEADLINE, convert some dividers to hyphens, and
+  (defun pg-pandoc--sanitize-for-file-name (unclean)
+    "Downcase UNCLEAN, convert some dividers to hyphens, and
   remove everything else"
     (let ((bad-chars-regexp "[^a-z-_,' ]")
           (to-hyphens-regexp "[_,' ]"))
@@ -120,7 +120,14 @@ Private code that supports the rest of the public API. =pg-pandoc--org-headline=
        to-hyphens-regexp "-"
        (replace-regexp-in-string
         bad-chars-regexp ""
-        (downcase headline)))))
+        (downcase unclean)))))
+
+  (defun pg-pandoc--buffer-info-to-file-name (output-format)
+    (if (buffer-file-name)
+        (progn
+          (concat (file-name-base) "." output-format))
+      (concat
+       (pg-pandoc--sanitize-for-file-name (buffer-name)) "." output-format)))
 
   (defun pg-pandoc--apply-command-template (tplt out-name in-fmt)
     (let ((vars-alist (list (list "out-name" out-name)
@@ -136,6 +143,8 @@ Private code that supports the rest of the public API. =pg-pandoc--org-headline=
   (defun pg-pandoc--get-command-template (key)
     (alist-get key pg-pandoc-commands nil nil 'equal))
 #+END_SRC
+
+
 
 ** Public functions
 
@@ -156,7 +165,7 @@ The declarations of =pg-pandoc-org-subtree= and =pg-pandoc-current-buffer=. Both
                                             pg-pandoc-commands)))
            ;; Compute (default) filename from output format
            (fname (concat
-                   (pg-pandoc--headline-to-file-name
+                   (pg-pandoc--sanitize-for-file-name
                     headline-title)
                            "." output-format))
            ;; Ask user for pandoc command (with default)
@@ -190,6 +199,8 @@ The declarations of =pg-pandoc-org-subtree= and =pg-pandoc-current-buffer=. Both
              pandoc-command
              (get-buffer-create "*pandoc-output*")))))))
 
+
+
   (defun pg-pandoc-current-buffer ()
     (interactive)
     (let* ((input-format (replace-regexp-in-string
@@ -199,7 +210,7 @@ The declarations of =pg-pandoc-org-subtree= and =pg-pandoc-current-buffer=. Both
                                            (pg-util-alist-keys
                                             pg-pandoc-commands)))
            ;; Compute (default) filename from output format
-           (fname (concat (file-name-base) "." output-format))
+           (fname (pg-pandoc--buffer-info-to-file-name output-format))
            ;; Ask user for pandoc command (with default)
            (default-command (pg-pandoc--apply-command-template
                              (pg-pandoc--get-command-template output-format)
@@ -216,6 +227,7 @@ The declarations of =pg-pandoc-org-subtree= and =pg-pandoc-current-buffer=. Both
            (get-buffer-create "*pandoc-output*"))))))
 
 #+END_SRC
+
 
 * Provides
 
