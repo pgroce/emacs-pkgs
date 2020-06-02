@@ -49,7 +49,7 @@ The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the av
   ;; Copyright (C) 2020 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.3
+  ;; Version: 0.4
   ;; Keywords: pandoc markdown org-mode latex pdf docx
 
 #+END_SRC
