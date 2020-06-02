@@ -166,7 +166,7 @@ The declarations of =pg-pandoc-org-subtree= and =pg-pandoc-current-buffer=. Both
            (fname (concat
                    (pg-pandoc--sanitize-for-file-name
                     headline-title)
-                           "." output-format))
+                   "." output-format))
            ;; Ask user for pandoc command (with default)
            (default-command (pg-pandoc--apply-command-template
                              (pg-pandoc--get-command-template output-format)
