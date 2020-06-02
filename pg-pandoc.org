@@ -124,8 +124,7 @@ Private code that supports the rest of the public API. =pg-pandoc--org-headline=
 
   (defun pg-pandoc--buffer-info-to-file-name (output-format)
     (if (buffer-file-name)
-        (progn
-          (concat (file-name-base) "." output-format))
+        (concat (file-name-base) "." output-format)
       (concat
        (pg-pandoc--sanitize-for-file-name (buffer-name)) "." output-format)))
 
