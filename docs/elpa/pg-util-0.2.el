@@ -1,9 +1,9 @@
 ;;; pg-util.el --- Utility functions
 
-;; Copyright (C) 2017 Phil Groce
+;; Copyright (C) 2017-2020 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.1
+;; Version: 0.2
 ;; Package-Requires: ((dash "2.13.0"))
 ;; Keywords: utility
 
@@ -17,6 +17,8 @@ return x. x is only evaluated once."
   (let ((pg-util-x (make-symbol "x")))
     `(let ((,pg-util-x ,x)) (message (format "%s = %s" ',x  ,pg-util-x)) ,pg-util-x)))
 
+(defalias '/spy 'pg-util-spy)
+
 ;;;###autoload
 (defun pg-util-zip (lists)
   "Return list of lists where each element of index n of the
@@ -24,6 +26,8 @@ output list is a list of all elements of index n of the input
 lists. For instance: (pg-util-zip '(1 2 3) '(4 5 6) '(7 8 9)) -> '((1
 4 7) (2 5 8) (3 6 9))"
   (apply #'mapcar* #'list lists))
+
+(defalias '/zip 'pg-util-zip)
 
 ;;;###autoload
 (defun pg-util-list-add-unique (l1 l2)
@@ -34,11 +38,15 @@ lists. For instance: (pg-util-zip '(1 2 3) '(4 5 6) '(7 8 9)) -> '((1
   If there are duplicate values in L1, these will be preserved."
   (-concat l1 (--filter (not (memq it l1)) l2)))
 
+(defalias '/list-add-unique 'pg-util-list-add-unique)
+
 ;;;###autoload
 (defun pg-util-list-add-unique-var (var values)
   "Update the list in VAR with the new values in VALUES using
   `pg-util-list-add-unique'."
   (set var (pg-util-list-add-unique (symbol-value var) values)))
+
+(defalias '/list-add-unique-var 'pg-util-list-add-unique-var)
 
 ;;;###autoload
 (defun pg-util-list-update-1 (l elt matcher &optional no-match-action)
@@ -61,6 +69,8 @@ appended to L. Otherwise (the default), L will not be changed."
               (append l (list elt))
             l))
       (-replace-at match-idx elt l))))
+
+(defalias '/list-update-1 'pg-util-list-update-1)
 
 ;;;###autoload
 (defun pg-util-list-update (l1 l2 matcher &optional no-match-action)
@@ -86,6 +96,8 @@ The semantics of NO-MATCH-ACTION are equivalent to those in
                   matcher-1
                   no-match-action))))))
 
+(defalias '/list-update 'pg-util-list-update)
+
 ;;;###autoload
 (defun pg-util-alist-update (a1 a2)
   "Return a new alist with the elements in A1, updated by A2. If
@@ -96,12 +108,16 @@ are appended to the end of the new alist."
         (updated-a1 (--map (or (assoc (car it) a2) it) a1)))
     (-concat updated-a1 a2-only)))
 
+(defalias '/alist-update 'pg-util-alist-update)
+
 ;;;###autoload
 (defun pg-util-alist-update-var (var values)
   "Update the alist in VAR with the new values in VALUES using
 `pg-util-alist-update'. Shorthand for `(set
 var (pg-util-alist-update (symbol-value-var) values)'."
   (set var (pg-util-alist-update (symbol-value var) values)))
+
+(defalias '/alist-update-var 'pg-util-alist-update-var)
 
 
 ;;;###autoload
@@ -111,6 +127,8 @@ var (pg-util-alist-update (symbol-value-var) values)'."
       nil
     (cons (caar in-alist) (pg-util-alist-keys (cdr in-alist)))))
 
+(defalias '/alist-keys 'pg-util-alist-keys)
+
 
 ;;;###autoload
 (defun pg-util-plist-keys (in-plist)
@@ -118,6 +136,8 @@ var (pg-util-alist-update (symbol-value-var) values)'."
   (if (null in-plist)
       nil
     (cons (car in-plist) (pg-util-plist-keys (cddr in-plist)))))
+
+(defalias '/plist-keys 'pg-util-plist-keys)
 
 
 ;;; Note that hash-table-keys and hash-table-values live in subr-x
@@ -132,6 +152,8 @@ in which the mode function for EXT is replaced with NEW-MODE."
                                         amalist)))
     (add-to-list 'filtered-amalist `(,ext . ,new-mode))))
 
+(defalias '/update-auto-mode-alist 'pg-util-update-auto-mode-alist)
+
 ;;;###autoload
 (defun pg-util-minor-mode-active-p (minor-mode)
   "Return t if the minor mode is active in the current buffer,
@@ -139,6 +161,8 @@ otherwise nil."
   (condition-case nil
       (and (symbolp minor-mode) (symbol-value minor-mode))
     ('error nil)))
+
+(defalias '/minor-mode-active-p 'pg-util-minor-mode-active-p)
 
 ;;;###autoload
 (defun pg-util-nuke-kill-ring ()
@@ -150,12 +174,16 @@ copied or pasted."
   ;; Things get ugly with various histories, but try a little
   (setq minibuffer-history '()))
 
+(defalias '/nuke-kill-ring 'pg-util-nuke-kill-ring)
+
 ;;;###autoload
 (defmacro pg-util-diminish-major (mode new-name)
       "Simulate the effects of diminish on major modes."
       `(add-hook
         (quote,(intern (format "%s-hook" (symbol-name mode))))
         (lambda () (setq mode-name ,new-name))))
+
+(defalias '/diminish-major 'pg-util-diminish-major)
 
 (defun pg-util--library-name-at-point ()
   (let* ((dirs (or find-function-source-path load-path))
@@ -167,6 +195,8 @@ copied or pasted."
        (setq def nil))
      def))
 
+(defalias '/-library-name-at-point 'pg-util--library-name-at-point)
+
 (defun pg-util--function-name-at-point ()
   "Return the name of the function at point, or nil if point is
 not on a function name. (Contrast with `function-at-point', which assumes there's a function around somewhere and tries to find it. This just tells you if point is on a function, and if so which one.)"
@@ -175,11 +205,15 @@ not on a function name. (Contrast with `function-at-point', which assumes there'
         symb
       nil)))
 
+(defalias '/-function-name-at-point 'pg-util--function-name-at-point)
+
 
 (defun pg-util--variable-name-at-point ()
   "Return variable name at point, or nil if there is none."
   (let ((v (variable-at-point)))
     (if (equal 0 v) nil v)))
+
+(defalias '/-variable-name-at-point 'pg-util--variable-name-at-point)
 
 ;;;###autoload
 (defun pg-util-find-thing-at-point ()
@@ -205,6 +239,8 @@ point, if it exists."
       ('var
        (find-variable symb))
       (t (message "Can't ID symbol at point: %s" (thing-at-point 'symbol))))))
+
+(defalias '/find-thing-at-point 'pg-util-find-thing-at-point)
 
 (provide 'pg-util)
 ;;; pg-util.el ends here
