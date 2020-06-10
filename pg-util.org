@@ -58,6 +58,7 @@ This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with
 #+END_SRC
 *** List manipulation
 
+I use [[https://github.com/magnars/dash.el][dash.el]] for most list manipulation, but these functions have proven very convenient over the years.
 
 #+begin_src emacs-lisp
   ;;;###autoload
