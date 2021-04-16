@@ -19,20 +19,13 @@ return x. x is only evaluated once."
 
 (defalias '/spy 'pg-util-spy)
 
-(defcustom pg-error-on-deprecation nil
-  "Set to `t' to change deprecation warnings to (traceable) errors.")
-
 ;;;###autoload
 (defun pg-util-zip (lists)
   "Return list of lists where each element of index n of the
 output list is a list of all elements of index n of the input
 lists. For instance: (pg-util-zip '(1 2 3) '(4 5 6) '(7 8 9)) -> '((1
 4 7) (2 5 8) (3 6 9))"
-  (if pg-error-on-deprecation
-      (error "pg-util-zip is deprecated. Use dash.el's -zip-lists instead.")
-    (warn "pg-util-zip is deprecated. Use dash.el's -zip-lists instead."))
   (apply #'mapcar* #'list lists))
-
 
 (defalias '/zip 'pg-util-zip)
 

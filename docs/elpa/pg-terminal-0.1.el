@@ -3,7 +3,7 @@
 ;; Copyright (C) 2017 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.2
+;; Version: 0.1
 ;; Keywords: gui
 
 (defmacro pg-terminal-t (&rest body)
@@ -29,11 +29,7 @@
 (defmacro pg-terminal-pc (&rest body)
   "Arrange for BODY to be executed after terminal setup if the window-system is `pc` (DOS console)"
   `(when (eq (window-system) 'pc)
-     (add-hook 'emacs-startup-hook (lambda () ,@body))))
-
-(defmacro pg-terminal-any (&rest body)
-  "Arrange for BODY to be executed after terminal setup if the window-system is `pc` (DOS console)"
-  `(add-hook 'emacs-startup-hook (lambda () ,@body)))
+      (add-hook 'emacs-startup-hook (lambda () ,@body))))
 
 (provide 'pg-terminal)
 ;;; pg-terminal.el ends here
