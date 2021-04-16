@@ -49,7 +49,7 @@ The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the av
   ;; Copyright (C) 2020 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.4
+  ;; Version: 0.5
   ;; Keywords: pandoc markdown org-mode latex pdf docx
 
 #+END_SRC
@@ -76,9 +76,9 @@ The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the av
     "name (and path, if necessary) of pandoc executable")
 
   (defcustom pg-pandoc-commands
-    '(("docx" . "%(pandoc) -t docx -f %(in-format) -o %(out-name) --reference-doc=reference.docx")
-      ("tex"  . "%(pandoc) -t latex -f %(in-format) -o %(out-name) --template=pdf-template.tex")
-      ("pdf"  . "%(pandoc) -t pdf -f %(in-format) -o %(out-name) --template=pdf-template.tex --pdf-engine xelatex -N")
+    '(("docx" . "%(pandoc) --citeproc -t docx -f %(in-format) -o %(out-name) --reference-doc=reference.docx")
+      ("tex"  . "%(pandoc) --citeproc -t latex -f %(in-format) -o %(out-name) --template=pdf-template.tex")
+      ("pdf"  . "%(pandoc) --citeproc -t pdf -f %(in-format) -o %(out-name) --template=pdf-template.tex --pdf-engine xelatex -N")
       ("md"   . "%(pandoc) -t markdown -f %(in-format) -o %(out-name)")
       ("org"  . "%(pandoc) -t org -f %(in-format) -o %(out-name)"))
     "Commands to be used to invoke pandoc on org-mode output using
@@ -88,6 +88,11 @@ The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the av
     "If set to `t', `pg-pandoc-subtree' will set the top-level headline of the subtree being converted to be the title, the subheads below it to be level 1 headings, etc. This is the default behavior.
 
   If set to `nil', the converted document will contain no title and the top-level headline will be a level 1 headline, its subheads will be level 2 headlines, etc.")
+
+
+  (defcustom pg-pandoc-convert-citations t
+    "If set to `t', convert citations (in org-ref format) to
+    pandoc-format citations prior to conversion.")
 #+END_SRC
 
 ** Helper code
@@ -147,6 +152,28 @@ Private code that supports the rest of the public API. =pg-pandoc--org-headline=
   (defun pg-pandoc--get-command-template (key)
     (alist-get key pg-pandoc-commands nil nil 'equal))
 #+END_SRC
+
+*** Convert citations
+
+Pandoc now supports its own [[https://pandoc.org][citation format]]. This function will transform [[https://github.com/jkitchin/org-ref][org-ref]] citations into this format prior to pandoc conversion.
+
+#+BEGIN_SRC emacs-lisp
+  (defun pg-pandoc--convert-citations-in-buffer ()
+    "Convert citations in the current buffer from the org-ref
+    format to the pandoc format. Currently only supports citep (sort of)."
+
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "citep:\\(.+?\\)\\([^a-zA-Z0-9:_-]\\|$\\)" nil t)
+        (replace-match "(@\\1)\\2")))
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "cite:\\(.+?\\)\\([^a-zA-Z0-9:_-]\\)" nil t)
+        (replace-match "@\\1\\2")))
+    )
+
+#+END_SRC
+
 
 
 
@@ -230,7 +257,10 @@ The declarations of =pg-pandoc-org-subtree= and =pg-pandoc-current-buffer=. Both
                 (pg-pandoc--make-top-of-subtree-title)))
             (insert "\n")
             ;; debug
-            ;; (write-file "debug-out.org")
+            (write-file "debug-out.org")
+            (when pg-pandoc-convert-citations
+              (message "converting!!!")
+              (pg-pandoc--convert-citations-in-buffer))
             (shell-command-on-region
              (point-min) (point-max)
              pandoc-command
@@ -258,10 +288,20 @@ The declarations of =pg-pandoc-org-subtree= and =pg-pandoc-current-buffer=. Both
                             default-command)))
       (save-excursion
         (save-restriction
-          (shell-command-on-region
-           (point-min) (point-max)
-           pandoc-command
-           (get-buffer-create "*pandoc-output*"))))))
+          (kill-ring-save (point-min) (point-max))
+          (with-temp-buffer
+            (yank)
+            (if pg-pandoc-convert-citations
+                (progn
+                  (message "converting!!!")
+                  (pg-pandoc--convert-citations-in-buffer))
+              (message "NOT CONVERTING!!!"))
+            ;; debug
+            (write-file "debug-out.org")
+            (shell-command-on-region
+             (point-min) (point-max)
+             pandoc-command
+             (get-buffer-create "*pandoc-output*")))))))
 
 #+END_SRC
 
