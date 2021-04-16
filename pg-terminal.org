@@ -6,7 +6,7 @@ Starting in Emacs 23, Emacs handles OS X and other windowing systems as differen
 
 This package simplifies the addition of terminal-specific configuration code  via terminal-specific macros. Code wrapped in these macros will execute in the =emacs-startup-hook= if and only if the window system is the one appropriate to the macro. In other words, wrap code in one of these macros and it will only execute in the relevant window system.
 
-Since these macros add code to =emacs-startup-hook=, the wrapped code will run after window-system initialization is run, so these macros can be used to "deconfigure" anything the terminal setup file configures.
+Since these macros add code to =emacs-startup-hook=, the wrapped code will run after window-system initialization is run, so these macros can be used to "deconfigure" anything the terminal setup file configures. To make behavior a bit more intuitive and consistent, =pg-terminal-any= does no window-system checks, but adds the contained code to =emacs-startup-hook= so it will run after anything previously defined.
 
 * Package Header
 
@@ -16,7 +16,7 @@ Since these macros add code to =emacs-startup-hook=, the wrapped code will run a
   ;; Copyright (C) 2017 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.1
+  ;; Version: 0.2
   ;; Keywords: gui
 #+END_SRC
 
@@ -52,9 +52,11 @@ This package has no dependencies.
   (defmacro pg-terminal-pc (&rest body)
     "Arrange for BODY to be executed after terminal setup if the window-system is `pc` (DOS console)"
     `(when (eq (window-system) 'pc)
-        (add-hook 'emacs-startup-hook (lambda () ,@body))))
+       (add-hook 'emacs-startup-hook (lambda () ,@body))))
 
-
+  (defmacro pg-terminal-any (&rest body)
+    "Arrange for BODY to be executed after terminal setup if the window-system is `pc` (DOS console)"
+    `(add-hook 'emacs-startup-hook (lambda () ,@body)))
 #+END_SRC
 
 * Provides
