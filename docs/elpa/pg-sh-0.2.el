@@ -50,7 +50,6 @@ If DEF-DIR is supplied, make that the shell's working directory."
 ;;;###autoload
 (defun pg-ansi-term (&optional context def-dir)
   "Make/destroy a temporary terminal emulator, as appropriate.
-
 The semantics for this function are identical to `pg-shell', but
 start a terminal emulator (using `ansi-term') instead of a raw
 shell (using `shell'). Also, the program to be run will be read
