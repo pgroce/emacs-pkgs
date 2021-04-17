@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.5
+;; Version: 0.6
 ;; Keywords: pandoc markdown org-mode latex pdf docx
 
 (require 'pg-util)
@@ -90,11 +90,11 @@ remove everything else"
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward "citep:\\(.+?\\)\\([^a-zA-Z0-9:_-]\\|$\\)" nil t)
-      (replace-match "(@\\1)\\2")))
+      (replace-match "([@\\1;])\\2")))
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward "cite:\\(.+?\\)\\([^a-zA-Z0-9:_-]\\)" nil t)
-      (replace-match "@\\1\\2")))
+      (replace-match "[@\\1;]\\2")))
   )
 
 (defun pg-pandoc--make-top-of-subtree-title ()
