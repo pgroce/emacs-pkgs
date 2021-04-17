@@ -17,7 +17,7 @@ This package is organized around the idea is that creating and destroying shells
   ;; Copyright (C) 2017 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.1
+  ;; Version: 0.2
   ;; Keywords: shell
 
 #+END_SRC
@@ -79,6 +79,41 @@ The enabling function is also public and callable programmatically. It can be us
            (shell (concat "*temp-shell (" context ")*"))))))
  #+END_SRC
 
+
+For the same thing with a terminal, use =pg-ansi-term=
+
+#+begin_src emacs-lisp
+  ;;;###autoload
+  (defun pg-ansi-term (&optional context def-dir)
+    "Make/destroy a temporary terminal emulator, as appropriate.
+  The semantics for this function are identical to `pg-shell', but
+  start a terminal emulator (using `ansi-term') instead of a raw
+  shell (using `shell'). Also, the program to be run will be read
+  from the minibuffer, so programs other than shells can be run."
+    (interactive)
+    (let ((context (if context context (buffer-name))))
+      ;; Don't allow the creation of a temp-shell if the associated
+      ;; buffer doesn't exist. It can go away later, but requiring it to
+      ;; exist now makes things simpler (i.e., we know kill-buffer
+      ;; will work).
+
+      ;; If context is the name of a temp-shell buffer, kill it (if it
+      ;; exists)
+      (if (string-match-p "^\\*temp-term (" context)
+          (if (get-buffer context)
+              (let ((kill-buffer-query-functions '()))
+                (kill-buffer))
+            (message "Refusing to kill nonexistent temp-term '%s'" context))
+        ;; Otherwise, create a temp-shell for it
+        (let ((default-directory (if def-dir
+                                     (if (string-match-p "/$" def-dir)
+                                         def-dir
+                                       (concat def-dir "/"))
+                                   default-directory))
+              (term-ansi-buffer-base-name (concat "*temp-term (" context ")*")))
+          (call-interactively #'ansi-term)))))
+
+#+end_src
 
 ** Remote shells
 
