@@ -42,7 +42,7 @@
 		  (:maintainer "Phil Groce" . "pgroce@gmail.com")
 		  (:keywords "gui"))])
  (pg-sh .
-	[(0 2)
+	[(0 3)
 	 nil "Manage local and remote shells" single
 	 ((:authors
 	   ("Phil Groce" . "pgroce@gmail.com"))

@@ -3,7 +3,7 @@
 ;; Copyright (C) 2017 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.2
+;; Version: 0.3
 ;; Keywords: shell
 
 (require 'tramp)
@@ -48,7 +48,7 @@ If DEF-DIR is supplied, make that the shell's working directory."
         (shell (concat "*temp-shell (" context ")*"))))))
 
 ;;;###autoload
-(defun pg-ansi-term (&optional context def-dir)
+(defun pg-sh-ansi-term (&optional context def-dir)
   "Make/destroy a temporary terminal emulator, as appropriate.
 The semantics for this function are identical to `pg-shell', but
 start a terminal emulator (using `ansi-term') instead of a raw
