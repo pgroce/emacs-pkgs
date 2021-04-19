@@ -12,13 +12,18 @@ Especially when doing document conversions, it's pretty helpful to be able to vi
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.1
+  ;; Version: 0.2
   ;; Keywords: shell
 
 #+END_SRC
 
 * Requires
 
+#+begin_src emacs-lisp
+  (require 'dired)
+#+end_src
+
+* Code
 #+BEGIN_SRC emacs-lisp
   (defun pg-open-opener ()
     "Return the general-purpose application opener on this system."
@@ -57,8 +62,6 @@ Especially when doing document conversions, it's pretty helpful to be able to vi
 
 
 #+END_SRC
-
-* Code
 
 
 * Provides
