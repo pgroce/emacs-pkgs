@@ -17,7 +17,7 @@ This package is organized around the idea is that creating and destroying shells
   ;; Copyright (C) 2017 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.2
+  ;; Version: 0.3
   ;; Keywords: shell
 
 #+END_SRC
@@ -80,11 +80,11 @@ The enabling function is also public and callable programmatically. It can be us
  #+END_SRC
 
 
-For the same thing with a terminal, use =pg-ansi-term=
+For the same thing with a terminal, use =pg-sh-ansi-term=
 
 #+begin_src emacs-lisp
   ;;;###autoload
-  (defun pg-ansi-term (&optional context def-dir)
+  (defun pg-sh-ansi-term (&optional context def-dir)
     "Make/destroy a temporary terminal emulator, as appropriate.
   The semantics for this function are identical to `pg-shell', but
   start a terminal emulator (using `ansi-term') instead of a raw
