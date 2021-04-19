@@ -80,7 +80,7 @@ The enabling function is also public and callable programmatically. It can be us
  #+END_SRC
 
 
-For the same thing with a terminal, use =pg-sh-ansi-term=
+For the same thing with a terminal, use =pg-sh-ansi-term=.
 
 #+begin_src emacs-lisp
   ;;;###autoload
