@@ -1,0 +1,225 @@
+#+STARTUP: indent
+#+TITLE: opath: org-mode path selectors
+
+=org-mode= files represent a tree-structured data format. This package builds on [[https://github.com/ndwarshuis/org-ml][org-ml]] to select nodes in an =org= document or subtree using a delimited-path syntax similar to URIs and [[https://www.w3.org/TR/1999/REC-xpath-19991116/#location-paths][XPath]].
+
+* Code
+
+** Tangling
+
+Export the main code to =opath.el= and the test code to =opath-test.el=
+
+*** Main code
+
+#+begin_src emacs-lisp :tangle "opath.el"
+<<requires>>
+<<str-pop>>
+<<str-push>>
+<<pop-assign>>
+<<read-string-until>>
+#+end_src
+
+
+*** Test Code
+
+#+begin_src emacs-lisp :tangle "opath-test.el"
+<<requires-test>>
+<<str-pop-test>>
+<<str-push-test>>
+<<pop-assign-test>>
+<<read-string-until-test>>
+#+end_src
+
+
+
+** Requires
+
+
+#+begin_src emacs-lisp :noweb-ref requires
+  (require 's)
+  (require 'ert)
+  (require 'cl)
+#+end_src
+
+#+begin_src emacs-lisp :noweb-ref requires-test
+  (require 'opath')
+#+end_src
+
+
+** Path Parsing
+
+The project requires low-level LR processing of sequences; character sequences are carved off strings and converted labels, and label sequences form paths. The top down traversal of a tree of nodes then mirrors LR sequence processing.
+
+I initially tried to use one of the many Emacs parsing libraries for parsing path specification strings. Sadly, they all rely on regexes, and  the lack of zero-width lookahead assertions in Emacs regular expressions complicates the implementation of escape sequences. On the other hand, it's easy to work an escape sequence into a simple LR approach, and the rest of this projects parsing needs are modest, really just tokenizing.
+
+
+*** Queue operations on strings
+
+The core operations are critical infrastructure for path parsing, so they're tested a bit more aggressively than the rest of the code.
+
+Strings are treated as queues, so pushes are done to the right (end) of the string, and pops are taken from the left (start). The queue operations are pure functions, so return values always contain the new version of the data structure. The parsing does no lookahead, so no "peek" or "putback" operations are implemented.
+
+**** Template
+#+begin_src emacs-lisp
+
+#+end_src
+
+#+begin_src emacs-lisp
+
+#+end_src
+
+
+**** =opath--str-pop=
+
+#+begin_src emacs-lisp :noweb-ref str-pop
+  (defun opath--str-pop (str)
+    (if (s-equals-p str "")
+        nil
+      (cons (s-left 1 str)  (substring-no-properties str 1 (length str)))))
+#+end_src
+
+#+begin_src emacs-lisp :noweb-ref str-pop-test
+  (ert-deftest opath--str-pop-test ()
+    (should (equal '("a" . "bc") (opath--str-pop "abc")))
+    (should (equal '("a" . "b") (opath--str-pop "ab")))
+    (should (equal nil  (opath--str-pop ""))))
+#+end_src
+
+**** =opath--str-push=
+
+
+
+#+begin_src emacs-lisp :noweb-ref str-push
+  (defun opath--str-push (str tail)
+    (concat str tail))
+#+end_src
+
+#+begin_src emacs-lisp :noweb-ref str-push-test
+  (ert-deftest opath--str-push-test ()
+    (should (equal "abc" (opath--str-push "ab" "c"))))
+#+end_src
+
+**** =opath--pop-assign=
+
+This macro pops a character off a string using =opath--str-pop=, assigning the character (the head) and remaining string (the tail) to user-supplied variables.
+
+#+begin_src emacs-lisp :noweb-ref pop-assign
+  (defmacro opath--pop-assign (head tail str)
+    `(case (length ,str)
+       (0
+        (progn
+          (setq ,head nil)
+          (setq ,tail nil)))
+       (1
+        (progn
+          (setq ,head ,str)
+          (setq ,tail "")))
+       (2
+        (progn
+          (setq ,head (s-left 1 ,str))
+          (setq ,tail (s-right 1 ,str))))
+       (t
+        (let ((the-pop (opath--str-pop ,str)))
+          (setq ,head (car the-pop))
+          (setq ,tail (cdr the-pop))))))
+#+end_src
+
+#+begin_src emacs-lisp
+  (ert-deftest opath--pop-assign-test ()
+    (let (hd tl)
+      (progn
+        (opath--pop-assign hd tl "cccc") (and (equal hd "c")
+                                              (equal tl "ccc"))))
+    (let (hd tl)
+      (progn
+        (opath--pop-assign hd tl "ccc") (and (equal hd "c")
+                                             (equal tl "cc"))))
+    (let (hd tl)
+      (progn
+        (opath--pop-assign hd tl "cc") (and (equal hd "c")
+                                            (equal tl "c"))))
+    (let (hd tl)
+      (progn
+        (opath--pop-assign hd tl "c") (and (equal hd "c")
+                                           (equal tl ""))))
+    (let (hd tl)
+      (progn
+        (opath--pop-assign hd tl "") (and (equal hd nil)
+                                          (equal tl nil)))))
+#+end_src
+
+
+
+*** =opath-read-string-until=
+
+An intermediate function between character- and label-based processing. Pops a sequence of characters off a string up to the next (unescaped) delimiter.
+
+#+begin_src emacs-lisp :noweb-ref read-string-until
+  (defun opath-read-string-until (delim str)
+    "Read a STR until DELIM is reached. Return a cons of the part read and the remainder, still including the delimiter."
+    (let (h tail acc)
+        (opath--pop-assign h tail str)
+        (while (and h (not (s-equals-p delim h)))
+          ;; Pop an additional character if first is the escape character
+          (when (s-equals-p h "\\")
+            (opath--pop-assign h tail tail))
+          ;; Put character on accumulator
+          (setq acc (opath--str-push acc h))
+          ;; Pop off next char
+          (opath--pop-assign h tail tail))
+        ;; We've pulled all the characters off to the next non-escaped
+        ;; slash, or else we've exhausted the string.
+        (cons acc tail)))
+#+end_src
+
+** Label parsing
+#+begin_src emacs-lisp
+  (ert-deftest opath-read-string-until-test ()
+    (should (equal '(nil . "abc") (opath-read-string-until "|" "|abc")))
+    (should (equal '(nil . "abc") (opath-read-string-until "/" "/abc")))
+    (should (equal '("a" . "b/c") (opath-read-string-until "/" "a/b/c")))
+    (should (equal '("aaa" . "bbb/ccc")
+                   (opath-read-string-until "/" "aaa/bbb/ccc")))
+    (should (equal '("a/aa" . "bbb/ccc")
+                   (opath-read-string-until "/" "a\\/aa/bbb/ccc")))
+    ; TODO: This FAILS!!!
+    (should (equal '("a/aa" . "bbb/ccc")
+                   (opath-read-string-until "/" "ccc"))))
+#+end_src
+
+
+
+#+begin_src emacs-lisp
+
+
+
+
+
+  (defun opath--label-pop (path-str)
+    (opath-read-string-until "/" path-str))
+
+
+
+
+
+
+  (defun opath--tokenize-path (path-str)
+    (let ((accumulator
+           (lambda (x)
+             (when x (opath--label-pop x)))))
+      (-unfold accumulator path-str)))
+
+
+
+  (ert-deftest opath-parsetest ()
+    (should (equal '("aaa" "bbb" "ccc") (opath--tokenize-path "aaa/bbb/ccc")))
+    (should (equal '("aaa" "b/bb" "ccc") (opath--tokenize-path "[^\]/" "/aaa/b\/bb/ccc/"))))
+
+
+  (s-matched-positions-all "[^\\]/" "/aaa/b\\/bb/ccc/")
+#+end_src
+
+
+#+begin_src emacs-lisp :tangle "opath-ert.el"
+
+#+end_src
