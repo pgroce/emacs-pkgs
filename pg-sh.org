@@ -80,41 +80,6 @@ The enabling function is also public and callable programmatically. It can be us
  #+END_SRC
 
 
-For the same thing with a terminal, use =pg-sh-ansi-term=.
-
-#+begin_src emacs-lisp
-  ;;;###autoload
-  (defun pg-sh-ansi-term (&optional context def-dir)
-    "Make/destroy a temporary terminal emulator, as appropriate.
-  The semantics for this function are identical to `pg-shell', but
-  start a terminal emulator (using `ansi-term') instead of a raw
-  shell (using `shell'). Also, the program to be run will be read
-  from the minibuffer, so programs other than shells can be run."
-    (interactive)
-    (let ((context (if context context (buffer-name))))
-      ;; Don't allow the creation of a temp-shell if the associated
-      ;; buffer doesn't exist. It can go away later, but requiring it to
-      ;; exist now makes things simpler (i.e., we know kill-buffer
-      ;; will work).
-
-      ;; If context is the name of a temp-shell buffer, kill it (if it
-      ;; exists)
-      (if (string-match-p "^\\*temp-term (" context)
-          (if (get-buffer context)
-              (let ((kill-buffer-query-functions '()))
-                (kill-buffer))
-            (message "Refusing to kill nonexistent temp-term '%s'" context))
-        ;; Otherwise, create a temp-shell for it
-        (let ((default-directory (if def-dir
-                                     (if (string-match-p "/$" def-dir)
-                                         def-dir
-                                       (concat def-dir "/"))
-                                   default-directory))
-              (term-ansi-buffer-base-name (concat "*temp-term (" context ")*")))
-          (call-interactively #'ansi-term)))))
-
-#+end_src
-
 ** Remote shells
 
 The default assumption with remote shells is not that you can just exit the process cleanly, because SSH connections contain multiple channels of communication (e.g., you may be using port forwarding to proxy other connections through this one), and because there may be remote state that needs to be cleaned up. Furthermore, it's common to want multiple remote shells out to another host, where it's less likely you'll want multiple shells closely associated with the same directory.
@@ -139,18 +104,21 @@ Therefore, =pg-sh-ssh= does not dismiss the connection if you're already in an S
         not-nil-p
         (mapcar 'cdr (tramp-parse-sconfig "~/.ssh/config"))))))
 
-  (defun pg-sh--make-dumb-remote-terminal (remote-host)
-    "Make a remote connection via ssh. REMOTE-HOST is presumed to
-    be sufficient to `ssh' to figure things out."
-    (let* ((bdir (format "ssh:%s" remote-host))
-           (bname (generate-new-buffer-name bdir))
-           (buff (make-term bname "ssh" nil remote-host)))
+  (defun pg-sh--make-dumb-terminal (buff-name default-dir program &rest switches)
+    (let* ((buff (apply #'make-term buff-name program nil args)))
       (set-buffer buff)
-      (setq default-directory (format "/%s:" bdir))
+      (setq default-directory default-dir)
       (term-mode)
       (term-char-mode)
       (term-set-escape-char ?\C-x)
       (switch-to-buffer buff)))
+
+  (defun pg-sh--make-dumb-remote-terminal (remote-host)
+    "Make a remote connection via ssh. REMOTE-HOST is presumed to
+    be sufficient to `ssh' to figure things out."
+    (let* ((bdir (format "ssh:%s" remote-host))
+           (bname (generate-new-buffer-name bdir)))
+      (pg-sh--make-dumb-remote-terminal bname (format "/%s:" bdir) "ssh" remote-host)))
 
   ;;;###autoload
   (defun pg-sh-ssh ()
@@ -161,6 +129,66 @@ Therefore, =pg-sh-ssh= does not dismiss the connection if you're already in an S
     (pg-sh--make-dumb-remote-terminal
      (completing-read "SSH config entry: " (pg-sh--ssh-hosts))))
 #+END_SRC
+
+** Local terminals
+
+Implementation-wise, local terminals combine aspects of local shells (usually they just run a shell) and remote terminals.
+
+
+#+begin_src emacs-lisp
+  ;; For reference....
+  (defun pg-sh--make-dumb-terminal (buff-name default-dir program &rest switches)
+    (let* ((buff (apply #'make-term buff-name program nil args)))
+      (set-buffer buff)
+      (setq default-directory default-dir)
+      (term-mode)
+      (term-char-mode)
+      (term-set-escape-char ?\C-x)
+      (switch-to-buffer buff)))
+
+  ;;;###autoload
+  (defun pg-sh-ansi-term (&optional context default-dir program &rest program-switches)
+    "Make/destroy a temporary terminal emulator, as appropriate.
+  The semantics for this function are identical to `pg-shell', but
+  start a terminal emulator (using `term.el') instead of a raw
+  shell (using `shell'). Also, the program to be run will be read
+  from the minibuffer, so programs other than shells can be run.
+
+  The logic for choosing the default program to run is identical to
+  that in `ansi-term': use the value of `explicit-shell-file-name',
+  the value of the `ESHELL' environment variable if that isn't set,
+  and if neither are set, the value of `shell-file-name'. Arguments
+  may be supplied in addition to the program name.
+
+  If `PROGRAM' is specified, it will be run with `PROGRAM-SWITCHES'
+  as arguments, and the user will not be prompted to enter a command."
+    (interactive)
+    (let ((context (if context context (buffer-name))))
+      ;; If context is the name of an existing buffer, kill it
+      (if (string-match-p "^\\*temp-term (" context)
+          (if (get-buffer context)
+              (let ((kill-buffer-query-functions '()))
+                (kill-buffer))
+            (message "Refusing to kill nonexistent temp-term '%s'" context))
+        ;; Otherwise, create a new terminal
+        (let ((default-dir (if default-dir
+                               (if (string-match-p "/$" default-dir)
+                                   default-dir
+                                 (concat default-dir "/"))
+                             default-directory))
+              (new-context (concat "*temp-term (" context ")*"))
+              (tokens (if program
+                          (cons program program-switches)
+                        (split-string " " (read-from-minibuffer "Run program: "
+                                                                (or explicit-shell-file-name
+                                                                    (getenv "ESHELL")
+                                                                    shell-file-name))))))
+          (if (car tokens)
+              (pg-sh--make-dumb-terminal context default-dir (car tokens) (cdr tokens))
+            (message "No program specified, doing nothing"))))))
+
+#+end_src
+
 
 
 * Provides
