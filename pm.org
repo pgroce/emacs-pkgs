@@ -31,8 +31,10 @@ Done, but hardly an accomplishment
 
 * Code
 
-** Exploration
+** Selecting headlines
+Consider the selection of =DONE= headlines.
 
+#+begin_src  emacs-lisp
   (let ((config (list :log-into-drawer "LOGBOOK" :clock-into-drawer t)))
       (->> (org-ml-parse-subtrees 'all)
            (org-ml-match '(:any * (:todo-keyword "DONE")))
@@ -82,7 +84,7 @@ Let's test this out
 
 
 
-*** Tracking state transitions
+** Tracking state transitions
 
 The old solution for identifying when a headline was resolved as =DONE= and what notes were provided:
 
@@ -153,7 +155,7 @@ We also want to keep the resolution tied to the headline. Solving the problem fo
 
 Its easy enough to generalize the regex for any state transition.
 
-**** Parsing state transition entries
+*** Parsing state transition entries
 
 #+begin_src emacs-lisp :noweb-ref strans-regex
   (defconst pg-pm--rx-logbook-resolved
@@ -189,40 +191,96 @@ A function using it to identify and extract the data we need from a single log e
                  ((_ to from) (->> (org-ml-to-trimmed-string s)
                                    (s-match pg-pm--rx-logbook-resolved)))
                  ;; if notes exist, create as new paragraph
-                 (notes (if (org-ml-is-type 'line-break (first (pg-util-spy the-rest)))
+                 (notes (if (org-ml-is-type 'line-break (first the-rest))
                             ;; trick to inline (cdr the-rest) as args
                             (let ((para-objs (-map (lambda (x) `(quote ,x)) (cdr the-rest))))
-                              (eval `(org-ml-build-paragraph ,@(cdr para-objs))))
+                              (eval `(org-ml-build-paragraph ,@para-objs)))
                           ;; no additional notes == empty paragraph
                           (org-ml-build-paragraph)))]
       (list (intern to) (intern from) ts notes)))
+
+
+  (defun pg-pm--strans-to-string (strans)
+    "Render the data structure returned by
+    `pg-pm--parse-strans-log-entry' as a string."
+    (-let [(to from ts notes) strans]
+      (format "#(%s %s \"%s\" \"%s\")"
+              (symbol-name to)
+              (symbol-name from)
+              (org-ml-to-trimmed-string ts)
+              (org-ml-to-trimmed-string notes))))
+
+  (defun pg-pm--strans-to (strans)
+    "Return only the to portion of STRANS."
+    (-let [(to _ _ _) strans]
+      to))
+
+  (defun pg-pm--strans-from (strans)
+    "Return only the from portion of STRANS."
+    (-let [(_ from _ _) strans]
+      from))
+
+  (defun pg-pm--strans-ts (strans)
+    "Return only the ts portion of STRANS."
+    (-let [(_ _ ts _) strans]
+      ts))
+
+  (defun pg-pm--strans-notes (strans)
+    "Return only the notes portion of STRANS."
+    (-let [(_ _ _ notes) strans]
+      notes))
+
+
+
 #+end_src
 
 #+RESULTS:
-: pg-pm--parse-strans-log-entry
+: pg-pm--strans-notes
 
 
 That's a little dense. Let's test it out.
 
 #+begin_src emacs-lisp :noweb yes :results code :exports code
-  <<finished-tasks>>
-  <<headline-logbook-items>>
-  <<strans-regex>>
-  <<parse-strans-log-entry>>
+    <<finished-tasks>>
+    <<headline-logbook-items>>
+    <<strans-regex>>
+    <<parse-strans-log-entry>>
 
-  (->> (org-ml-parse-subtrees 'all)
-       (pg-pm--finished-tasks)
-       (first)
-       (pg-pm--headline-logbook-items)
-       (first)
-       (pg-pm--parse-strans-log-entry))
+    (->> (org-ml-parse-subtrees 'all)
+         (pg-pm--finished-tasks)
+         (first)
+         (pg-pm--headline-logbook-items)
+         (first)
+         (pg-pm--parse-strans-log-entry)
+         (pg-pm--strans-notes))
+#+end_src
+
+The string version is a bit easier to read.
+
+#+begin_src emacs-lisp :noweb yes :results value drawer :exports code
+    <<finished-tasks>>
+    <<headline-logbook-items>>
+    <<strans-regex>>
+    <<parse-strans-log-entry>>
+
+    (->> (org-ml-parse-subtrees 'all)
+         (pg-pm--finished-tasks)
+         (first)
+         (pg-pm--headline-logbook-items)
+         (first)
+         (pg-pm--parse-strans-log-entry)
+         (pg-pm--strans-to-string))
 #+end_src
 
 #+RESULTS:
+:results:
+#(DONE DOING "[2021-07-30 Fri 09:53]" "Smaller thing 1 done! Results sent to *someone*.")
+:end:
+
 
 Kind of ugly, but it will get cleaned up shortly.
 
-***** Fun with timestamps
+**** Fun with timestamps
 
 Let's do a little spike and figure out what's possible with time stamps.
 
@@ -253,7 +311,8 @@ So that's how we bridge the gap between =org-ml= and =ts=.
 
 
 
-*** Building an accomplishment record
+
+** Building an accomplishment record
 
 What we just did to test =pg-pm--parse-strans-log-entry= is more or less what we need to do for each headline we're looking at. So let's put it into a function.
 
@@ -299,7 +358,26 @@ We also need some description of what was accomplished. When it exists, the note
                                 (pg-pm--headline-logbook-items)
                                 (-map #'pg-pm--parse-strans-log-entry))))
       (when (pg-pm--accomplishment? headline logbook-entries)
-        (list headline (first logbook-entries) logbook-entries))))
+        (list headline (first logbook-entries)))))
+
+
+  (defun pg-pm--accomplishment-headline (accomplishment)
+    "Get the headline associated with ACCOMPLISHMENT."
+    (-let [(headline _) accomplishment]
+      headline))
+
+  (defun pg-pm--accomplishment-strans (accomplishment)
+    "Get the state transition entry associated with ACCOMPLISHMENT."
+    (-let [(_ strans) accomplishment]
+      strans))
+
+  (defun pg-pm--accomplishment-to-string (accomplishment)
+    "Render the data structure returned by
+    `pg-pm--build-accomplishment' as a string."
+    (-let [(headline strans) accomplishment]
+      (format "#(\"%s\" %s)"
+              (org-ml-to-trimmed-string headline)
+              (pg-pm--strans-to-string strans))))
 #+end_src
 
 Used thusly:
@@ -317,17 +395,32 @@ Used thusly:
        (first))
 #+end_src
 
+Again, using a string representation for clarity:
+
+#+begin_src emacs-lisp :noweb yes :results drawer :exports code
+  <<finished-tasks>>
+  <<headline-logbook-items>>
+  <<strans-regex>>
+  <<parse-strans-log-entry>>
+  <<build-accomplishment>>
+
+  (->> (org-ml-parse-subtrees 'all)
+       (pg-pm--finished-tasks)
+       (-keep #'pg-pm--build-accomplishment)
+       (first)
+       (pg-pm--accomplishment-to-string))
+#+end_src
+
+
 
 
 As you can see, =pg-pm--build-accomplishment= is both a constructor and a predicate, so we can throw a list of maybe-accomplishments at it and use =-keep= to filter out the non-accomplishments.
 
-*** Org-mode representation of accomplishments
+** Org-mode representation of accomplishments
 
 The accomplishment record is convenient for processing, but we'll eventually want to represent accomplishments in Org. Building that now also gives us a "free" string representation.
 
 #+begin_src emacs-lisp :noweb-ref accomplishment-to-org
-
-
   (defun pg-pm--accomplishment-to-org (accomplishment)
     "Convert an ACCOMPLISHMENT, an accomplishment record, to an
     org-element representation. If ACCOMPLISHMENT is nil, return
@@ -344,7 +437,7 @@ The accomplishment record is convenient for processing, but we'll eventually wan
 
 Used thusly:
 
-#+begin_src emacs-lisp :noweb yes :results code :exports code
+#+begin_src emacs-lisp :noweb yes :results org :exports code
   <<finished-tasks>>
   <<headline-logbook-items>>
   <<strans-regex>>
@@ -357,119 +450,6 @@ Used thusly:
        (pg-pm--finished-tasks)
        (-keep #'pg-pm--build-accomplishment)
        (first)
-       (pg-pm--accomplishment-to-org))
+       (pg-pm--accomplishment-to-org)
+       (org-ml-to-trimmed-string))
 #+end_src
-
-#+RESULTS:
-
-
-*** Building an accomplishment record
-
-What we just did to test =pg-pm--parse-strans-log-entry= is more or less what we need to do for each headline we're looking at. So let's put it into a function.
-
-But first, what is an accomplishment? A finished task is an accomplishment if and only if:
-
-- It's completed (i.e., status is =DONE=)
-- We have a record of its completion (i.e., the last state transition entry matches the state of the finished item)
-
-We also need some description of what was accomplished. When it exists, the notes associated with the state transition entry serve the purpose. If notes do not exist, we will currently assume the actual text of the headline will suffice.
-
-#+begin_src emacs-lisp :noweb-ref build-accomplishment
-  (defun pg-pm--accomplishment? (headline strans-entries)
-    "Returns a true value if the entries in STRANS-ENTRIES
-    constitute an actual accomplishment, otherwise nil.
-
-  STRANS-ENTRIES should be a list of state transition logbook
-  entries, as processed by `pg-pm--parse-strans-log-entry'."
-    ;; To be an accomplishment, there must be a logbook entry
-    ;; corresponding to the current to-do state of the headline (so the
-    ;; info in the first logbook entry and the headline to-do state must
-    ;; match), and the to-do state of the headline must indicate that
-    ;; the task is finished (which currently just means it's in state
-    ;; DONE).
-    ;;
-    ;; If more than one to-do state indicated that a task was finished,
-    ;; we'd also have to check that the state on the entry matched the
-    ;; one on the headline, but with one finishing state, we get that
-    ;; for free, so to speak.
-    (and (equal "DONE" (org-ml-get-property :todo-keyword headline))
-         (equal 'DONE (first (first strans-entries)))))
-
-
-  (defun pg-pm--build-accomplishment (headline)
-    "Return an accomplishment record for HEADLINE. The
-  accomplishment record contains the headline, the transition log
-  entry corresponding to the finishing of the accomplishment, and
-  all the elements of the transition log entry, as returned by
-  `pg-pm--parse-strans-log-entry'.
-
-  If the headline is not, in fact, an accomplishment, this function
-  returns nil."
-    (let ((logbook-entries (->> headline
-                                (pg-pm--headline-logbook-items)
-                                (-map #'pg-pm--parse-strans-log-entry))))
-      (when (pg-pm--accomplishment? headline logbook-entries)
-        (list headline (first logbook-entries) logbook-entries))))
-#+end_src
-
-Used thusly:
-
-#+begin_src emacs-lisp :noweb yes :results code :exports code
-  <<finished-tasks>>
-  <<headline-logbook-items>>
-  <<strans-regex>>
-  <<parse-strans-log-entry>>
-  <<build-accomplishment>>
-
-  (->> (org-ml-parse-subtrees 'all)
-       (pg-pm--finished-tasks)
-       (-keep #'pg-pm--build-accomplishment)
-       (first))
-#+end_src
-
-
-
-As you can see, =pg-pm--build-accomplishment= is both a constructor and a predicate, so we can throw a list of maybe-accomplishments at it and use =-keep= to filter out the non-accomplishments.
-
-*** Org-mode representation of accomplishments
-
-The accomplishment record is convenient for processing, but we'll eventually want to represent accomplishments in Org. Building that now also gives us a "free" string representation.
-
-#+begin_src emacs-lisp :noweb-ref accomplishment-to-org
-  (defun --org-ml-orphan (node)
-    (org-ml-set-property :parent nil (pg-util-spy node)))
-
-  (defun pg-pm--accomplishment-to-org (accomplishment)
-    "Convert an ACCOMPLISHMENT, an accomplishment record, to an
-    org-element representation. If ACCOMPLISHMENT is nil, return
-    nil."
-
-    (-let* (((headline (_ _ ts notes)) accomplishment)
-            (h2 (org-ml-build-headline
-                 :title (org-ml-get-property :title headline)
-                 (org-ml-build-section notes))))
-      nil))
-#+end_src
-
-#+RESULTS:
-: pg-pm--accomplishment-to-org
-
-Used thusly:
-
-#+begin_src emacs-lisp :noweb yes :results code :exports code
-  <<finished-tasks>>
-  <<headline-logbook-items>>
-  <<strans-regex>>
-  <<parse-strans-log-entry>>
-  <<build-accomplishment>>
-  <<accomplishment-to-org>>
-
-
-  (->> (org-ml-parse-subtrees 'all)
-       (pg-pm--finished-tasks)
-       (-keep #'pg-pm--build-accomplishment)
-       (first)
-       (pg-pm--accomplishment-to-org))
-#+end_src
-
-#+RESULTS:
