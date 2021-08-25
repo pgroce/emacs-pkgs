@@ -1,10 +1,10 @@
-# If (the right) Emacs isn't in your path, define the variable EMACS
+# If (the right) Emacs isn't in your path, define the variable EMACS_EXE
 # in localvars.mk.  e.g.
-# EMACS="/Applications/Emacs.app/Contents/MacOS/Emacs"
+# EMACS_EXE="/Applications/Emacs.app/Contents/MacOS/Emacs"
 -include localvars.mk
 
-ifndef EMACS
-EMACS=`which emacs`
+ifndef EMACS_EXE
+EMACS_EXE=`which emacs`
 endif
 
 ELPA=./docs/elpa
@@ -12,11 +12,11 @@ ELPA=./docs/elpa
 ORGS := $(wildcard *.org)
 
 %.el: %.org
-	$(EMACS) --batch --visit $< \
+	$(EMACS_EXE) --batch --visit $< \
           --eval "(progn (require 'ob) (org-babel-tangle nil \"$@\"))"
 
 %.published: %.el
-	$(EMACS) --batch \
+	$(EMACS_EXE) --batch \
           --eval "(progn (require 'package-x) (setq package-archive-upload-base (expand-file-name \"$(ELPA)\")) (package-upload-file \"$<\"))";
 	touch $@
 
