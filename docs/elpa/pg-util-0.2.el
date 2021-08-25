@@ -249,5 +249,26 @@ point, if it exists."
 
 (defalias '/find-thing-at-point 'pg-util-find-thing-at-point)
 
+(defmacro pg-util-if-2 (l r)
+  "A compact way of saying (if l l r)"
+  (declare (indent 1))
+  `(if ,l
+       ,l
+     ,r))
+
+(defalias '/if-2 'pg-util-if-2)
+
+
+(defmacro pg-util-option (l r)
+  "Return L if it evaluates true, otherwise R. L is evaluated
+exactly once. R is evaluated only if L evaluates to nil."
+  (declare (indent 1))
+  `(let ((l ,l))
+     (if l
+         l
+       ,r)))
+
+(defalias '/option 'pg-util-option)
+
 (provide 'pg-util)
 ;;; pg-util.el ends here

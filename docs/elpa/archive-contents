@@ -1,4 +1,21 @@
 (1
+ (pm .
+     [(0 1)
+      ((emacs
+	(26 1))
+       (dash
+	(2 19))
+       (s
+	(1 12))
+       (org-ml
+	(5 7))
+       (ts
+	(0 3)))
+      "Project Management" single
+      ((:authors
+	("Phil Groce" . "pgroce@gmail.com"))
+       (:maintainer "Phil Groce" . "pgroce@gmail.com")
+       (:keywords "productivity"))])
  (pg-util .
 	  [(0 2)
 	   ((dash

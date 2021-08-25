@@ -26,12 +26,12 @@ publish: $(ORGS:.org=.published)
 
 
 clean:
-	rm -f pg-*.el
+	rm -f *.el
 	rm -f *.published
 
 # "Too" clean because it deletes the contents of docs/elpa, which are
 # generated from tangle but checked in to be visible to Github Pages
 tooclean:
-	rm -f pg-*.el
+	rm -f *.el
 	rm -f *.published
 	rm -rf 	$(ELPA)/*
