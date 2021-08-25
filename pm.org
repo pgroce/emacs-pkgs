@@ -685,5 +685,5 @@ Time to build the report.
 
 #+BEGIN_SRC emacs-lisp
   (provide 'pm)
-  ;;; pg.el ends here
+  ;;; pm.el ends here
 #+END_SRC
