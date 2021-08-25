@@ -332,6 +332,41 @@ The main function.
 #+END_SRC
 
 
+*** Little things
+
+A section for things that are too small even to include in their own section.
+
+**** Inline options
+
+These macros make conditional assignment more readable, especially when they're done as part of a larger evaluation, such as in a =let= statement. Common lisp probably already has these; heck, maybe Emacs lisp already has these, but I haven't come across it.
+
+=/if-2= is literally =(if l l r)=, except =l= only has to be written once. This means that =l= is evaluated twice if it evaluates to a true value the first time.
+
+=/option= is identical to =/if-2=, except that =l= is only evaluated once. This is useful if =l= is expensive or has side effects.
+
+
+#+begin_src emacs-lisp
+  (defmacro pg-util-if-2 (l r)
+    "A compact way of saying (if l l r)"
+    (declare (indent 1))
+    `(if ,l
+         ,l
+       ,r))
+
+  (defalias '/if-2 'pg-util-if-2)
+
+
+  (defmacro pg-util-option (l r)
+    "Return L if it evaluates true, otherwise R. L is evaluated
+  exactly once. R is evaluated only if L evaluates to nil."
+    (declare (indent 1))
+    `(let ((l ,l))
+       (if l
+           l
+         ,r)))
+
+  (defalias '/option 'pg-util-option)
+#+end_src
 * Provide
 
 #+BEGIN_SRC emacs-lisp
