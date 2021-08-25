@@ -1,12 +1,54 @@
 #+STYLE: <link rel="stylesheet" type="text/css" href="style.css">
-#+STARTUP: indent
-#+TITLE: pm: Project management
+#+startup: indent
+#+TITLE: pm.org: Project management
 
-This is how I manage the projects I work on.
+
+This is how I manage the projects I work on. The idea is to provide optional structure to whatever someone (i.e., me) is already doing. Projects can co-exist beside other things that aren't recognized by this as such, but if a =project.org= file exists in a directory, some additional features are available in everyone's favorite time tracker, Emacs.
+
+
+
+* Project setup
+
+A directory underneath =pg-pm-active-projects= that contains a =project.org= file is considered a project. A skeleton =project.org= file looks like this
+
+#+begin_src org
+  ,#+title: Project Name
+  ,#+project_status: active
+  ,#+category: proj
+  ,#+seq_todo: TODO  DOING | DONE(@)
+#+end_src
+
+That's all! Even some of this is discretionary:
+
+- The title is optional, but may be utilized later
+- The =project_status= is the only required property. Setting it to =active= means this project will be included as an active project. (If you have old =project.org= files from Before, this should ensure they don't accidentally get picked up.)
+- =category= is for =org-agenda=, so you know what project is associated with what to-do items.
+- =seq_todo= is optional, but if it's specified, be sure it contains a =DONE= status so accomplishments can be tracked. (This may be parameterized someday.)
+
+
+Now you can add to-do items in a project file and they will automatically show up in =org-agenda= views. If you mark a status =DONE= and add a log entry describing the final disposition of the task, it will be picked up as an accomplishment
+
+#+begin_src emacs-lisp :results code
+  (org-ml-parse-this-headline)
+#+end_src
+
+
+
+
+** Features
+
+*** Org-agenda management
+
+Use your project files as the inputs to your org-agenda. (Coming soon, or maybe, or never: Custom agenda view so I don't clobber =org-agenda-files=.)
+
+*** Reporting
+
+Currently, I've only implemented one custom report, leaning heavily on =org-ml= to extract info and put it into a document (okay, the last part's aspirational). Coming soon, or maybe, or never: A framework for creating reports by selecting and transforming elements in the project according to a template. (I need to come up with a way that's more compelling than converting to XML via [[https://github.com/ndw/org-to-xml][org-to-xml]] or something to do that.)
+
 
 * Tasks
 
-I'm putting some tasks here as an example.
+I'm putting some tasks here as an example for accomplishment processing.
 
 ** Do a big thing
 Do something that involves lots of smaller tasks getting done.
@@ -31,10 +73,136 @@ Done, but hardly an accomplishment
 
 * Code
 
-** Selecting headlines
+** Package Header
+
+#+BEGIN_SRC emacs-lisp
+  ;;; pm.el --- Project Management
+
+  ;; Copyright (C) 2021 Phil Groce
+
+  ;; Author: Phil Groce <pgroce@gmail.com>
+  ;; Version: 0.1
+  ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3"))
+  ;; Keywords: productivity
+#+END_SRC
+
+
+
+** Requires
+
+#+begin_src emacs-lisp :noweb-ref requires
+  (require 'dash)
+  (require 's)
+  (require 'ts)
+  (require 'org-ml)
+#+end_src
+
+
+** Active projects
+
+#+begin_src emacs-lisp :noweb-ref active-projects
+  (defcustom pg-pm-project-dir "~/active-projects"
+    "Directory containing projects")
+
+  (defcustom pg-pm--active-project-cache nil
+    "List of active projects. Automatically generated if
+    `nil'. Otherwise it must be manually refreshed using
+    `pg-pm-refresh-active-projects' if new pm projects are
+    created/removed.")
+
+  (defun pg-pm--find-active-projects-nocheck ()
+    "Find active project files on disk. Does not use the active projects cache."
+    (--filter (save-excursion
+                (switch-to-buffer (find-file-noselect it))
+                (unwind-protect
+                    (org-ml-match
+                     '((:and keyword (:key "PROJECT_STATUS") (:value "active")))
+                     (org-ml-parse-this-toplevel-section))
+                  (kill-buffer)))
+              (directory-files-recursively
+               pg-pm-project-dir "^project.org$")))
+
+  (defun pg-pm--refresh-active-projects ()
+    (setq pg-pm--active-project-cache (pg-pm--find-active-projects-nocheck))
+    ;; The Right Way to do this is hooks, but this does just fine for
+    ;; now.
+    (setq org-agenda-files (pg-pm-active-projects)))
+
+  (defun pg-pm-refresh-active-projects ()
+    (interactive)
+    (pg-pm--refresh-active-projects)
+    (message "Active projects list refreshed"))
+
+  (defun pg-pm-active-projects (&optional should-refresh?)
+    "Return the list of active projects. IF SHOULD-REFRESH? is
+  non-nil, refresh the project cache unconditionally."
+    (when (or should-refresh?
+              (eq nil pg-pm--active-project-cache))
+      (pg-pm--refresh-active-projects))
+    pg-pm--active-project-cache)
+
+  (defun pg-pm-switch-to-active-project (&optional arg)
+    "Switch to one of the acive projects"
+    (interactive)
+    (let ((proj (->> (pg-pm-active-projects)
+                     (-map #'file-name-directory)
+                     (completing-read "Switch to Active Project: "))))
+      (projectile-switch-project-by-name proj arg)))
+#+end_src
+
+** Project info
+
+#+begin_src emacs-lisp :noweb-ref project-info
+
+
+  (defmacro pm--to-buffer (buffer-or-file-name &optional err-message)
+    "If BUFFER-OR-FILE-NAME is a buffer, return it. If it's a
+    string, try to open it as a file name. Otherwise, signal an
+    error with ERR-MESSAGE, or a default message."
+    (let ((err-message (if err-message
+                           err-message
+                         "Invalid parameter, must be buffer or file name.")))
+      `(let ((b-or-fn ,buffer-or-file-name))
+         (cond
+          ((bufferp b-or-fn) b-or-fn)
+          ((stringp b-or-fn) (find-file-noselect b-or-fn))
+          (nil (error ,err-message))))))
+
+
+  (defun pm-project-meta (key project-file-or-buffer)
+    "Assuming KEY is a keyword associated with the toplevel section
+  of the project file in PROJECT-FILE-OR-BUFFER, return the
+  value. IF the keyword is defined multiple times, get the first
+  value. If KEY is not defined, return nil."
+    (let ((buff (pm--to-buffer
+                  project-file-or-buffer
+                  "Invalid parameter: must be project file name or buffer.")))
+      (with-current-buffer buff
+        (->> (org-ml-parse-this-toplevel-section)
+             (org-ml-match `((:and keyword (:key ,key))))
+             (--map (org-ml-get-property :value it))
+             (first)))))
+
+#+end_src
+
+#+begin_src emacs-lisp :noweb no-export :tangle no :results code :exports none
+  <<project-info>>
+
+  (pm-project-meta "TITLE" (current-buffer))
+#+end_src
+
+
+
+
+
+** Accomplishments
+
+Accomplishments are similar to milestones, but perhaps a bit less premeditated.
+
+*** Selecting headlines
 Consider the selection of =DONE= headlines.
 
-#+begin_src  emacs-lisp
+#+begin_src  emacs-lisp :tangle no :exports none
   (let ((config (list :log-into-drawer "LOGBOOK" :clock-into-drawer t)))
       (->> (org-ml-parse-subtrees 'all)
            (org-ml-match '(:any * (:todo-keyword "DONE")))
@@ -42,15 +210,17 @@ Consider the selection of =DONE= headlines.
 #+end_src
 
 
-Let's pull apart this functionality. First: finding finished tasks.
+Let's pull apart this functionality. First: finding candidate accomplishments. I'm calling these "accandidates," mainly because that's very distinctive and easy to both pronounce and search for/replace.
 
-#+begin_src emacs-lisp :noweb-ref finished-tasks
-  (defun pg-pm--finished-tasks (node)
-    "Return nodes for all tasks under NODE with the keyword DONE.
+An accandidate is quite simple, there's almost no need to define this as a function. It does, however, make it clear that we're introducing an abstraction, and it makes a convenient choice point if the notion of an accandidate (wow this is a dumb word) ever becomes more complicated.
+
+#+begin_src emacs-lisp :noweb-ref accandidates
+  (defun pg-pm--accandidates (node)
+    "Return headline nodes for all tasks under NODE with the keyword DONE.
 
   As a practical matter, NODE can be a list of subtrees (i.e., the
   return value of `org-ml-parse-subtrees')"
-    (org-ml-match '(:any * (:todo-keyword "DONE")) node))
+    (org-ml-match '(:any * (:and headline (:todo-keyword "DONE"))) node))
 #+end_src
 
 Next, pulling off logbook items. This may get consolidated into the logbook entry processing below....
@@ -72,93 +242,23 @@ Next, pulling off logbook items. This may get consolidated into the logbook entr
 
 Let's test this out
 
-#+begin_src emacs-lisp :noweb yes :results code :exports code
-  <<finished-tasks>>
+#+begin_src emacs-lisp :noweb no-export :tangle no :results code :exports none
+  <<accandidates>>
   <<headline-logbook-items>>
 
   (->> (org-ml-parse-subtrees 'all)
-       (pg-pm--finished-tasks)
+       (pg-pm--accandidates)
        (-map #'pg-pm--headline-logbook-items))
 #+end_src
 
+*** Tracking state transitions
 
+There's a lot of useful, parseable information in logbook entries, but it isn't part of the Org format, so the Org element tree just stores it as strings. We need to write some additional code to take full advantage of logbook entries.
 
-
-** Tracking state transitions
-
-The old solution for identifying when a headline was resolved as =DONE= and what notes were provided:
-
-#+begin_src emacs-lisp :noweb yes :results code :exports code
-  <<finished-tasks>>
-  <<headline-logbook-items>>
-
-  (defconst pg-pm--rx-logbook-resolved-old
-    (rx "State"
-        (+ whitespace)
-        "\"DONE\""
-        (+ whitespace)
-        "from"
-        (+ whitespace)
-        "\"" (+ (not "\"")) "\"" )
-    "Regex matching the transition to the DONE state, per the
-    default state format string in
-    `org-log-note-headings'. Capturing accomplishments will break
-    if that entry in `org-log-note-headings' is changed. (As will large chunks of
-    org-agenda.)")
-
-
-
-  (defun pg-pm--logbook-resolution? (logbook-item)
-    "If LOGBOOK-ITEM is an entry that signals the resolution of a
-    to-do item, return the timestamp of the resolution and any
-    additional information provided about it. If this set of
-    logbook items does not contain a resolution, return
-    nil. LOGBOOK-ITEMS should be a single item from a logbook.
-
-  A resolution is defined as a state transition to \"DONE\". This
-  function relies on the format of te state change entry being
-  consistent with the default value of the state entry in
-  `org-log-note-headings'. If that variable is changed for some
-  reason, `pg-pm--rx-logbook-resolved' can be changed to properly
-  identify resolutions."
-    (let* ((objects (org-ml-item-get-paragraph logbook-item))
-           (res? (->> (car objects)
-                      (org-ml-to-trimmed-string)
-                      (s-matches? pg-pm--rx-logbook-resolved-old))))
-      (when res?
-        (let ((ts   (--> (cadr objects)
-                         (when (org-ml-is-type 'timestamp it) it)))
-              (addl (--> (caddr objects)
-                         (when (org-ml-is-type 'line-break it)
-                           (s-join "" (-map #'org-ml-to-trimmed-string (cdddr objects)))))))
-          (list ts addl)))))
-
-  ;; Used like this
-
-  (->> (org-ml-parse-subtrees 'all)
-       (pg-pm--finished-tasks)
-       (-map #'pg-pm--headline-logbook-items)
-       (first)
-       (first))
-#+end_src
-
-#+RESULTS:
-
-
-This sucks, more or less.
-
-Just plucking log entries recording a transition to =DONE= in headlines is not very robust. What if the item was closed and later reopened and re-closed, possibly without making a logbook entry? The entry may or may not refer to the most recent closure.
-
-So instead, we need to parse all the state transition logbook entries in order, and ensure that we're only looking at the most recent one for extra information.
-
-We also want to keep the resolution tied to the headline. Solving the problem for a single headline and generalizing from that makes more sense than the solution above, which creates a list of resolutions and leaves the problem of tying them back to headlines until last (and never fixed, either).
-
-Its easy enough to generalize the regex for any state transition.
-
-*** Parsing state transition entries
+Org will automatically add a logbook entry when to-do items are set to certain resolutions, as specified by the user. The format of this entry is specified in =org-log-note-headings=. It can be redefined, but Org documents that doing so will break =org-agenda=, so it seems safe to rely on this format in general. Based on that, it's easy enough to write a regular expression for any state transition, capturing the current to-do state, the new state, the timestamp of the change, and any notes the user has added.
 
 #+begin_src emacs-lisp :noweb-ref strans-regex
-  (defconst pg-pm--rx-logbook-resolved
+  (defcustom pg-pm-rx-logbook-resolved
     (rx "State"
         (+ whitespace)
         "\"" (group (+ (not "\""))) "\""
@@ -170,12 +270,11 @@ Its easy enough to generalize the regex for any state transition.
     default state format string in
     `org-log-note-headings'. Capturing accomplishments will break
     if that entry in `org-log-note-headings' is changed. (As will
-    large chunks of org-agenda.)")
+    large chunks of org-agenda.) In that case, it will be necessary
+    to customize this regex to correspond.")
 #+end_src
 
-A function using it to identify and extract the data we need from a single log entry is similarly straightforward. (One thing the function above does right is solving the problem for a specific logbook entry. We'll keep that, but change how it's used later.)
-
-
+Using this, we can convert a logbook entry corresponding to this regular expression (which I call a /state-transition log entry/ or /strans log entry/) into a simple list.
 
 #+begin_src emacs-lisp :noweb-ref parse-strans-log-entry
   (defun pg-pm--parse-strans-log-entry (lb-item)
@@ -189,7 +288,7 @@ A function using it to identify and extract the data we need from a single log e
     (-when-let* [((s ts . the-rest)  (org-ml-item-get-paragraph lb-item))
                  ;; parse out the to and from states
                  ((_ to from) (->> (org-ml-to-trimmed-string s)
-                                   (s-match pg-pm--rx-logbook-resolved)))
+                                   (s-match pg-pm-rx-logbook-resolved)))
                  ;; if notes exist, create as new paragraph
                  (notes (if (org-ml-is-type 'line-break (first the-rest))
                             ;; trick to inline (cdr the-rest) as args
@@ -209,62 +308,37 @@ A function using it to identify and extract the data we need from a single log e
               (symbol-name from)
               (org-ml-to-trimmed-string ts)
               (org-ml-to-trimmed-string notes))))
-
-  (defun pg-pm--strans-to (strans)
-    "Return only the to portion of STRANS."
-    (-let [(to _ _ _) strans]
-      to))
-
-  (defun pg-pm--strans-from (strans)
-    "Return only the from portion of STRANS."
-    (-let [(_ from _ _) strans]
-      from))
-
-  (defun pg-pm--strans-ts (strans)
-    "Return only the ts portion of STRANS."
-    (-let [(_ _ ts _) strans]
-      ts))
-
-  (defun pg-pm--strans-notes (strans)
-    "Return only the notes portion of STRANS."
-    (-let [(_ _ _ notes) strans]
-      notes))
-
-
-
 #+end_src
-
-#+RESULTS:
-: pg-pm--strans-notes
 
 
 That's a little dense. Let's test it out.
 
-#+begin_src emacs-lisp :noweb yes :results code :exports code
-    <<finished-tasks>>
-    <<headline-logbook-items>>
-    <<strans-regex>>
-    <<parse-strans-log-entry>>
+#+begin_src emacs-lisp :noweb no-export :tangle no :results code :exports none
+  <<accandidates>>
+  <<headline-logbook-items>>
+  <<strans-regex>>
+  <<parse-strans-log-entry>>
 
-    (->> (org-ml-parse-subtrees 'all)
-         (pg-pm--finished-tasks)
-         (first)
-         (pg-pm--headline-logbook-items)
-         (first)
-         (pg-pm--parse-strans-log-entry)
-         (pg-pm--strans-notes))
+  (-let [(to from ts notes)
+         (->> (org-ml-parse-subtrees 'all)
+              (pg-pm--accandidates)
+              (first)
+              (pg-pm--headline-logbook-items)
+              (first)
+              (pg-pm--parse-strans-log-entry))]
+    notes)
 #+end_src
 
 The string version is a bit easier to read.
 
-#+begin_src emacs-lisp :noweb yes :results value drawer :exports code
-    <<finished-tasks>>
+#+begin_src emacs-lisp :noweb no-export :tangle no :results code :exports none
+    <<accandidates>>
     <<headline-logbook-items>>
     <<strans-regex>>
     <<parse-strans-log-entry>>
 
     (->> (org-ml-parse-subtrees 'all)
-         (pg-pm--finished-tasks)
+         (pg-pm--accandidates)
          (first)
          (pg-pm--headline-logbook-items)
          (first)
@@ -272,56 +346,83 @@ The string version is a bit easier to read.
          (pg-pm--strans-to-string))
 #+end_src
 
-#+RESULTS:
-:results:
-#(DONE DOING "[2021-07-30 Fri 09:53]" "Smaller thing 1 done! Results sent to *someone*.")
-:end:
+*** Time manipulation
+
+This library uses [[https://github.com/alphapapa/ts.el][ts.el]] to do time manipulation. These functions make =ts-adjust= a little easier to use with dynamic input.
+
+#+begin_src emacs-lisp :noweb-ref time-manip
+  (defun pm-time-spec-from-string (time-spec)
+    "Return a list of adjustments based on TIME-SPEC.
+
+  The format of TIME-SPEC is a series of adjustments of the form \"<num><unit>\",
+  where num is an integer (possibly negative) and unit is one of the following unit specifiers:
+
+     Y : year
+     M : month
+     d : day
+     h : hour
+     m : minute
+     s : second
+
+  For example, \"4y\" represents an adjustment of four years,
+  or ('year 4) as a `ts-adjust' adjustment. \"3d14h\"
+  represents ('day 3 'hour 14). Otherwise, all semantics of
+  `ts-ajust' are observed."
+    (let ((s2 time-spec)
+          (regex (rx bol
+                     (group (* (or "+" "-"))
+                            (+ digit))
+                     (group (or "Y" "M" "d" "h" "m" "s"))))
+          (unit-alist '(("Y" . year)
+                        ("M" . month)
+                        ("d" . day)
+                        ("h" . hour)
+                        ("m" . minute)
+                        ("s" . second))))
+      (cl-loop until (s-equals? "" s2)
+               collect (-let [(all num unit) (s-match regex s2)]
+                         (if (eq all nil)
+                             (error "Invalid time spec '%s'" time-spec)
+                           (progn
+                             (setq s2 (substring-no-properties s2 (length all)))
+                             (list (cdr (assoc unit unit-alist))
+                                   (string-to-number num))))))))
 
 
-Kind of ugly, but it will get cleaned up shortly.
+  (defun pm-ts-adjust-from-string (time-spec-string ts)
+    "Like `ts-adjust', but instead of an series of adjustments,
+  adjust from a string representation derived from
+  `pg-time-spec-from-string'. TIME-SPEC-STRING contains the
+  adjustment string; it is applied to TS.
 
-**** Fun with timestamps
-
-Let's do a little spike and figure out what's possible with time stamps.
-
-#+begin_src emacs-lisp :noweb yes :results code :exports code
-  <<finished-tasks>>
-  <<headline-logbook-items>>
-  <<strans-regex>>
-  <<parse-strans-log-entry>>
-
-  (->> (org-ml-parse-subtrees 'all)
-       (pg-pm--finished-tasks)
-       (first)
-       (pg-pm--headline-logbook-items)
-       (first)
-       (pg-pm--parse-strans-log-entry)
-       ;; Pull out the timestamp
-       (nth 2)
-       (ts-parse-org-element))
+  For the format of TIME-SPEC-STRING, see
+  `pg--time-spec-from-string'."
+    (eval `(ts-adjust
+            ,@(->> (pm-time-spec-from-string time-spec-string)
+                   (-flatten)
+                   (-map (lambda (x) `(quote ,x))))
+            ,ts)))
 #+end_src
 
 #+RESULTS:
-#+begin_src emacs-lisp
-#s(ts 9 53 0 30 7 2021 nil nil nil nil nil nil nil nil nil nil nil)
-#+end_src
+: pm-ts-adjust-from-string
 
+
+In addition to =ts-adjust=, we also use =ts-parse-org-element= to convert between Org timestamps and =ts=-style time structures.
 
 So that's how we bridge the gap between =org-ml= and =ts=.
 
 
+*** Building an accomplishment record
 
-
-** Building an accomplishment record
-
-What we just did to test =pg-pm--parse-strans-log-entry= is more or less what we need to do for each headline we're looking at. So let's put it into a function.
-
-But first, what is an accomplishment? A finished task is an accomplishment if and only if:
+With all these tools in place, we can now match to-do items that we define as accomplishments. A finished task is an accomplishment if and only if:
 
 - It's completed (i.e., status is =DONE=)
 - We have a record of its completion (i.e., the last state transition entry matches the state of the finished item)
 
 We also need some description of what was accomplished. When it exists, the notes associated with the state transition entry serve the purpose. If notes do not exist, we will currently assume the actual text of the headline will suffice.
+
+We may add more criteria to this definition later (e.g., that they must be tagged as accomplishments) but that needs to be answered with use.
 
 #+begin_src emacs-lisp :noweb-ref build-accomplishment
   (defun pg-pm--accomplishment? (headline strans-entries)
@@ -358,7 +459,8 @@ We also need some description of what was accomplished. When it exists, the note
                                 (pg-pm--headline-logbook-items)
                                 (-map #'pg-pm--parse-strans-log-entry))))
       (when (pg-pm--accomplishment? headline logbook-entries)
-        (list headline (first logbook-entries)))))
+        (list headline (or (first logbook-entries)
+                           (org-ml-get-property :title headline))))))
 
 
   (defun pg-pm--accomplishment-headline (accomplishment)
@@ -382,30 +484,15 @@ We also need some description of what was accomplished. When it exists, the note
 
 Used thusly:
 
-#+begin_src emacs-lisp :noweb yes :results code :exports code
-  <<finished-tasks>>
+#+begin_src emacs-lisp :noweb no-export :tangle no :results drawer :exports code
+  <<accandidates>>
   <<headline-logbook-items>>
   <<strans-regex>>
   <<parse-strans-log-entry>>
   <<build-accomplishment>>
 
   (->> (org-ml-parse-subtrees 'all)
-       (pg-pm--finished-tasks)
-       (-keep #'pg-pm--build-accomplishment)
-       (first))
-#+end_src
-
-Again, using a string representation for clarity:
-
-#+begin_src emacs-lisp :noweb yes :results drawer :exports code
-  <<finished-tasks>>
-  <<headline-logbook-items>>
-  <<strans-regex>>
-  <<parse-strans-log-entry>>
-  <<build-accomplishment>>
-
-  (->> (org-ml-parse-subtrees 'all)
-       (pg-pm--finished-tasks)
+       (pg-pm--accandidates)
        (-keep #'pg-pm--build-accomplishment)
        (first)
        (pg-pm--accomplishment-to-string))
@@ -416,29 +503,57 @@ Again, using a string representation for clarity:
 
 As you can see, =pg-pm--build-accomplishment= is both a constructor and a predicate, so we can throw a list of maybe-accomplishments at it and use =-keep= to filter out the non-accomplishments.
 
-** Org-mode representation of accomplishments
+*** Org-mode representation of accomplishments
 
-The accomplishment record is convenient for processing, but we'll eventually want to represent accomplishments in Org. Building that now also gives us a "free" string representation.
+The accomplishment record is convenient for processing, but we'll eventually want to represent accomplishments in Org. Building that now also gives us a "free" string representation. Here's what we're shooting
 
 #+begin_src emacs-lisp :noweb-ref accomplishment-to-org
-  (defun pg-pm--accomplishment-to-org (accomplishment)
-    "Convert an ACCOMPLISHMENT, an accomplishment record, to an
-    org-element representation. If ACCOMPLISHMENT is nil, return
-    nil."
+  (defun pg-pm--accomplishments-build-plain-list (acc-items)
+    "Build a plain-list with ACC-ITEMS as a list, not inlined."
+    (if acc-items
+        (eval `(org-ml-build-plain-list ,@(-map (lambda (x) `(quote ,x)) acc-items)))
+      (org-ml-build-plain-list)))
 
-    (-let* (((headline (_ _ ts notes)) accomplishment))
-      (org-ml-build-headline
-       :title (org-ml-get-property :title headline)
-       (org-ml-build-section notes))))
+
+  (defun pg-pm--accomplishments-build-headline (project-name accomplishments)
+    "Turn a list of accomplishments to an org-element headline."
+    (->> accomplishments
+         (-map #'pg-pm--accomplishment-build-item)
+         (pg-pm--accomplishments-build-plain-list)
+         (org-ml-build-section)
+         (org-ml-build-headline
+          :title (org-ml-build-secondary-string! project-name))))
+
+  (defun pg-pm--format-time(org-ts)
+    (->> (ts-parse-org-element org-ts)
+         (ts-format "%d %b")
+         (format "/%s/")))
+
+  (defun pg-pm--accomplishment-build-item (accomplishment)
+    "Convert ACCOMPLISHMENT, an accomplishment record, to an
+    org item representation. If ACCOMPLISHMENT is nil, return
+    nil."
+    (-let* (((headline (_ _ ts notes)) accomplishment)
+            (ts-formatted (pg-pm--format-time ts))
+            (notes-formatted (org-ml-to-trimmed-string notes))
+            (para-string (format "%s: %s" ts-formatted notes-formatted)))
+      (org-ml-build-item! :paragraph para-string)))
 #+end_src
 
-#+RESULTS:
-: pg-pm--accomplishment-to-org
+This should generate something that looks like:
+
+#+begin_src org :tangle no
+   ,* DCO Modeling
+     - /(Jan 1 2021)/: Extracted workflows from Sari and Chuck's training
+   ,* Line Project
+     - /(Jan 2 2021)/: Contracting paperwork filed with Finance for external collaborator
+#+end_src
+
 
 Used thusly:
 
-#+begin_src emacs-lisp :noweb yes :results org :exports code
-  <<finished-tasks>>
+#+begin_src emacs-lisp :noweb no-export :tangle no :results code :exports code
+  <<accandidates>>
   <<headline-logbook-items>>
   <<strans-regex>>
   <<parse-strans-log-entry>>
@@ -447,9 +562,128 @@ Used thusly:
 
 
   (->> (org-ml-parse-subtrees 'all)
-       (pg-pm--finished-tasks)
+       (pg-pm--accandidates)
        (-keep #'pg-pm--build-accomplishment)
        (first)
-       (pg-pm--accomplishment-to-org)
+       (pg-pm--accomplishment-build-item)
        (org-ml-to-trimmed-string))
 #+end_src
+
+
+
+
+*** Accomplishments by project
+
+*** Building the accomplishment report
+
+
+Time to build the report.
+
+
+#+begin_src emacs-lisp :noweb-ref accomplishment-report
+  (defun pg-pm--recent-accomplishments? (beg end accomplishment)
+    "Return ACCOMPLISHMENT if its timestamp "
+    (-let* (((_ (_ _ ts _)) accomplishment)
+            (ts (ts-parse-org-element ts)))
+      ;; ts-in is beg <= ts <= end, which means a time could be in
+      ;; ranges a->b and in b->c. Defining it this way makes binning
+      ;; easier. Which I won't be doing, so I don't know why I care, but
+      ;; that's the story of my life.
+      (when (and (ts< beg ts)
+                 (ts>= end ts))
+        accomplishment)))
+
+  (defun pg-pm--beginning-time (end time-offset)
+    "Return the beginning of a time range ending with END and
+    defined relative to END by TIME-OFFSET. Signal an error if
+    TIME-OFFSET is net positive (i.e., if the beginning would be
+    after the end)."
+    (let ((beg (pm-ts-adjust-from-string time-offset end)))
+      (if (ts< end beg)
+          (error "Beginning time is in the future (use negative offsets)")
+        beg)))
+
+
+  (defun pg-pm--headlines-from-project-file (begin end project-file-name)
+    "Return an alist entry of accomplishments, keyed by project name."
+    (with-current-buffer (find-file-noselect project-file-name)
+      (let ((project-name (pm-project-meta "TITLE" project-file-name)))
+        (->> (org-ml-parse-subtrees 'all)
+             (pg-pm--accandidates)
+             (-keep #'pg-pm--build-accomplishment)
+             (-keep (-partial #'pg-pm--recent-accomplishments?
+                              begin end))
+             (pg-pm--accomplishments-build-headline project-name)))))
+
+
+  ;;  headline -> section -> plain-list -> [item -> paragraph]
+
+
+
+  (defun pg-pm-accomplishment-report (&optional time-offset)
+    "Compile an accomplishment report from the tasks that have
+  been closed in a time period. Accomplishments are extracted from
+  the files returned by `pg-pm-active-projects'.
+
+  If TIME-OFFSET is nil, prompt the user for a time specification,
+  indicating how old an accomplishment can be before it is included
+  in the report. The syntax for this specification is given in
+  `pg-time-spec-from-string'."
+    (interactive)
+    (let* ((time-offset (or time-offset
+                            (read-string "Find since: " "-7d")))
+           (end (ts-now))
+           (begin (pg-pm--beginning-time end time-offset))
+           (toplevel (org-ml-build-section
+                      (org-ml-build-keyword "TITLE" "Accomplishments Report")))
+           (headlines
+            (--map (pg-pm--headlines-from-project-file begin end it)
+                   (pg-pm-active-projects)))
+           (buff (get-buffer-create "*Accomplishments*")))
+      (with-current-buffer buff
+        (erase-buffer)
+        (cd pg-pm-project-dir)
+        (org-mode)
+        (org-indent-mode)
+        (insert (org-ml-to-string toplevel))
+        (--map
+         (insert (org-ml-to-string it))
+         headlines))
+      (switch-to-buffer buff)))
+#+end_src
+
+#+RESULTS:
+: pg-pm-accomplishment-report
+
+
+
+#+begin_src emacs-lisp :noweb no-export :tangle no :results code :exports none
+  <<requires>>
+  <<active-projects>>
+  <<project-info>>
+  <<accandidates>>
+  <<headline-logbook-items>>
+  <<strans-regex>>
+  <<parse-strans-log-entry>>
+  <<time-manip>>
+  <<build-accomplishment>>
+  <<accomplishment-to-org>>
+  <<accomplishment-report>>
+
+  (pg-pm-accomplishment-report)
+
+
+#+end_src
+
+#+RESULTS:
+#+begin_src emacs-lisp
+#<buffer *Accomplishments*>
+#+end_src
+
+
+* Provide
+
+#+BEGIN_SRC emacs-lisp
+  (provide 'pm)
+  ;;; pg.el ends here
+#+END_SRC
