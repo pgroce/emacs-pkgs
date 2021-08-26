@@ -675,11 +675,6 @@ Time to build the report.
 
 #+end_src
 
-#+RESULTS:
-#+begin_src emacs-lisp
-#<buffer *Accomplishments*>
-#+end_src
-
 
 * Provide
 
