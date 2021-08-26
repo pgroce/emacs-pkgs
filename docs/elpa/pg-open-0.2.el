@@ -43,5 +43,34 @@ current window system, if one is defined."
   (let ((file-list (dired-get-marked-files)))
     (dired-do-shell-command (pg-open-opener) nil file-list)))
 
+(defcustom pg-open-org-url-scheme "extfile"
+  "String defining the url scheme of custom Org mode
+  URL. Note: Changing this value will not change the way URLs are
+  opened/selected in Org mode unless the corresponding link type
+  parameters are set/updated in `org-link-set-parameters'.")
+
+;; Define an extfile: url type that opens with the OS file opener
+;; (using pg-open). (This is just org-link-complete-file with the
+;; serial numbers filed off.)
+(defun pg-open-link-complete-fn (&optional arg)
+  "Create an externally-opened file link using completion."
+  (let ((url-scheme (concat pg-open-org-url-scheme ":"))
+        (file (read-file-name "File: "))
+        (pwd (file-name-as-directory (expand-file-name ".")))
+        (pwd1 (file-name-as-directory (abbreviate-file-name
+                                       (expand-file-name ".")))))
+    (cond ((equal arg '(16))
+           (concat url-scheme
+                   (abbreviate-file-name (expand-file-name file))))
+          ((string-match
+            (concat "^" (regexp-quote pwd1) "\\(.+\\)") file)
+           (concat url-scheme (match-string 1 file)))
+          ((string-match
+            (concat "^" (regexp-quote pwd) "\\(.+\\)")
+            (expand-file-name file))
+           (concat url-scheme
+                   (match-string 1 (expand-file-name file))))
+          (t (concat url-scheme file)))))
+
 (provide 'pg-open)
 ;;; pg-open.el ends here

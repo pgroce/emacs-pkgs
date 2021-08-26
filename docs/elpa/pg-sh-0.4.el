@@ -3,7 +3,7 @@
 ;; Copyright (C) 2017 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.3
+;; Version: 0.4
 ;; Keywords: shell
 
 (require 'tramp)

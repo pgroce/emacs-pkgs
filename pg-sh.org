@@ -17,7 +17,7 @@ This package is organized around the idea is that creating and destroying shells
   ;; Copyright (C) 2017 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.3
+  ;; Version: 0.4
   ;; Keywords: shell
 
 #+END_SRC

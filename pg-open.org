@@ -24,6 +24,11 @@ Especially when doing document conversions, it's pretty helpful to be able to vi
 #+end_src
 
 * Code
+
+** Open files with system opener
+
+All major operating systems have facilities for opening files with registered applications. =pg-open-file= and =pg-open-dir= efficiently select a file in Emacs and open it with the system facility.
+
 #+BEGIN_SRC emacs-lisp
   (defun pg-open-opener ()
     "Return the general-purpose application opener on this system."
@@ -59,10 +64,54 @@ Especially when doing document conversions, it's pretty helpful to be able to vi
     (interactive)
     (let ((file-list (dired-get-marked-files)))
       (dired-do-shell-command (pg-open-opener) nil file-list)))
-
-
 #+END_SRC
 
+** Org link support
+
+By default, Org mode opens file URL's (i.e., those with the =file= URL type, like =file:/usr/local/share/doc/emacs/index.html=) in Emacs. However, Org mode also permits user definition of additional URL types, such that the user can control what happens when clicking on org-mode links with the defined URL type. Using this, we can define a URL type for files that uses =pg-open-file=.
+
+Org mode requires two functions for this purpose: An function for opening the URL, and a function for doing completion when creating the URL. =pg-open-file= works as an opener; the following can be used as a completion function.
+
+#+begin_src emacs-lisp
+  (defcustom pg-open-org-url-scheme "extfile"
+    "String defining the url scheme of custom Org mode
+    URL. Note: Changing this value will not change the way URLs are
+    opened/selected in Org mode unless the corresponding link type
+    parameters are set/updated in `org-link-set-parameters'.")
+
+  ;; Define an extfile: url type that opens with the OS file opener
+  ;; (using pg-open). (This is just org-link-complete-file with the
+  ;; serial numbers filed off.)
+  (defun pg-open-link-complete-fn (&optional arg)
+    "Create an externally-opened file link using completion."
+    (let ((url-scheme (concat pg-open-org-url-scheme ":"))
+          (file (read-file-name "File: "))
+          (pwd (file-name-as-directory (expand-file-name ".")))
+          (pwd1 (file-name-as-directory (abbreviate-file-name
+                                         (expand-file-name ".")))))
+      (cond ((equal arg '(16))
+             (concat url-scheme
+                     (abbreviate-file-name (expand-file-name file))))
+            ((string-match
+              (concat "^" (regexp-quote pwd1) "\\(.+\\)") file)
+             (concat url-scheme (match-string 1 file)))
+            ((string-match
+              (concat "^" (regexp-quote pwd) "\\(.+\\)")
+              (expand-file-name file))
+             (concat url-scheme
+                     (match-string 1 (expand-file-name file))))
+            (t (concat url-scheme file)))))
+#+end_src
+
+Using this function and =pg-open=, one can add this link to Org using =org-link-set-parameters=.
+
+#+begin_src emacs-lisp :tangle no
+  (org-link-set-parameters pg-open-org-url-scheme
+                           :follow #'pg-open-file
+                           :complete #'pg-open-org-link-complete-fn)
+#+end_src
+
+The default value for =pg-open-org-url-scheme= is =extfile= (for "external file" or "externally opened file"), meaning all links defined and followed this way have the scheme =extfile=, such as =extfile:/usr/local/share/doc/emacs/index.html=. To use a different URL scheme, set =pg-open-org-url-scheme= appropriately and call =org-link-set-parameters= to set up the link type in Org. I haven't investigated overriding =file= or another predefined URL type. It may be doable (possibly by only setting the =:follow= parameter with =org-link-set-parameters=), but it can be useful to open files locally in Emacs as well.
 
 * Provides
 
