@@ -89,7 +89,7 @@
 	      (:maintainer "Phil Groce" . "pgroce@gmail.com")
 	      (:keywords "pandoc" "markdown" "org-mode" "latex" "pdf" "docx"))])
  (pg-open .
-	  [(0 2)
+	  [(0 3)
 	   nil "Open files with the system viewer" single
 	   ((:authors
 	     ("Phil Groce" . "pgroce@gmail.com"))
