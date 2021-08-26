@@ -3,7 +3,7 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.3
+;; Version: 0.4
 ;; Keywords: shell
 
 (require 'dired)
@@ -49,11 +49,12 @@ current window system, if one is defined."
   opened/selected in Org mode unless the corresponding link type
   parameters are set/updated in `org-link-set-parameters'.")
 
-;; Define an extfile: url type that opens with the OS file opener
-;; (using pg-open). (This is just org-link-complete-file with the
-;; serial numbers filed off.)
+
+;;;###autoload
 (defun pg-open-link-complete-fn (&optional arg)
   "Create an externally-opened file link using completion."
+  ;; (This is just org-link-complete-file with the serial numbers
+  ;; filed off.)
   (let ((url-scheme (concat pg-open-org-url-scheme ":"))
         (file (read-file-name "File: "))
         (pwd (file-name-as-directory (expand-file-name ".")))
