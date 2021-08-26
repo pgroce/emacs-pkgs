@@ -3,7 +3,7 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.6
+;; Version: 0.6.9
 ;; Keywords: shell
 
 (require 'dired)
@@ -43,11 +43,21 @@ current window system, if one is defined."
   (let ((file-list (dired-get-marked-files)))
     (dired-do-shell-command (pg-open-opener) nil file-list)))
 
+(defvar pg-open--org-url-scheme "extfile"
+  "URL scheme registered to handle files with `pg-open'. Used by
+  `pg-open--link-complete-fn' to build the org-link, and by
+  `pg-open-register-org-link' to register the URL type.
+
+This variable is only used internally by those functions;
+changing it is not advised. To change the link type used, call
+`pg-open-register-org-link' with a different name for the link
+type.")
+
 (defun pg-open--link-complete-fn (&optional arg)
   "Create an externally-opened file link using completion."
   ;; (This is just org-link-complete-file with the serial numbers
   ;; filed off.)
-  (let ((url-scheme (concat pg-open-org-url-scheme ":"))
+  (let ((url-scheme (concat pg-open--org-url-scheme ":"))
         (file (read-file-name "File: "))
         (pwd (file-name-as-directory (expand-file-name ".")))
         (pwd1 (file-name-as-directory (abbreviate-file-name
@@ -84,10 +94,11 @@ This function requires that the org function
 `org-link-set-parameters' be defined. This can be ensured by
 loading `org-mode' before running this function."
 
-  (let ((link-type (or link-type "extfile")))
-    (org-link-set-parameters link-type
-                             :follow #'pg-open-file
-                             :complete #'pg-open--link-complete-fn)))
+  (when link-type
+    (setq pg-open--org-url-scheme link-type))
+  (org-link-set-parameters pg-open--org-url-scheme
+                           :follow #'pg-open-file
+                           :complete #'pg-open--link-complete-fn))
 
 (provide 'pg-open)
 ;;; pg-open.el ends here
