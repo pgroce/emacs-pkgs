@@ -81,7 +81,7 @@ Done, but hardly an accomplishment
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.1
+  ;; Version: 0.2
   ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3"))
   ;; Keywords: productivity
 #+END_SRC
