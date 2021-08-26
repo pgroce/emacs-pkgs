@@ -12,7 +12,7 @@ Especially when doing document conversions, it's pretty helpful to be able to vi
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.4
+  ;; Version: 0.5
   ;; Keywords: shell
 
 #+END_SRC
@@ -73,15 +73,7 @@ By default, Org mode opens file URL's (i.e., those with the =file= URL type, lik
 Org mode requires two functions for this purpose: An function for opening the URL, and a function for doing completion when creating the URL. =pg-open-file= works as an opener; the following can be used as a completion function.
 
 #+begin_src emacs-lisp
-  (defcustom pg-open-org-url-scheme "extfile"
-    "String defining the url scheme of custom Org mode
-    URL. Note: Changing this value will not change the way URLs are
-    opened/selected in Org mode unless the corresponding link type
-    parameters are set/updated in `org-link-set-parameters'.")
-
-
-  ;;;###autoload
-  (defun pg-open-link-complete-fn (&optional arg)
+  (defun pg-open--link-complete-fn (&optional arg)
     "Create an externally-opened file link using completion."
     ;; (This is just org-link-complete-file with the serial numbers
     ;; filed off.)
@@ -102,6 +94,26 @@ Org mode requires two functions for this purpose: An function for opening the UR
              (concat url-scheme
                      (match-string 1 (expand-file-name file))))
             (t (concat url-scheme file)))))
+
+
+
+  (declare-function org-link-set-parameters "ol")
+
+  ;;;###autoload
+  (defun pg-open-register-org-link (&optional link-type)
+    "Define an org link type (i.e., URL scheme) similar to file:,
+  that uses `pg-open-file' to open the file instead of Emacs's
+  default facility. This scheme is useful for files like PDF files
+  that Emacs can read, but that the user may prefer to read with an
+  external application instead.
+
+  LINK-TYPE optionally specifies the name of the link type to be
+  used. By default, this function will use the type \"extfile\"."
+
+    (let ((link-type (or link-type "extfile")))
+      (org-link-set-parameters link-type
+                               :follow #'pg-open-file
+                               :complete #'pg-open--org-link-complete-fn)))
 #+end_src
 
 Using this function and =pg-open=, one can add this link to Org using =org-link-set-parameters=.
