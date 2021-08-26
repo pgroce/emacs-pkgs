@@ -12,7 +12,7 @@ Especially when doing document conversions, it's pretty helpful to be able to vi
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.3
+  ;; Version: 0.4
   ;; Keywords: shell
 
 #+END_SRC
