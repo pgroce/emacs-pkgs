@@ -3,7 +3,7 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.5
+;; Version: 0.6
 ;; Keywords: shell
 
 (require 'dired)
@@ -78,12 +78,16 @@ that Emacs can read, but that the user may prefer to read with an
 external application instead.
 
 LINK-TYPE optionally specifies the name of the link type to be
-used. By default, this function will use the type \"extfile\"."
+used. By default, this function will use the type \"extfile\".
+
+This function requires that the org function
+`org-link-set-parameters' be defined. This can be ensured by
+loading `org-mode' before running this function."
 
   (let ((link-type (or link-type "extfile")))
     (org-link-set-parameters link-type
                              :follow #'pg-open-file
-                             :complete #'pg-open--org-link-complete-fn)))
+                             :complete #'pg-open--link-complete-fn)))
 
 (provide 'pg-open)
 ;;; pg-open.el ends here

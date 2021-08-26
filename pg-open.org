@@ -12,7 +12,7 @@ Especially when doing document conversions, it's pretty helpful to be able to vi
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.5
+  ;; Version: 0.6
   ;; Keywords: shell
 
 #+END_SRC
@@ -108,12 +108,16 @@ Org mode requires two functions for this purpose: An function for opening the UR
   external application instead.
 
   LINK-TYPE optionally specifies the name of the link type to be
-  used. By default, this function will use the type \"extfile\"."
+  used. By default, this function will use the type \"extfile\".
+
+  This function requires that the org function
+  `org-link-set-parameters' be defined. This can be ensured by
+  loading `org-mode' before running this function."
 
     (let ((link-type (or link-type "extfile")))
       (org-link-set-parameters link-type
                                :follow #'pg-open-file
-                               :complete #'pg-open--org-link-complete-fn)))
+                               :complete #'pg-open--link-complete-fn)))
 #+end_src
 
 Using this function and =pg-open=, one can add this link to Org using =org-link-set-parameters=.
