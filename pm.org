@@ -83,7 +83,7 @@ Done, but hardly an accomplishment
 
   ;; Author: Phil Groce <pgroce@gmail.com>
   ;; Version: 0.3
-  ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile " 20210825.649" (helm "20210826.553")))
+  ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649" (helm "20210826.553")))
   ;; Keywords: productivity
 #+END_SRC
 

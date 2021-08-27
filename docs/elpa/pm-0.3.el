@@ -3,33 +3,61 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.2
-;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3"))
+;; Version: 0.3
+;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649" (helm "20210826.553")))
 ;; Keywords: productivity
 
 (require 'dash)
 (require 's)
 (require 'ts)
 (require 'org-ml)
+(require 'projectile)
+(require 'helm)
 
 (defcustom pg-pm-project-dir "~/active-projects"
-  "Directory containing projects")
+  "Directory containing projects"
+  :type 'directory
+  :group 'pm)
 
-(defcustom pg-pm--active-project-cache nil
+(defvar pg-pm--active-project-cache nil
   "List of active projects. Automatically generated if
   `nil'. Otherwise it must be manually refreshed using
   `pg-pm-refresh-active-projects' if new pm projects are
   created/removed.")
 
+
+(defmacro pg-pm--with-buffer-then-close (buffer-or-name &rest forms)
+  "Identical to `with-current-buffer', but close the buffer if it
+  wasn't already open."
+  (declare (indent 1))
+  `(let* ((buff-or-name ,buffer-or-name)
+          (name (if (bufferp buff-or-name)
+                    (buffer-name buff-or-name)
+                  buff-or-name))
+          (new? (memq name
+                      (-map #'buffer-name (buffer-list)))))
+     (with-current-buffer buff-or-name
+       (unwind-protect
+           (progn
+             ,@forms)
+         (when new? (kill-buffer))))))
+
+(pg-pm--with-buffer-then-close "phil"
+  nil)
+
 (defun pg-pm--find-active-projects-nocheck ()
   "Find active project files on disk. Does not use the active projects cache."
-  (--filter (save-excursion
-              (switch-to-buffer (find-file-noselect it))
-              (unwind-protect
-                  (org-ml-match
-                   '((:and keyword (:key "PROJECT_STATUS") (:value "active")))
-                   (org-ml-parse-this-toplevel-section))
-                (kill-buffer)))
+  ;; Visit the project file buffers and figure out which ones have an
+  ;; active status. Don't keep any of the buffers around that weren't
+  ;; around already.
+  (--filter (let ((new? (not (find-buffer-visiting it))))
+              (with-current-buffer (find-file-noselect it)
+                (unwind-protect
+                 (org-ml-match
+                  '((:and keyword (:key "PROJECT_STATUS") (:value "active")))
+                  (org-ml-parse-this-toplevel-section))
+                 (when new?
+                   (kill-buffer)))))
             (directory-files-recursively
              pg-pm-project-dir "^project.org$")))
 
@@ -52,12 +80,39 @@ non-nil, refresh the project cache unconditionally."
     (pg-pm--refresh-active-projects))
   pg-pm--active-project-cache)
 
+
+(defun pg-pm--projectile-switch-project-action ()
+  (let* ((files (directory-files "."))
+         (org-files (--filter (s-ends-with? ".org" it) files))
+         (files-source (helm-build-sync-source "All Project Files"
+                         :candidates (--map (cons it it) files)))
+         (org-files-source
+          (helm-build-sync-source "Project Org Files"
+            :candidates (--map (cons it it ) org-files)))
+         (buffers-source (helm-build-sync-source "Open buffers"
+                           :candidates (projectile-project-buffer-names)
+                           :filtered-candidate-transformer
+                           '(helm-skip-boring-buffers
+                             helm-buffers-sort-transformer
+                             helm-highlight-buffers)))
+         (result (helm
+                  :sources (list org-files-source buffers-source files-source)
+                  :buffer "*helm PM project*"
+                  :prompt (format "[%s] pattern: " (projectile-project-name)))))
+    (cond
+     ((stringp result) (find-file result))
+     ((bufferp result) (switch-to-buffer result))
+     (t result))))
+
+
 (defun pg-pm-switch-to-active-project (&optional arg)
   "Switch to one of the acive projects"
   (interactive)
   (let ((proj (->> (pg-pm-active-projects)
                    (-map #'file-name-directory)
-                   (completing-read "Switch to Active Project: "))))
+                   (completing-read "Switch to Active Project: ")))
+        (projectile-switch-project-action
+         #'pg-pm--projectile-switch-project-action))
     (projectile-switch-project-by-name proj arg)))
 
 (defmacro pm--to-buffer (buffer-or-file-name &optional err-message)

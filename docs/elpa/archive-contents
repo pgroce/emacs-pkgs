@@ -1,6 +1,6 @@
 (1
  (pm .
-     [(0 2)
+     [(0 3)
       ((emacs
 	(26 1))
        (dash
@@ -10,7 +10,9 @@
        (org-ml
 	(5 7))
        (ts
-	(0 3)))
+	(0 3))
+       (projectile
+	(20210825 649)))
       "Project Management" single
       ((:authors
 	("Phil Groce" . "pgroce@gmail.com"))
