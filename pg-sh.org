@@ -33,7 +33,7 @@ This package is organized around the idea is that creating and destroying shells
 
 ** Local shells
 
-=pg-sh-local= will create a shell buffer with the same cwd as the current buffer, or go to one if it already exists. If, however, you are already /in/ that buffer, calling =pg-sh= will destroy it.
+=pg-sh= will create a shell buffer with the same cwd as the current buffer, or go to one if it already exists. If, however, you are already /in/ that buffer, calling =pg-sh= will destroy it.
 
 Thus, you can call up a shell with one keystroke, work in it until you are done, and dismiss it with the same keystroke.
 
