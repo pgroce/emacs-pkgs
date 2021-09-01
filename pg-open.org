@@ -3,7 +3,19 @@
 
 Especially when doing document conversions, it's pretty helpful to be able to view files in viewers other than Emacs. This library facilitates that.
 
+* Related work
 
+** Org-mode support for external viewers
+
+Around version 9, Org mode began to support opening file links with external viewers via the =org-file-apps= variable. The only documentation for this variable seems to be via =describe-variable=.
+
+=org-file-apps= is an alist of special values and strings. One special value, =system=, specifies an external opener, and the documentation suggests to "[u]se the system command for opening files, like 'open'." System-specific versions of this variable, such as =org-file-apps-macos=, exist for major platforms. The system opener can be used as the default opener for file apps if an entry =(t . system)= is defined in =org-file-apps=, and the user can specify using the external opener on a per-use based by applying a double prefix argument to =org-open-link=.
+
+This behavior provides an alternative to the functionality provided with =pg-open-register-org-link=. It does not provide an Emacs-wide alternative to opening files with an external viewer, such as that provided by =pg-open-file= and =pg-open-dir=.
+
+Furthermore, the semantics of =pg-open= and Org with respect to opening links with an external viewer are somewhat different. Org's approach is to define system-wide defaults per file type, where =pg-open= encourages the designation of specific links as being opened by Emacs or the system external viewer based on the URL schema/link type.
+
+These methods may be used together. This may be useful when moving from one method to another and supporting legacy link types. It may also be helpful as a way to override an extension-based setting in =org-file-apps=.  In most cases, supporting both methods is likely to be unnecessarily complicated.
 * Package Header
 
 #+BEGIN_SRC emacs-lisp
