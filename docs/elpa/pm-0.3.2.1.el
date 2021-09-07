@@ -3,7 +3,7 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.3.2
+;; Version: 0.3.2.1
 ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649" (helm "20210826.553")))
 ;; Keywords: productivity
 
@@ -159,7 +159,9 @@ return value of `org-ml-parse-subtrees')"
 
 (defcustom pg-pm-project-file-logging-config
   '(:log-into-drawer "LOGBOOK" :clock-into-drawer t)
-  "Logging format for drawers in project files.")
+  "Logging format for drawers in project files."
+  :type '(plist)
+  :group 'pm)
 
 
 (defun pg-pm--headline-logbook-items (headline)
@@ -182,7 +184,9 @@ off HEADLINE."
   `org-log-note-headings'. Capturing accomplishments will break
   if that entry in `org-log-note-headings' is changed. (As will
   large chunks of org-agenda.) In that case, it will be necessary
-  to customize this regex to correspond.")
+  to customize this regex to correspond."
+  :type 'regexp
+  :group 'pm)
 
 (defun pg-pm--parse-strans-log-entry (lb-item)
   "If LB-ITEM is a logbook entry that looks like it was generated

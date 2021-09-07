@@ -82,7 +82,7 @@ Done, but hardly an accomplishment
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.3.2
+  ;; Version: 0.3.2.1
   ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649" (helm "20210826.553")))
   ;; Keywords: productivity
 #+END_SRC
@@ -296,7 +296,9 @@ Next, pulling off logbook items. This may get consolidated into the logbook entr
 #+begin_src emacs-lisp :noweb-ref headline-logbook-items
   (defcustom pg-pm-project-file-logging-config
     '(:log-into-drawer "LOGBOOK" :clock-into-drawer t)
-    "Logging format for drawers in project files.")
+    "Logging format for drawers in project files."
+    :type '(plist)
+    :group 'pm)
 
 
   (defun pg-pm--headline-logbook-items (headline)
@@ -339,7 +341,9 @@ Org will automatically add a logbook entry when to-do items are set to certain r
     `org-log-note-headings'. Capturing accomplishments will break
     if that entry in `org-log-note-headings' is changed. (As will
     large chunks of org-agenda.) In that case, it will be necessary
-    to customize this regex to correspond.")
+    to customize this regex to correspond."
+    :type 'regexp
+    :group 'pm)
 #+end_src
 
 Using this, we can convert a logbook entry corresponding to this regular expression (which I call a /state-transition log entry/ or /strans log entry/) into a simple list.
