@@ -3,7 +3,7 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.3.1
+;; Version: 0.3.2
 ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649" (helm "20210826.553")))
 ;; Keywords: productivity
 
@@ -13,6 +13,114 @@
 (require 'org-ml)
 (require 'projectile)
 (require 'helm)
+
+(defcustom pg-pm-project-dir "~/active-projects"
+  "Directory containing projects"
+  :type 'directory
+  :group 'pm)
+
+(defun pg-pm-set-agenda-files ()
+  "Set `org-agenda-files' according to the contents of
+  `pg-pm-active-projects'. Called as a hook in
+  `pg-pm-active-projects-refreshed-hook'."
+  (setq org-agenda-files (pg-pm-active-projects))
+  (message "pm: Agenda refreshed"))
+
+(defcustom pg-pm-active-projects-refreshed-hook
+  '(pg-pm-set-agenda-files)
+  "Hook run when the active projects are refreshed."
+  :group 'pm
+  :type 'hook)
+
+
+(defvar pg-pm--active-project-cache nil
+  "List of active projects. Automatically generated if
+  `nil'. Otherwise it must be manually refreshed using
+  `pg-pm-refresh-active-projects' if new pm projects are
+  created/removed.")
+
+
+
+
+
+
+
+(defun pg-pm--find-active-projects ()
+  "Find active project files on disk."
+  ;; Visit the project file buffers and figure out which ones have an
+  ;; active status. Don't keep any of the buffers around that weren't
+  ;; around already.
+  (--filter (let ((new? (not (find-buffer-visiting it))))
+              (with-current-buffer (find-file-noselect it)
+                (unwind-protect
+                 (org-ml-match
+                  '((:and keyword (:key "PROJECT_STATUS") (:value "active")))
+                  (org-ml-parse-this-toplevel-section))
+                 (when new?
+                   (kill-buffer)))))
+            (directory-files-recursively
+             pg-pm-project-dir "^project.org$")))
+
+(defun pg-pm--initialize-active-projects (&optional should-refresh? no-hooks?)
+  "Initialize the list of active projects if it is
+  uninitialized. If SHOULD-REFRESH? is non-nil, refresh
+  the (non-empty) list.
+
+Calling this function will run the hooks in
+`pg-pm-active-projects-refreshed-hook' if the active projects are
+refreshed; set NO-HOOKS? to a non-nil value to disable this
+behavior."
+  (when (or should-refresh?
+            (eq nil pg-pm--active-project-cache))
+    (setq pg-pm--active-project-cache (pg-pm--find-active-projects))
+    (if  no-hooks?
+        (message "pm: Not running hooks, no-hooks? is %s" no-hooks?)
+      (run-hooks 'pg-pm-active-projects-refreshed-hook))))
+
+;;;###autoload
+(defun pg-pm-refresh-active-projects ()
+  "Refresh the list of active projects', then run
+`pg-pm-active-projects-refreshed-hook'. Run this command when
+the active projects have changed on-disk, to get the list in
+sync."
+  (interactive)
+  (pg-pm--initialize-active-projects t)
+  (message "Active projects list refreshed"))
+
+(defun pg-pm-active-projects ()
+  "Return the list of active projects."
+  (pg-pm--initialize-active-projects)
+  pg-pm--active-project-cache)
+
+
+
+(defun pg-pm--projectile-switch-project-action ()
+  (let* ((org-files-source
+          (helm-build-sync-source "Project Org Files"
+            :candidates (->>  (directory-files ".")
+                              (--filter (s-ends-with? ".org" it))
+                              (--map (cons it it )))))
+         (result (helm
+                  :sources (list org-files-source
+                                 helm-source-projectile-buffers-list
+                                 helm-source-projectile-files-list)
+                  :buffer "*helm PM project*"
+                  :prompt (format "[%s] pattern: " (projectile-project-name)))))
+    (cond
+     ((stringp result) (find-file result))
+     ((bufferp result) (switch-to-buffer result))
+     (t result))))
+
+;;;###autoload
+(defun pg-pm-switch-to-active-project (&optional arg)
+  "Switch to one of the acive projects"
+  (interactive)
+  (let ((proj (->> (pg-pm-active-projects)
+                   (-map #'file-name-directory)
+                   (completing-read "Switch to Active Project: ")))
+        (projectile-switch-project-action
+         #'pg-pm--projectile-switch-project-action))
+    (projectile-switch-project-by-name proj arg)))
 
 (defmacro pm--to-buffer (buffer-or-file-name &optional err-message)
   "If BUFFER-OR-FILE-NAME is a buffer, return it. If it's a

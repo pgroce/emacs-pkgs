@@ -82,7 +82,7 @@ Done, but hardly an accomplishment
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.3.1
+  ;; Version: 0.3.2
   ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649" (helm "20210826.553")))
   ;; Keywords: productivity
 #+END_SRC
@@ -103,7 +103,7 @@ I might make the projectile and helm dependencies conditional in the future, but
 #+end_src
 
 
-** COMMENT Active projects
+** Active projects
 
 
 =pm.el= will look for these directories (actually the project file, but preserving the path) and keep a cache of them. Switch to any of these active projects with =pg-pm-switch-to-active-project=, which is more or less a restricted version of =projectile-switch-to-project=.
@@ -720,28 +720,8 @@ Time to build the report.
       (switch-to-buffer buff)))
 #+end_src
 
-#+RESULTS:
-: pg-pm-accomplishment-report
 
 
-
-#+begin_src emacs-lisp :noweb no-export :tangle no :results code :exports none
-  <<requires>>
-  <<active-projects>>
-  <<project-info>>
-  <<accandidates>>
-  <<headline-logbook-items>>
-  <<strans-regex>>
-  <<parse-strans-log-entry>>
-  <<time-manip>>
-  <<build-accomplishment>>
-  <<accomplishment-to-org>>
-  <<accomplishment-report>>
-
-  (pg-pm-accomplishment-report)
-
-
-#+end_src
 
 
 * Provide

@@ -79,7 +79,6 @@ type.")
 
 (declare-function org-link-set-parameters "ol")
 
-;;;###autoload
 (defun pg-open-register-org-link (&optional link-type)
   "Define an org link type (i.e., URL scheme) similar to file:,
 that uses `pg-open-file' to open the file instead of Emacs's
