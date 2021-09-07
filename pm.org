@@ -82,7 +82,7 @@ Done, but hardly an accomplishment
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.3.2.1
+  ;; Version: 0.3.2.2
   ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649" (helm "20210826.553")))
   ;; Keywords: productivity
 #+END_SRC
@@ -94,6 +94,7 @@ Done, but hardly an accomplishment
 I might make the projectile and helm dependencies conditional in the future, but they work for me now, so screw it.
 
 #+begin_src emacs-lisp :noweb-ref requires
+  (require 'org)
   (require 'dash)
   (require 's)
   (require 'ts)

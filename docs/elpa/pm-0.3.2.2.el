@@ -3,10 +3,11 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.3.2.1
+;; Version: 0.3.2.2
 ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649" (helm "20210826.553")))
 ;; Keywords: productivity
 
+(require 'org)
 (require 'dash)
 (require 's)
 (require 'ts)
