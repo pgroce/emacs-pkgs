@@ -191,7 +191,7 @@ I use [[https://github.com/magnars/dash.el][dash.el]] for most list manipulation
 
   ;;; Note that hash-table-keys and hash-table-values live in subr-x
 #+end_src
-
+**** Manipulating =auto-mode-alist=
 =auto-mode-alist= is a little special, in that its keys are strings, so the standard alist functions (which use =eq=) don't work on it. This usually doesn't bother anyone because they just use =(add-to-list ...)= and don't worry about the potential multiple entries for one file extension. But it worries me, dammit. It's least confusing when there's only one entry per extension.
 
 This function manipulates =auto-mode-alist=-like lists to my satisfaction.
@@ -209,6 +209,31 @@ This function manipulates =auto-mode-alist=-like lists to my satisfaction.
 
   (defalias '/update-auto-mode-alist 'pg-util-update-auto-mode-alist)
 #+END_SRC
+
+**** Prioritizing items in lists
+
+In some lists, it can be helpful to move some specific elements to the front. This is most useful in UIs (I use it to prioritize "important" files in a project), but could also be used to optimize searching. Performance is O(n) on the size of the input list, so it beats out "sort with a weird predicate" on performance.
+
+#+begin_src emacs-lisp
+  (defun pg-util-prioritize (prioritized-items l)
+    "Return L, with any items in PRIORITIZED-ITEMS moved to the top of the list, in the order they are specified. The order of any other items in the list is unchanged. If items in PRIORITIZED-ITEMS are not in L, they will not exist in the output.
+
+  Examples:
+
+  (pg-util-prioritize '(e d) '(a b c d e)) => '(e d a b c)
+  (pg-util-prioritize nil '(a b c d e)) => '(a b c d e)
+  (pg-util-prioritize '(e d) '(a b c)) => '(a b c)"
+    (assert (listp prioritized-items))
+    (assert (listp l))
+    (setq prioritized-items (reverse prioritized-items))
+    (while prioritized-items
+      (let ((i (pop prioritized-items)))
+        (when (member i l)
+          (setq l (cons i (delete i l))))))
+    l)
+
+  (defalias '/prioritize 'pg-util-prioritize)
+#+end_src
 
 *** Am I in a minor mode?
 
