@@ -3,7 +3,7 @@
 ;; Copyright (C) 2017-2020 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.2
+;; Version: 0.3
 ;; Package-Requires: ((dash "2.13.0"))
 ;; Keywords: utility
 
@@ -160,6 +160,25 @@ in which the mode function for EXT is replaced with NEW-MODE."
     (add-to-list 'filtered-amalist `(,ext . ,new-mode))))
 
 (defalias '/update-auto-mode-alist 'pg-util-update-auto-mode-alist)
+
+(defun pg-util-prioritize (prioritized-items l)
+  "Return L, with any items in PRIORITIZED-ITEMS moved to the top of the list, in the order they are specified. The order of any other items in the list is unchanged. If items in PRIORITIZED-ITEMS are not in L, they will not exist in the output.
+
+Examples:
+
+(pg-util-prioritize '(e d) '(a b c d e)) => '(e d a b c)
+(pg-util-prioritize nil '(a b c d e)) => '(a b c d e)
+(pg-util-prioritize '(e d) '(a b c)) => '(a b c)"
+  (assert (listp prioritized-items))
+  (assert (listp l))
+  (setq prioritized-items (reverse prioritized-items))
+  (while prioritized-items
+    (let ((i (pop prioritized-items)))
+      (when (member i l)
+        (setq l (cons i (delete i l))))))
+  l)
+
+(defalias '/prioritize 'pg-util-prioritize)
 
 ;;;###autoload
 (defun pg-util-minor-mode-active-p (minor-mode)

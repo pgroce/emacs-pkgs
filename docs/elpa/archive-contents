@@ -12,14 +12,18 @@
        (ts
 	(0 3))
        (projectile
-	(20210825 649)))
+	(20210825 649))
+       (helm
+	(20210826 553))
+       (pg-util
+	(0 3)))
       "Project Management" single
       ((:authors
 	("Phil Groce" . "pgroce@gmail.com"))
        (:maintainer "Phil Groce" . "pgroce@gmail.com")
        (:keywords "productivity"))])
  (pg-util .
-	  [(0 2)
+	  [(0 3)
 	   ((dash
 	     (2 13 0)))
 	   "Utility functions" single
@@ -113,6 +117,15 @@
 		  ("Phil Groce" . "pgroce@gmail.com"))
 		 (:maintainer "Phil Groce" . "pgroce@gmail.com")
 		 (:keywords "gui"))])
+ (pg-ert .
+	 [(0 1)
+	  ((dash
+	    (2 13 0)))
+	  "extensions to ert" single
+	  ((:authors
+	    ("Phil Groce" . "pgroce@gmail.com"))
+	   (:maintainer "Phil Groce" . "pgroce@gmail.com")
+	   (:keywords "utility"))])
  (pg-compile-buffers .
 		     [(0 1)
 		      nil "Toggle reuse of compile buffers" single
