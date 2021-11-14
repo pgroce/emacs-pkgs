@@ -47,7 +47,13 @@ Use your project files as the inputs to your org-agenda. (Coming soon, or maybe,
 Currently, I've only implemented one custom report, leaning heavily on =org-ml= to extract info and put it into a document (okay, the last part's aspirational). Coming soon, or maybe, or never: A framework for creating reports by selecting and transforming elements in the project according to a template. (I need to come up with a way that's more compelling than converting to XML via [[https://github.com/ndw/org-to-xml][org-to-xml]] or something to do that.)
 
 
-* Tasks
+* Sample Tasks
+#+name: test
+
+#+begin_src emacs-lisp :results code
+  (org-ml-parse-this-headline)
+#+end_src
+
 
 I'm putting some tasks here as an example for accomplishment processing.
 
@@ -76,6 +82,7 @@ Done, but hardly an accomplishment
 
 ** Package Header
 
+#+name: src-header
 #+BEGIN_SRC emacs-lisp
   ;;; pm.el --- Project Management
 
@@ -83,7 +90,7 @@ Done, but hardly an accomplishment
 
   ;; Author: Phil Groce <pgroce@gmail.com>
   ;; Version: 0.3.2.2
-  ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649" (helm "20210826.553")))
+  ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649") (helm "20210826.553") (pg-util "0.3") (pg-ert "0.1") (pg-org "0.1"))
   ;; Keywords: productivity
 #+END_SRC
 
@@ -93,7 +100,11 @@ Done, but hardly an accomplishment
 
 I might make the projectile and helm dependencies conditional in the future, but they work for me now, so screw it.
 
+I still need functions from both =ert= and =pg-ert=, so I'm requiring both. In practice, =pg-ert= also depends on =ert=, but hey, abstraction.
+
+#+name: src-requires
 #+begin_src emacs-lisp :noweb-ref requires
+  (require 'cl-lib)
   (require 'org)
   (require 'dash)
   (require 's)
@@ -101,14 +112,80 @@ I might make the projectile and helm dependencies conditional in the future, but
   (require 'org-ml)
   (require 'projectile)
   (require 'helm)
+  (require 'ert)
+  (require 'pg-ert)
+  (require 'pg-org)
+  (require 'pg-util)
 #+end_src
+
+
+
+** Testing
+
+This code is somewhat annoying to test. Some of it is UI code, but not much, so I'm comfortable testing that manually. Nearly all of the rest relies on buffers, however, so purely functional testing is not possible.
+
+To mitigate this annoyance, we use regression tests.
+
+*** Test fixture
+
+This code in [[pg-pm-deftest]] builds up to a macro =pg-pm-deftest=, which defines and ERT test in with access to an org-element tree built from an Org =src= block containing org-mode code.
+
+In the course of writing this, it became apparent that most of the functionality of the macro could be pulled out into two other macros that could be useful elsewhere, so =pg-org-with-src= handles running code in the context of a =src= block, and =pg-org-with-src-doc= builds on that to parse the block into an =org-element= tree. Both can be found in the =pg-org= library.
+
+#+name: src-pg-pm-deftest
+#+begin_src emacs-lisp :results silent
+  (defmacro pg-pm-deftest (test-name block-name &rest body)
+    "Use `pg-org-with-src-doc' to parse BLOCK-NAME into an
+  org-element tree, then define an ERT test named TEST-NAME (using
+  `ert-deftest') whose body is BODY."
+    (declare (indent 2))
+    `(pg-org-with-src-doc ,block-name
+       (ert-deftest ,test-name () ,@body)))
+#+end_src
+
+To use this fixture in the context of this document, we must first define a test Org document, such as the one in [[test-org-input]].
+
+#+name: input-org-test
+#+caption: Sample Org input for the test fixture
+#+begin_src org :noweb-ref test-org-input
+  ,#+TITLE: The Main Event
+  ,#+author: Jane Doe
+
+  ,* A headline
+
+  Some text
+
+  ,** A subheadline
+
+  Some subtext
+
+  ,* Another level-1 headline
+
+  Some additional text
+#+end_src
+
+We define our test function in [[test-example-deftest]]. Note that it uses =pg-org-ert-run-tests=, which is an
+
+
+#+name: test-example-deftest
+#+caption: Defining an example test
+#+begin_src emacs-lisp :noweb no-export :results drawer
+  <<src-pg-pm-deftest>>
+  (pg-pm-deftest pg-pm-sample-test input-org-test
+      (should (not (eq nil doc))))
+
+    (pg-ert-run-tests-string "pg-pm-sample-test")
+#+end_src
+
+
+For more complicated tests, it is wise to tangle the source blocks they depend on into the test, so changes to the code are automatically read.
 
 
 ** Active projects
 
-
 =pm.el= will look for these directories (actually the project file, but preserving the path) and keep a cache of them. Switch to any of these active projects with =pg-pm-switch-to-active-project=, which is more or less a restricted version of =projectile-switch-to-project=.
 
+#+name src-active-projects
 #+begin_src emacs-lisp :noweb-ref active-projects
   (defcustom pg-pm-project-dir "~/active-projects"
     "Directory containing projects"
