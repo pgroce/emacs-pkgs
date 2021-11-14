@@ -71,3 +71,10 @@ It should be easy to generalize this to all Org blocks, or even all named elemen
                           (org-ml-parse-this-buffer))))
        ,@body))
 #+end_src
+
+* Provide
+
+#+BEGIN_SRC emacs-lisp
+  (provide 'pg-org)
+  ;;; pg-org.el ends here
+#+END_SRC
