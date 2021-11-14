@@ -214,10 +214,6 @@ For more complicated tests, it is wise to tangle the source blocks they depend o
 
 
 
-
-
-
-
   (defun pg-pm--find-active-projects ()
     "Find active project files on disk."
     ;; Visit the project file buffers and figure out which ones have an
@@ -264,7 +260,6 @@ For more complicated tests, it is wise to tangle the source blocks they depend o
     "Return the list of active projects."
     (pg-pm--initialize-active-projects)
     pg-pm--active-project-cache)
-
 
 
   (defun pg-pm--projectile-switch-project-action ()
