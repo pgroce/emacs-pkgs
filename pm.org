@@ -289,11 +289,19 @@ For more complicated tests, it is wise to tangle the source blocks they depend o
           (projectile-switch-project-action
            #'pg-pm--projectile-switch-project-action))
       (projectile-switch-project-by-name proj arg)))
+
 #+end_src
+
+*** Testing
+
+To do. This uses a lot of general Emacs state and may not be worth trying to unit test.
 
 ** Project info
 
-#+begin_src emacs-lisp :noweb-ref project-info
+Collect project metadata from each =project.org= file. This amounts to reading the keywords defined at the top level of the file.
+
+#+name: src-project-info
+#+begin_src emacs-lisp
 
 
   (defmacro pm--to-buffer (buffer-or-file-name &optional err-message)
