@@ -3,10 +3,11 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.3.2.2
-;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649" (helm "20210826.553")))
+;; Version: 0.3.2.3
+;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649") (helm "20210826.553") (pg-util "0.3") (pg-ert "0.1") (pg-org "0.1"))
 ;; Keywords: productivity
 
+(require 'cl-lib)
 (require 'org)
 (require 'dash)
 (require 's)
@@ -14,6 +15,18 @@
 (require 'org-ml)
 (require 'projectile)
 (require 'helm)
+(require 'ert)
+(require 'pg-ert)
+(require 'pg-org)
+(require 'pg-util)
+
+(defmacro pg-pm-deftest (test-name block-name &rest body)
+  "Use `pg-org-with-src-doc' to parse BLOCK-NAME into an
+org-element tree, then define an ERT test named TEST-NAME (using
+`ert-deftest') whose body is BODY."
+  (declare (indent 2))
+  `(pg-org-with-src-doc ,block-name
+     (ert-deftest ,test-name () ,@body)))
 
 (defcustom pg-pm-project-dir "~/active-projects"
   "Directory containing projects"
@@ -39,10 +52,6 @@
   `nil'. Otherwise it must be manually refreshed using
   `pg-pm-refresh-active-projects' if new pm projects are
   created/removed.")
-
-
-
-
 
 
 
@@ -92,7 +101,6 @@ sync."
   "Return the list of active projects."
   (pg-pm--initialize-active-projects)
   pg-pm--active-project-cache)
-
 
 
 (defun pg-pm--projectile-switch-project-action ()
@@ -151,13 +159,6 @@ value. If KEY is not defined, return nil."
            (--map (org-ml-get-property :value it))
            (first)))))
 
-(defun pg-pm--accandidates (node)
-  "Return headline nodes for all tasks under NODE with the keyword DONE.
-
-As a practical matter, NODE can be a list of subtrees (i.e., the
-return value of `org-ml-parse-subtrees')"
-  (org-ml-match '(:any * (:and headline (:todo-keyword "DONE"))) node))
-
 (defcustom pg-pm-project-file-logging-config
   '(:log-into-drawer "LOGBOOK" :clock-into-drawer t)
   "Logging format for drawers in project files."
@@ -171,6 +172,168 @@ off HEADLINE."
   (org-ml-headline-get-logbook-items
    pg-pm-project-file-logging-config
    headline))
+
+(defcustom pg-pm-rx-logbook-status-change
+  (rx "State"
+      (+ whitespace)
+      "\"" (group (+ (not "\""))) "\""
+      (+ whitespace)
+      "from"
+      (+ whitespace)
+      "\"" (group (+ (not "\""))) "\"")
+  "Regex matching log entries of to-do status changes, per the
+  default state format string in
+  `org-log-note-headings'. Capturing accomplishments will break
+  if that entry in `org-log-note-headings' is changed. (As will
+  large chunks of org-agenda.) In that case, it will be necessary
+  to customize this regex to correspond."
+  :type 'regexp
+  :group 'pm)
+
+(defun pg-pm--parse-task-status-change (lb-item)
+  "Attempt to parse LB-ITEM as if it were a task status
+change. If successful, return a list of the state it was changed
+to (as a symbol), the state it was changed from (as a symbol),
+the timestamp, and an org paragraph element representing any
+additional notes provided by the user.
+
+If LB-ITEM does not conform to the standard form for status
+changes, return nil."
+  ;; parse out the to and from states
+  (-when-let* (((s ts . the-rest) (org-ml-item-get-paragraph lb-item))
+               ((_ to from) (s-match pg-pm-rx-logbook-status-change (org-ml-to-trimmed-string s)))
+               ;; if notes exist, create as new paragraph
+               (notes (if (org-ml-is-type 'line-break (first the-rest))
+                          ;; trick to inline (cdr the-rest) as args
+                          (let ((para-objs (-map (lambda (x) `(quote ,x)) (cdr the-rest))))
+                            (eval `(org-ml-build-paragraph ,@para-objs)))
+                        ;; no additional notes == empty paragraph
+                        (org-ml-build-paragraph))))
+    (list (intern to) (intern from) ts notes)))
+
+(pg-org-with-src-doc org-logbook-ex
+  (org-ml-match '(:any * headline) doc))
+
+nil
+
+(defun pg-pm--task (search-pred node)
+  "Returns a task if the search criteria represented by
+SEARCH-PRED are met. Otherwise, returns nil.
+
+To qualify as a task, the node must have a logbook containing
+items that match the format for status changes. (See
+`pg-pm--parse-task-status-change'.) The most recent such entry
+must be for the current todo status, represented by CURR-STATUS.
+
+If so, the current status, previous status, timestamp, and
+additional notes from the most recent status change are passed
+into SEARCH-PRED, which should return non-nil if the status
+change matches the search criteria.
+
+The return value of this function is a list representing the
+task. The first item is the symbol 'task, tagging the list as a
+task. Subsequent items, in order, are: The org-element node for
+the headline representing the task; the list of parsed status
+changes as returned from `pg-pm--parse-task-status-change'; and a
+list of any other logbook items that do not conform to the
+`pg-pm--parse-task-status-change' format."
+  (-when-let* ((status-changes
+                (->> (org-ml-headline-get-logbook-items
+                      pg-pm-project-file-logging-config node)
+                     (-map #'pg-pm--parse-task-status-change)))
+
+               ((to from ts notes) (car status-changes)))
+    (when (and (eq curr-status to)
+               (funcall search-pred to from ts))
+      (list 'task node status-changes other))))
+
+(defun pg-pm--search-pred (curr-status prev-status after before)
+  "Build a function that will return true if the criteria for
+time bounding and current/previous status are met. Semantics of
+these values are described in `pg-pm-task-query'."
+  (let ((always-true (lambda (x) t))
+
+        ;; Current status
+        (cs-pred (if curr-status
+                     (lexical-let ((-val curr-status))
+                       (lambda (x) (eq -val (symbol-name x))))
+                   always-true))
+        ;; Previous status
+        (ps-pred (if prev-status
+                     (lexical-let ((-val prev-status))
+                       (lambda (x) (eq -val (symbol-name x))))
+                   always-true))
+        ;; Before and after the timestamp
+        (after-pred (if after
+                        (lexical-let ((-val after))
+                          (lambda (x) (ts> x -val)))
+                      always-true))
+        (before-pred (if before
+                         (lexical-let ((-val before))
+                           (lambda (x) (ts<= x -val))))))
+    (lambda (task-todo task-cs task-ps task-ts)
+      (and (funcall cs-pred task-cs)
+           (funcall ps-pred task-ps)
+           (funcall after-pred task-ts)
+           (funcall before-pred task-ts)))))
+
+
+(cl-defun pg-pm-task-query (&key curr-status prev-status after before node)
+  "Fetch all tasks in NODE that meet the criteria set by
+  CURR-STATUS, PREV-STATUS, AFTER, and BEFORE.
+
+The first four parameters represent search criteria in the task.
+
+CURR-STATUS is the current status (i.e., todo keyword) of the
+task. PREV-STATUS is the previous status of the test, as
+determined by the most recent logbook entry. Both of these should
+be expressed as capitalized strings. If either of these are nil,
+they are ignored.
+
+AFTER should be a `ts' struct, representing a point in time after
+which the last status change should have taken place. BEFORE
+should be a `ts' struct, representing a point in time before or
+at which the last status change should have taken place. If
+either are nil, they represent an open interval.
+
+Examples:
+
+(pg-pm-task-query \"DONE\" \"DOING\" <May 1 2000> <July 1 2000>)
+would fetch tasks with a status DONE that were transitions from
+DOING between May 1 and July 1 2000. (parameters in square
+brackets should be ts structs representing those times.)
+
+(pg-pm-task-query nil \"DOING\" <May 1 2000> <July 1 2000>) will
+fetch tasks between May and July 2000 with any todo status that
+were transitioned from DOING.
+
+(pg-pm-task-query \"DONE\" nil <May 1 2000> <July 1 2000>) will
+fetch tasks transitioned between May and July 2000 with the DONE
+todo status, irrespective of what status they were transitioned
+from.
+
+(pg-pm-task-query \"DONE\" \"DOING\" nil <July 1 2000>) will
+fetch tasks transitioned to DONE from DOING at any time up
+to (and including) July 2000.
+
+(pg-pm-task-query \"DONE\" \"DOING\" <MAY 1 2000>) will fetch
+tasks transitioned to DONE from DOING at any time after May 1
+2000."
+  (let* ((search-pred
+          (pg-pm--search-pred curr-status prev-status after before))
+         (match-criteria (if curr-status
+                         `(:and headline (:todo-keyword ,curr-status))
+                       `headline)))
+    (->> (org-ml-match `(:any * ,match-criteria)
+                       node)
+         (-filter (-partial #'pg-pm--task search-pred)))))
+
+(defun pg-pm--accandidates (node)
+  "Return headline nodes for all tasks under NODE with the keyword DONE.
+
+As a practical matter, NODE can be a list of subtrees (i.e., the
+return value of `org-ml-parse-subtrees')"
+  (org-ml-match '(:any * (:and headline (:todo-keyword "DONE"))) node))
 
 (defcustom pg-pm-rx-logbook-resolved
   (rx "State"
@@ -220,6 +383,34 @@ user. Otherwise, return nil."
             (symbol-name from)
             (org-ml-to-trimmed-string ts)
             (org-ml-to-trimmed-string notes))))
+
+(defun pg-pm--build-task (headline)
+  "Return a task from HEADLINE, or nil if HEADLINE is not a task."
+  (let ((logbook-entries (->> headline
+                              (pg-pm--headline-logbook-items)
+                              (-map #'pg-pm--parse-strans-log-entry))))
+    (when (pg-pm--accomplishment? headline logbook-entries)
+      (list headline (or (first logbook-entries)
+                         (org-ml-get-property :title headline))))))
+
+
+(defun pg-pm--accomplishment-headline (accomplishment)
+  "Get the headline associated with ACCOMPLISHMENT."
+  (-let [(headline _) accomplishment]
+    headline))
+
+(defun pg-pm--accomplishment-strans (accomplishment)
+  "Get the state transition entry associated with ACCOMPLISHMENT."
+  (-let [(_ strans) accomplishment]
+    strans))
+
+(defun pg-pm--accomplishment-to-string (accomplishment)
+  "Render the data structure returned by
+  `pg-pm--build-accomplishment' as a string."
+  (-let [(headline strans) accomplishment]
+    (format "#(\"%s\" %s)"
+            (org-ml-to-trimmed-string headline)
+            (pg-pm--strans-to-string strans))))
 
 (defun pm-time-spec-from-string (time-spec)
   "Return a list of adjustments based on TIME-SPEC.
@@ -429,6 +620,8 @@ in the report. The syntax for this specification is given in
        (insert (org-ml-to-string it))
        headlines))
     (switch-to-buffer buff)))
+
+
 
 (provide 'pm)
 ;;; pm.el ends here

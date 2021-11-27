@@ -1,6 +1,6 @@
 (1
  (pm .
-     [(0 3 2 2)
+     [(0 3 2 3)
       ((emacs
 	(26 1))
        (dash
@@ -18,6 +18,8 @@
        (pg-util
 	(0 3))
        (pg-ert
+	(0 1))
+       (pg-org
 	(0 1)))
       "Project Management" single
       ((:authors
