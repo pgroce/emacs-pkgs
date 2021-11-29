@@ -1144,8 +1144,6 @@ Used thusly:
 
 
 
-*** Accomplishments by project
-
 *** Building the accomplishment report
 
 
