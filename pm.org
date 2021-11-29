@@ -36,13 +36,13 @@ Now you can add to-do items in a project file and they will automatically show u
 
 
 
-** Features
+* Features
 
-*** Org-agenda management
+** Org-agenda management
 
 Use your project files as the inputs to your org-agenda. (Coming soon, or maybe, or never: Custom agenda view so I don't clobber =org-agenda-files=.)
 
-*** Reporting
+** Reporting
 
 Currently, I've only implemented one custom report, leaning heavily on =org-ml= to extract info and put it into a document (okay, the last part's aspirational). Coming soon, or maybe, or never: A framework for creating reports by selecting and transforming elements in the project according to a template. (I need to come up with a way that's more compelling than converting to XML via [[https://github.com/ndw/org-to-xml][org-to-xml]] or something to do that.)
 
