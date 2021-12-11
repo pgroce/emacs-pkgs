@@ -1072,9 +1072,6 @@ Used thusly:
        (pg-pm--accomplishment-to-string))
 #+end_src
 
-
-
-
 As you can see, =pg-pm--build-accomplishment= is both a constructor and a predicate, so we can throw a list of maybe-accomplishments at it and use =-keep= to filter out the non-accomplishments.
 
 *** Org-mode representation of accomplishments
