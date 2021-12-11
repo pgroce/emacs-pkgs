@@ -15,7 +15,7 @@ This library contains anything I may find specifically useful when working with 
      ;; Copyright (C) 2021 Phil Groce
 
      ;; Author: Phil Groce <pgroce@gmail.com>
-     ;; Version: 0.1
+     ;; Version: 0.2
      ;; Package-Requires: ((emacs "26.1") (org-ml "5.7"))
      ;; Keywords: productivity
 #+END_SRC
@@ -124,6 +124,11 @@ My main use for this has been to decrease clutter when I'm building an Org eleme
         (org-ml-build-paragraph! \"paragraph text\")))"
     (eval (org-ml-normalize spec)))
 #+end_src
+
+
+
+
+
 
 * Provide
 
