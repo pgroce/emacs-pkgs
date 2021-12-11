@@ -28,12 +28,11 @@ This library contains anything I may find specifically useful when working with 
   (require 'org-ml)
 #+end_src
 
-
 ** Working on Source Blocks
 
 Being able to easily operate on blocks comes up during testing, and also in workflows where the Org file is being treated like an executable notebook. (See also: [[https://jupyter.org/][Jupyter Notebook]])
 
-It should be easy to generalize this to all Org blocks, or even all named elements. I'm not inclined to do that right now, but the names of all the elements that can be matched by =org-ml-match= are in =org-element-all-elements= in =org-element.el=. (Not all of those can be named, however.)
+It should be easy to generalize this to all Org blocks, or even all named elements. I'm not inclined to do that right now, but the names of all the org elements types are in =org-element-all-elements= in =org-element.el=. (Not all of those can be named, however.)
 
 #+name: src-pg-pm-deftest
 #+begin_src emacs-lisp :results silent
@@ -70,6 +69,60 @@ It should be easy to generalize this to all Org blocks, or even all named elemen
                           (org-mode)
                           (org-ml-parse-this-buffer))))
        ,@body))
+#+end_src
+
+** Org-ml as a template engine
+
+=org-ml= has a regular convention for its constructures; for each element type /t/, a corresponding =org-ml= object can be created using =org-ml-t=.
+
+This regularity permits a little hack, which in turn makes it possible to create a declarative tree of element names and parameters describing them, then later turn the tree into an =org-ml= object tree.
+
+My main use for this has been to decrease clutter when I'm building an Org element tree or subtree from scratch, since this removes the need to type =org-ml-build-= before every type.
+
+#+begin_src emacs-lisp
+
+  (defun org-ml-normalize (tree)
+    "Convert TREE into an org-ml build invocation, by prepending
+    \"org-ml-build-\" to the symbol in first position of the
+    list. This function is then applied recursively to all the tree
+    node's children. (In this case, any lists contained in TREE
+    whose first element is a symbol.) "
+    ;; Only handle lists whose first element is a symbol
+    (if (symbolp (car tree))
+        ;; Normalize the root node
+        (->> (cons (->> (car tree)
+                        (symbol-name)
+                        (concat "org-ml-build-")
+                        (intern))
+                   (cdr tree))
+             ;; ...and its children
+             (--map (if (listp it) (org-ml-normalize it) it)))
+      tree))
+
+  (defun org-ml-build (spec)
+    "Transform SPEC into an org-element tree using constructors for
+  elements in `org-ml'.
+
+  All that is done to transform SPEC is that the first element of
+  every list is prepended with \"org-ml-build-\" if it is a
+  symbol. SPEC's format, then, is that of a tree of lists whose
+  first elements are symbols representing element types; the rest
+  of the elements are the arguments used to construct an element
+  type using org-ml's corresponding \"org-ml-build-*\"
+  corresponding to that symbol. A SPEC for a headline element, for
+  instance, might be:
+
+    (headline :title (secondary-string! \"foo\")
+      (section (paragraph! \"paragraph text\")))
+
+  This function will convert that specification into the result of
+  calling:
+
+    (org-ml-build-headline
+      :title (org-ml-build-secondary-string! \"foo\")
+      (org-ml-build-section
+        (org-ml-build-paragraph! \"paragraph text\")))"
+    (eval (org-ml-normalize spec)))
 #+end_src
 
 * Provide
