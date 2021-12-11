@@ -14,7 +14,7 @@ There will be  few more things here soonish, but that's enough for now.
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.1
+  ;; Version: 0.1.1
   ;; Package-Requires: ((dash "2.13.0"))
   ;; Keywords: utility
 #+END_SRC
