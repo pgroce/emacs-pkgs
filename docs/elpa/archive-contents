@@ -26,6 +26,27 @@
 	("Phil Groce" . "pgroce@gmail.com"))
        (:maintainer "Phil Groce" . "pgroce@gmail.com")
        (:keywords "productivity"))])
+ (pm-task .
+	  [(0 1)
+	   ((emacs
+	     (26 1))
+	    (dash
+	     (2 19))
+	    (s
+	     (1 12))
+	    (org-ml
+	     (5 7))
+	    (ts
+	     (0 3))
+	    (pg-ert
+	     (0 1))
+	    (pg-org
+	     (0 1)))
+	   "Task handling for project management" single
+	   ((:authors
+	     ("Phil Groce" . "pgroce@gmail.com"))
+	    (:maintainer "Phil Groce" . "pgroce@gmail.com")
+	    (:keywords "productivity"))])
  (pg-util .
 	  [(0 3)
 	   ((dash
@@ -99,11 +120,19 @@
 	      (:maintainer "Phil Groce" . "pgroce@gmail.com")
 	      (:keywords "pandoc" "markdown" "org-mode" "latex" "pdf" "docx"))])
  (pg-org .
-	 [(0 1)
+	 [(0 2 1)
 	  ((emacs
 	    (26 1))
 	   (org-ml
-	    (5 7)))
+	    (5 7))
+	   (dash
+	    (2 19))
+	   (s
+	    (1 12))
+	   (ts
+	    (0 3))
+	   (pg-ert
+	    (0 1)))
 	  "Customizations to org-mode" single
 	  ((:authors
 	    ("Phil Groce" . "pgroce@gmail.com"))
@@ -133,7 +162,7 @@
 		 (:maintainer "Phil Groce" . "pgroce@gmail.com")
 		 (:keywords "gui"))])
  (pg-ert .
-	 [(0 1)
+	 [(0 1 2)
 	  ((dash
 	    (2 13 0)))
 	  "extensions to ert" single
@@ -142,7 +171,7 @@
 	   (:maintainer "Phil Groce" . "pgroce@gmail.com")
 	   (:keywords "utility"))])
  (pg-compile-buffers .
-		     [(0 1)
+		     [(0 1 1)
 		      nil "Toggle reuse of compile buffers" single
 		      ((:authors
 			("Phil Groce" . "pgroce@gmail.com"))

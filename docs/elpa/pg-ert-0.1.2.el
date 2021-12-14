@@ -3,7 +3,7 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.1.1
+;; Version: 0.1.2
 ;; Package-Requires: ((dash "2.13.0"))
 ;; Keywords: utility
 
@@ -318,6 +318,17 @@ of the string (car) and the `ert--stats` object (cdr).''"
       (if return-stats
           (cons acc-str stats)
         acc-str))))
+
+(defmacro pg-ert-shouldmap (actual expected &rest body)
+  "Map a sequence of results against a sequence of expected values, running BODY to test if the actual results match the expected results. The last statement of BODY should return `t' or `nil', indicating whether the test succeeded or failed. The actual value will be bound to the symbol `act', and the expected value to the symbol `exp'.
+
+If BODY is not supplied, the test will be `(equal act exp)'"
+  (declare (indent 2))
+  (let ((test (or body '((equal act exp)))))
+    `(->> (-zip ,actual ,expected)
+          (mapc (lambda (it) (let ((act (car it))
+                                   (exp (cdr it)))
+                               (should (progn ,@test))))))))
 
 (provide 'pg-ert)
 ;;; pg-ert.el ends here

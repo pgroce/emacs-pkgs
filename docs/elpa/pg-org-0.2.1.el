@@ -3,11 +3,14 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.2
-;; Package-Requires: ((emacs "26.1") (org-ml "5.7"))
+;; Version: 0.2.1
+;; Package-Requires: ((emacs "26.1") (org-ml "5.7") (dash "2.19") (s "1.12") (ts "0.3") (pg-ert "0.1"))
 ;; Keywords: productivity
 
 (require 'org-ml)
+(require 'dash)
+(require 's)
+(require 'ts)
 
 (defmacro pg-org-with-src (block-name &rest body)
   "Put the text in the source block BLOCK-NAME in a temp buffer,
@@ -36,12 +39,20 @@ then execute BODY in that buffer."
   org-element tree and run BODY. Code in BODY can refer to the
   org-element tree via the symbol `doc'."
   (declare (indent 1))
-  `(lexical-let ((doc (pg-org-with-src ,block-name
+  `(lexical-let ((doc (pg-org-withp-src ,block-name
                         (org-unescape-code-in-region (point-min) (point-max))
                         (org-do-remove-indentation)
                         (org-mode)
                         (org-ml-parse-this-buffer))))
      ,@body))
+
+(defmacro pg-org-deftest (test-name block-name &rest body)
+  "Use `pg-org-with-src-doc' to parse BLOCK-NAME into an
+org-element tree, then define an ERT test named TEST-NAME (using
+`ert-deftest') whose body is BODY."
+  (declare (indent 2))
+  `(pg-org-with-src-doc ,block-name
+     (ert-deftest ,test-name () ,@body)))
 
 (defun org-ml-normalize (tree)
   "Convert TREE into an org-ml build invocation, by prepending
@@ -85,6 +96,20 @@ calling:
     (org-ml-build-section
       (org-ml-build-paragraph! \"paragraph text\")))"
   (eval (org-ml-normalize spec)))
+
+(defun pg-org-headline-logbook-entries (headline)
+  "Given a headline org element, return its logbook entries as a
+  list of paragraph elements. If the headline doesn't contain any
+  logbook entries, return `nil'."
+  (->> headline
+       (org-ml-match
+        '(section
+          (:and drawer (:drawer-name "LOGBOOK"))
+          plain-list
+          item
+          paragraph))
+
+       ))
 
 (provide 'pg-org)
 ;;; pg-org.el ends here
