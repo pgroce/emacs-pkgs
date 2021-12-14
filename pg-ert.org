@@ -348,6 +348,23 @@ ERT is easy to hack, though; this function is adapted from =ert-run-tests-batch=
             acc-str))))
   #+end_src
 
+** =shouldmap=
+
+One frequently wants to inspect each record of a list or other data structure in the same way. This macro permits to write the comparison function once and map over the expected and actual output with minimal repetition. It's very simple, but it's nice to be able to write less boilerplate.
+
+#+begin_src emacs-lisp
+  (defmacro pg-ert-shouldmap (actual expected &rest body)
+    "Map a sequence of results against a sequence of expected values, running BODY to test if the actual results match the expected results. The last statement of BODY should return `t' or `nil', indicating whether the test succeeded or failed. The actual value will be bound to the symbol `act', and the expected value to the symbol `exp'.
+
+  If BODY is not supplied, the test will be `(equal act exp)'"
+    (declare (indent 2))
+    (let ((test (or body '((equal act exp)))))
+      `(->> (-zip ,actual ,expected)
+            (mapc (lambda (it) (let ((act (car it))
+                                     (exp (cdr it)))
+                                 (should (progn ,@test))))))))
+#+end_src
+
 
 * Provide
 
