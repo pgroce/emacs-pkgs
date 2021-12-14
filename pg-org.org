@@ -10,14 +10,14 @@ This library contains anything I may find specifically useful when working with 
 
 #+name: src-header
 #+BEGIN_SRC emacs-lisp
-     ;;; pg-org.el --- Customizations to org-mode
+  ;;; pg-org.el --- Customizations to org-mode
 
-     ;; Copyright (C) 2021 Phil Groce
+  ;; Copyright (C) 2021 Phil Groce
 
-     ;; Author: Phil Groce <pgroce@gmail.com>
-     ;; Version: 0.2
-     ;; Package-Requires: ((emacs "26.1") (org-ml "5.7"))
-     ;; Keywords: productivity
+  ;; Author: Phil Groce <pgroce@gmail.com>
+  ;; Version: 0.2
+  ;; Package-Requires: ((emacs "26.1") (org-ml "5.7") (dash "2.19") (s "1.12") (ts "0.3") (pg-ert "0.1"))
+  ;; Keywords: productivity
 #+END_SRC
 
 
@@ -26,6 +26,9 @@ This library contains anything I may find specifically useful when working with 
 #+name: src-requires
 #+begin_src emacs-lisp
   (require 'org-ml)
+  (require 'dash)
+  (require 's)
+  (require 'ts)
 #+end_src
 
 ** Working on Source Blocks
@@ -34,7 +37,7 @@ Being able to easily operate on blocks comes up during testing, and also in work
 
 It should be easy to generalize this to all Org blocks, or even all named elements. I'm not inclined to do that right now, but the names of all the org elements types are in =org-element-all-elements= in =org-element.el=. (Not all of those can be named, however.)
 
-#+name: src-pg-pm-deftest
+#+name: src-pg-with-src
 #+begin_src emacs-lisp :results silent
   (defmacro pg-org-with-src (block-name &rest body)
     "Put the text in the source block BLOCK-NAME in a temp buffer,
@@ -63,13 +66,27 @@ It should be easy to generalize this to all Org blocks, or even all named elemen
     org-element tree and run BODY. Code in BODY can refer to the
     org-element tree via the symbol `doc'."
     (declare (indent 1))
-    `(lexical-let ((doc (pg-org-with-src ,block-name
+    `(lexical-let ((doc (pg-org-withp-src ,block-name
                           (org-unescape-code-in-region (point-min) (point-max))
                           (org-do-remove-indentation)
                           (org-mode)
                           (org-ml-parse-this-buffer))))
        ,@body))
 #+end_src
+
+Speaking of testing, here's a convenience macro for using =ert-deftest= with =pg-org-with-src-doc=.
+
+#+name: src-org-deftest
+#+begin_src emacs-lisp :results silent
+  (defmacro pg-org-deftest (test-name block-name &rest body)
+    "Use `pg-org-with-src-doc' to parse BLOCK-NAME into an
+  org-element tree, then define an ERT test named TEST-NAME (using
+  `ert-deftest') whose body is BODY."
+    (declare (indent 2))
+    `(pg-org-with-src-doc ,block-name
+       (ert-deftest ,test-name () ,@body)))
+#+end_src
+
 
 ** Org-ml as a template engine
 
@@ -126,7 +143,160 @@ My main use for this has been to decrease clutter when I'm building an Org eleme
 #+end_src
 
 
+** Working with headlines
 
+Many children of headlines can be useful to work with from the headline itself. This is especially true in =org-ml-match=, where it is often convenient to select a headline based on features of its children.
+
+We will be using this sample Org file to test on  below.
+
+
+*** Logbook entries
+
+Fetches the text of each logbook entry associated with =headline=, as a =paragraph= element. Keeping the =item= element it's associated with seems superfluous, it's just an =org-ml-build-item= away.
+
+#+name: src-headline-logbook-entries
+#+begin_src emacs-lisp
+  (defun pg-org-headline-logbook-entries (headline)
+    "Given a headline org element, return its logbook entries as a
+    list of paragraph elements. If the headline doesn't contain any
+    logbook entries, return `nil'."
+    (->> headline
+         (org-ml-match
+          '(section
+            (:and drawer (:drawer-name "LOGBOOK"))
+            plain-list
+            item
+            paragraph))
+
+         ))
+#+end_src
+
+Tested thusly:
+
+#+name: input-logbook-simple
+#+caption: Org document used in testing =pg-org-headline-logbook entries=
+#+begin_src org
+  ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
+
+
+  ,* DOING Rewire the security system
+    :PROPERTIES:
+    :ASSIGNEE: Bart Starr
+    :END:
+    :LOGBOOK:
+    - Top entry
+    - Middle entry
+    - Very first entry
+    :END:
+#+end_src
+
+#+name: test-headline-logbook-entries
+#+begin_src emacs-lisp :noweb eval :tangle no :results drawer
+  <<src-headline-logbook-entries>>
+  (require 's)
+
+  (pg-org-deftest headline-logbook-entries/1 input-logbook-simple
+    (let* ((entries (->> doc
+                         (org-ml-match '(headline))
+                         (first)
+                         (pg-org-headline-logbook-entries)))
+           (entry-strings (-map #'org-ml-to-trimmed-string entries)))
+      (should (s-equals-p (nth 0 entry-strings) "Top entry"))
+      (should (s-equals-p (nth 1 entry-strings) "Middle entry"))
+      (should (s-equals-p (nth 2 entry-strings) "Very first entry"))
+
+      (should (eq (nth 0 (nth 0 entries)) 'paragraph))
+      (should (eq (nth 0 (nth 1 entries)) 'paragraph))
+      (should (eq (nth 0 (nth 2 entries)) 'paragraph))))
+
+  (pg-ert-run-tests-string "headline-logbook-entries/1")
+
+#+end_src
+
+*** Status changes
+
+When configured to do so, Org will log changes between to-do keywords into the logbook. These logbook entries have a specific text format, but to Org it's still a single secondary string. This code parses that string and recovers the juicy data inside.
+
+A previous version of this function lived in =pm.org= and took =item= elements instead of =paragraph= elements. This function works better with the output of the new and improved =pg-org-headline-logbook-entries=, however.
+
+#+name: src-paragraph-parse-status-change
+#+begin_src emacs-lisp :noweb eval :tangle no :exports code :results code
+  (defun pg-org-paragraph-parse-status-change (para)
+    "If PARA is a logbook entry that looks like it was generated
+    when a to-do item's status changed, parse it and return a list of
+    the state it was changed to (as a string), the state it was
+    changed from (as a string), the timestamp, and an org paragraph
+    element representing any additional notes provided by the
+    user. Otherwise, return nil."
+    (-when-let* [((_ _ s ts . the-rest)  para)
+                 ;; parse out the to and from states
+                 ((_ to from) (->> (org-ml-to-trimmed-string s)
+                                   (s-match pg-pm-rx-logbook-resolved)))
+                 ;; if notes exist, create as new paragraph
+                 (notes (->> (if (org-ml-is-type 'line-break (first the-rest))
+                                 ;; trick to inline (cdr the-rest) as args
+                                 (let ((para-objs (-map (lambda (x) `(quote ,x)) (cdr the-rest))))
+                                   (eval `(org-ml-build-paragraph ,@para-objs)))
+                               ;; no additional notes == empty paragraph
+                               (org-ml-build-paragraph))
+                             (org-ml-remove-parents)))]
+      (list to from (org-ml-remove-parents ts) notes)))
+#+end_src
+
+Tested thusly (TODO)
+
+
+#+name: input-logbook-status-changes
+#+caption: Sample used for testing
+#+begin_src org
+  ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
+
+
+  ,* DOING Rewire the security system
+    :PROPERTIES:
+    :ASSIGNEE: Bart Starr
+    :END:
+    :LOGBOOK:
+    - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+      Back on the case
+    - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+      Waiting on parts from the supplier
+    - State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+      In process, it's harder than it looks
+    - Not a status update
+    :END:
+#+end_src
+
+Note that =pg-org-paragraph-parse-status-change= returns =nil= if the parse fails, so the spurious additional item in the input is ignored
+
+#+begin_src emacs-lisp :noweb eval :tangle no :results drawer
+  <<src-paragraph-parse-status-change>>
+  (require 'ts)
+
+  (pg-org-deftest paragraph-parse-status-change
+      input-logbook-status-changes
+    (let ((entries (->> doc
+                        (org-ml-match '(headline))
+                        (first)
+                        (pg-org-headline-logbook-entries)
+                        (-keep #'pg-org-paragraph-parse-status-change))))
+      (pg-ert-shouldmap
+          entries
+          '(("BLOCKED" "DOING" "[2021-12-11 Sat 20:06]"
+             "Back on the case")
+            ("DOING" "BLOCKED" "[2021-12-11 Sat 20:05]"
+             "Waiting on parts from the supplier")
+            ("TODO" "DOING" "[2021-12-11 Sat 20:046]"
+             "In process, it's harder than it looks"))
+        (-let (((act-to act-from act-ts notes) act)
+               ((exp-to exp-from exp-ts) exp))
+          (equal act-to exp-to)
+          (equal act-from exp-from)
+          (ts=  (ts-parse-org-element act-ts) (ts-parse-org exp-ts))))))
+
+  (pg-ert-run-tests-string "paragraph-parse-status-change")
+
+#+end_src
 
 
 
