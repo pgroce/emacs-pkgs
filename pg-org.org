@@ -288,11 +288,12 @@ Note that =pg-org-paragraph-parse-status-change= returns =nil= if the parse fail
              "Waiting on parts from the supplier")
             ("TODO" "DOING" "[2021-12-11 Sat 20:046]"
              "In process, it's harder than it looks"))
-        (-let (((act-to act-from act-ts notes) act)
-               ((exp-to exp-from exp-ts) exp))
+        (-let (((act-to act-from act-ts act-notes) act)
+               ((exp-to exp-from exp-ts exp-notes) exp))
           (equal act-to exp-to)
           (equal act-from exp-from)
-          (ts=  (ts-parse-org-element act-ts) (ts-parse-org exp-ts))))))
+          (ts=  (ts-parse-org-element act-ts) (ts-parse-org exp-ts))
+          (string-equal (org-ml-to-trimmed-string act-notes) exp-notes)))))
 
   (pg-ert-run-tests-string "paragraph-parse-status-change")
 
