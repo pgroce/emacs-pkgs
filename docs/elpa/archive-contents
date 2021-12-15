@@ -1,6 +1,6 @@
 (1
  (pm .
-     [(0 3 2 3)
+     [(0 3 2 4)
       ((emacs
 	(26 1))
        (dash
@@ -27,7 +27,7 @@
        (:maintainer "Phil Groce" . "pgroce@gmail.com")
        (:keywords "productivity"))])
  (pm-task .
-	  [(0 1)
+	  [(0 1 1)
 	   ((emacs
 	     (26 1))
 	    (dash
@@ -120,7 +120,7 @@
 	      (:maintainer "Phil Groce" . "pgroce@gmail.com")
 	      (:keywords "pandoc" "markdown" "org-mode" "latex" "pdf" "docx"))])
  (pg-org .
-	 [(0 2 1)
+	 [(0 2 2)
 	  ((emacs
 	    (26 1))
 	   (org-ml

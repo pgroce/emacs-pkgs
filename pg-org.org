@@ -15,7 +15,7 @@ This library contains anything I may find specifically useful when working with 
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.2.1
+  ;; Version: 0.2.2
   ;; Package-Requires: ((emacs "26.1") (org-ml "5.7") (dash "2.19") (s "1.12") (ts "0.3") (pg-ert "0.1"))
   ;; Keywords: productivity
 #+END_SRC
@@ -66,7 +66,7 @@ It should be easy to generalize this to all Org blocks, or even all named elemen
     org-element tree and run BODY. Code in BODY can refer to the
     org-element tree via the symbol `doc'."
     (declare (indent 1))
-    `(lexical-let ((doc (pg-org-withp-src ,block-name
+    `(lexical-let ((doc (pg-org-with-src ,block-name
                           (org-unescape-code-in-region (point-min) (point-max))
                           (org-do-remove-indentation)
                           (org-mode)
@@ -74,10 +74,12 @@ It should be easy to generalize this to all Org blocks, or even all named elemen
        ,@body))
 #+end_src
 
+(TODO: TEST!!!)
+
 Speaking of testing, here's a convenience macro for using =ert-deftest= with =pg-org-with-src-doc=.
 
 #+name: src-org-deftest
-#+begin_src emacs-lisp :results silent
+#+begin_src emacs-lisp
   (defmacro pg-org-deftest (test-name block-name &rest body)
     "Use `pg-org-with-src-doc' to parse BLOCK-NAME into an
   org-element tree, then define an ERT test named TEST-NAME (using
@@ -146,9 +148,6 @@ My main use for this has been to decrease clutter when I'm building an Org eleme
 ** Working with headlines
 
 Many children of headlines can be useful to work with from the headline itself. This is especially true in =org-ml-match=, where it is often convenient to select a headline based on features of its children.
-
-We will be using this sample Org file to test on  below.
-
 
 *** Logbook entries
 
@@ -273,7 +272,7 @@ Note that =pg-org-paragraph-parse-status-change= returns =nil= if the parse fail
   <<src-paragraph-parse-status-change>>
   (require 'ts)
 
-  (pg-org-deftest paragraph-parse-status-change
+  (pg-org-deftest pg-org-paragraph-parse-status-change/t
       input-logbook-status-changes
     (let ((entries (->> doc
                         (org-ml-match '(headline))
@@ -300,6 +299,106 @@ Note that =pg-org-paragraph-parse-status-change= returns =nil= if the parse fail
 #+end_src
 
 
+*** Lookahead matching
+
+The =org-ml-match= function in Org-ML is very powerful, including a generalize =:pred= function that can match on a user-supplied predicate. Match predicates take a single argument representing the node currently being evaluated, and return =t= iff the node should match, whatever the predicate determines that to mean.
+
+One limitation of =org-ml-match= predicates is a lack of "lookahead" a capability: There's no natural way to select a node based on the properties of the nodes it contains. One can build predicates that do this by, themselves, calling =org-ml-match=; this is inconvenient for ad-hoc matching.
+
+The following is a way around that limitation. =pg-org-match-lookahead= takes a set of =org-ml-match= criteria /\kappa/ and returns a predicate that applies those criteria to the node under consideration–meaning, it's a predicate that asserts that there exists one or more child nodes beneath the current node that match /\kappa/.
+
+#+name: lookahead-ex/1
+#+begin_src org :results none :exports code :tangle no
+  ,* Foo
+  ,** Tasks
+  ,* Bar
+  ,** Tasks
+  ,* Baz
+  ,** Tasks
+  ,* Additional notes
+#+end_src
+
+For example, consider the task of matching only the  headlines in Example [[lookahead-ex/1]] that contain subheadings for tasks. As can be seen in [[lookahead-ex/1.1]] the match criteria =(headline (:and headline (:raw-value "Tasks")))= will match the subheads, but not the tasks. (It is sometimes possible to backtrack to an ancestor from a child node, but not always and not reliably.)
+
+#+name: lookahead-ex/1.1
+#+begin_src emacs-lisp :results code :exports code :tangle no
+  (pg-org-with-src-doc lookahead-ex/1
+    (->> doc
+         (org-ml-match '(headline (:and headline (:raw-value "Tasks"))))
+         (-map #'org-ml-remove-parents)))
+#+end_src
+
+Using a lookahead predicate, however, it is possible to get the result we want, as in [[lookahead-ex/1.2]].
+
+#+name: lookahead-ex/1.2
+#+begin_src emacs-lisp :results code :exports code :tangle no
+  (defun my-task-predicate (node)
+    (org-ml-match '((:and headline (:raw-value "Tasks"))) node))
+
+  (pg-org-with-src-doc lookahead-ex/1
+    (->> doc
+         (org-ml-match '((:and headline (:pred my-task-predicate))))
+         (-map #'org-ml-remove-parents)))
+#+end_src
+
+The tradeoff here is obviously recursion, but the maximum recursion here should be the maximum depth of the document tree, absent chicanery in the predicate like searching on a node's parent.
+
+**** General-purpose lookahead
+
+We can and do define a generalized function for returning a lookahead-style match predicate. It's a simple partial application of =org-ml-match=.
+
+#+name: src-lookahead
+#+begin_src emacs-lisp
+  (defun pg-org-lookahead (match-criteria)
+    "Return a function that takes an org-element node and runs
+    `org-ml-match' on it using MATCH-CRITERIA as the match
+    criteria. Returns a true value if the match returns results,
+    else `nil'."
+    (-partial #'org-ml-match match-criteria))
+#+end_src
+
+This function is not as useful as we might wish, because the value of =:pred= must be a symbol, not an actual function. So the code in [[lookahead-ex/2.1]] doesn'twork.
+
+#+name: lookahead-ex/2.1
+#+begin_src emacs-lisp :results code :exports code :tangle no
+  ;; This doesn't work....
+  (pg-org-with-src-doc lookahead-ex/1
+      (->> doc
+           (org-ml-match `((:and headline
+                                 (:pred ,(pg-org-lookahead
+                                          '(:and headline (:raw-value "Tasks")))))))
+           (-map #'org-ml-remove-parents)))
+#+end_src
+
+
+It can, however, be used somewhat awkwardly with =cl-letf=, as shown in the example [[lookahead-ex/2.2]].
+
+#+name: lookahead-ex/2.2
+#+begin_src emacs-lisp :results code :exports code :noweb eval :tangle no
+  <<src-lookahead>>
+
+  (pg-org-with-src-doc lookahead-ex/1
+        (cl-letf* (((symbol-function 'has-tasks)
+                    (pg-org-lookahead '((:and headline (:raw-value "Tasks"))))))
+          (org-ml-match '((:and headline (:pred has-tasks))) doc)))
+#+end_src
+
+
+#+name: test-lookahead
+#+begin_src emacs-lisp  :noweb eval :tangle no :results drawer
+  <<src-lookahead>>
+
+
+  (pg-org-deftest pg-org-lookahead/t
+      lookahead-ex/1
+     (cl-letf* (((symbol-function 'has-tasks) (pg-org-lookahead
+                                               '((:and headline (:raw-value "Tasks")))))
+                (results (org-ml-match '((:and headline (:pred has-tasks))) doc)))
+       (pg-ert-shouldmap results '("Foo" "Bar" "Baz")
+         (string-equal (org-ml-get-property :raw-value act) exp))))
+
+  (pg-ert-run-tests-string "pg-org-lookahead/t")
+#+end_src
 
 * Provide
 
