@@ -145,8 +145,8 @@ ERT is easy to hack, though; this function is adapted from =ert-run-tests-batch=
                                (ert--insert-infos result)
                                (insert "    ")
                                (let ((print-escape-newlines t)
-                                     (print-level 5)
-                                     (print-length 10))
+                                     (print-level nil)   ;; pg - TRUCK
+                                     (print-length nil)) ;; pg - FUNCATION
                                  (ert--pp-with-indentation-and-newline
                                   (ert-test-result-with-condition-condition result)))
                                (goto-char (1- (point-max)))
