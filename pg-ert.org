@@ -54,7 +54,6 @@ ERT is easy to hack, though; this function is adapted from =ert-run-tests-batch=
                       (unless ert-quiet
                         (cl-destructuring-bind (stats) event-args
                           (progn
-                            (message "acc is %s" acc)
                             (append acc
                                     (list
                                      (format "Running %s tests (%s, selector `%S')"
