@@ -15,7 +15,7 @@ This library contains anything I may find specifically useful when working with 
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.3
+  ;; Version: 0.3.1
   ;; Package-Requires: ((emacs "26.1") (org-ml "5.7") (dash "2.19") (s "1.12") (ts "0.3") (pg-ert "0.1"))
   ;; Keywords: productivity
 #+END_SRC
@@ -25,6 +25,7 @@ This library contains anything I may find specifically useful when working with 
 
 #+name: src/requires
 #+begin_src emacs-lisp
+  (eval-when-compile (require 'cl-macs))
   (require 'org-ml)
   (require 'dash)
   (require 's)
@@ -179,13 +180,13 @@ Org-ML defines one more function in this category, =org-ml-headline-logbook-conv
     (org-ml-headline-get-supercontents
      pg-org-headline-logging-config headline))
 
-  (defun pg-org-headline-set-supercontents (headline)
+  (defun pg-org-headline-set-supercontents (supercontents headline)
     "Use `org-ml-headline-set-supercontents' to set the
     supercontents of HEADLINE. Uses
     `pg-org-headline-logging-config' for logging configuration
     information."
     (org-ml-headline-set-supercontents
-     pg-org-headline-logging-config headline))
+     pg-org-headline-logging-config supercontents headline))
 
   (defun pg-org-headline-map-supercontents (fun headline)
     "Use `org-ml-headline-map-supercontents' to map the
@@ -294,7 +295,7 @@ Org-ML defines one more function in this category, =org-ml-headline-logbook-conv
     `pg-org-headline-logging-config' for logging configuration
     information."
     (org-ml-headline-logbook-append-open-clock
-     pg-org-headline-logging-config unixtime note headline))
+     pg-org-headline-logging-config unixtime headline))
 
   (defun pg-org-headline-logbook-close-open-clock (unixtime note headline)
     "Use `org-ml-headline-logbook-close-open-clock' to close an
@@ -626,7 +627,7 @@ One thing to note in =pg-org-match-build-pattern= is that =:lookahead= is implem
   (defun pg-org--match-build-pattern (pattern)
     ;; Make this (-let (...) (case ...)) into a (pcase ...)?
     (-let (((tok . rest) pattern))
-      (case tok
+      (cl-case tok
         ;; The patterns we transform:
         ;; - :lookahead
         (:lookahead
