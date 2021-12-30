@@ -92,12 +92,15 @@ Speaking of testing, here's a convenience macro for using =ert-deftest= with =pg
 
 ** Org-ml as a template engine
 
-=org-ml= has a regular convention for its constructures; for each element type /t/, a corresponding =org-ml= object can be created using =org-ml-t=.
+=org-ml= has a regular convention for its constructors; for each element type /t/, a corresponding =org-ml= object can be created using =org-ml-t=.
 
 This regularity permits a little hack, which in turn makes it possible to create a declarative tree of element names and parameters describing them, then later turn the tree into an =org-ml= object tree.
 
 My main use for this has been to decrease clutter when I'm building an Org element tree or subtree from scratch, since this removes the need to type =org-ml-build-= before every type.
 
+TODO: I need to decide on a prefix here. =pg-org= is pretty long when you're using it, but using =org-ml= is presumptuous. But I'm writing extensions to =org-ml=. I should probably look at namespace libraries....
+
+#+name: src/build
 #+begin_src emacs-lisp
 
   (defun org-ml-normalize (tree)
@@ -149,9 +152,121 @@ My main use for this has been to decrease clutter when I'm building an Org eleme
 
 Many children of headlines can be useful to work with from the headline itself. This is especially true in =org-ml-match=, where it is often convenient to select a headline based on features of its children.
 
+*** Logging configuration
+
+Several Org-ML functions related to headlines require the user to supply a logging configuration, specifying which drawer is the logbook drawer and whether to put clocks in the drawer. These functions provide a consistent interface to the logbook even when the configuration is non-default; they are also pure functions, which can be very useful. However, these configurations seldom change for most people; and interface that hides the configuration information is clearer and, for most uses, quite adequate.
+
+This package, provides a set of complementary functions to those in Org-ML for handling headline contents and logbooks that don't require the user to pass configuation information. We create a custom variable to hold this information, and provide proxy functions that use this variable for configuration information.
+
+I am not  proxying clock-related functions like =org-ml-headline-set-logbook-clocks= at this time, because they aren't something I use very much.
+
+#+name: src/logging-configuration
+#+begin_src emacs-lisp
+  (defcustom pg-org-headline-logging-config
+    '(:log-into-drawer "LOGBOOK" :clock-into-drawer t)
+    "Default logging format for Org files."
+    :type '(plist)
+    :group 'pm)
+
+
+  ;; Supercontents
+
+  (defun pg-org-headline-get-supercontents (headline)
+    "Use `org-ml-headline-get-supercontents' to return the
+    supercontents of HEADLINE. Uses
+    `pg-org-headline-logging-config' for logging configuration
+    information."
+    (org-ml-headline-get-supercontents
+     pg-org-headline-logging-config headline))
+
+  (defun pg-org-headline-set-supercontents (headline)
+    "Use `org-ml-headline-set-supercontents' to set the
+    supercontents of HEADLINE. Uses
+    `pg-org-headline-logging-config' for logging configuration
+    information."
+    (org-ml-headline-set-supercontents
+     pg-org-headline-logging-config headline))
+
+  (defun pg-org-headline-map-supercontents (fun headline)
+    "Use `org-ml-headline-map-supercontents' to map the
+    supercontents of HEADLINE. Uses
+    `pg-org-headline-logging-config' for logging configuration
+    information."
+    (org-ml-headline-map-supercontents
+        pg-org-headline-logging-config fun headline))
+
+
+  ;; Logbook items
+
+  (defun pg-org-headline-get-logbook-items (headline)
+    "Use `org-ml-headline-get-logbook-items' to pull logbook items
+    off HEADLINE. Uses `pg-org-headline-logging-config' for logging
+    configuration information."
+    (org-ml-headline-get-logbook-items
+     pg-org-headline-logging-config
+     headline))
+
+  (defun pg-org-headline-set-logbook-items (items headline)
+    "Use `org-ml-headline-set-logbook-items' to set logbook items
+    for HEADLINE. Uses `pg-org-headline-logging-config' for logging
+    configuration information."
+    (org-ml-headline-set-logbook-items
+     pg-org-headline-logging-config
+     items
+     headline))
+
+  (defun pg-org-headline-map-logbook-items (fun headline)
+    "Use `org-ml-headline-map-logbook-items' to set logbook items
+    for HEADLINE. Uses `pg-org-headline-logging-config' for logging
+    configuration information."
+    (org-ml-headline-map-logbook-items
+     pg-org-headline-logging-config
+     fun
+     headline))
+
+
+  ;; Contents
+
+
+  (defun pg-org-headline-get-contents (headline)
+    "Use `org-ml-headline-get-contents' to return the contents of
+    HEADLINE. Uses `pg-org-headline-logging-config' for logging
+    configuration information."
+    (org-ml-headline-get-contents
+     pg-org-headline-logging-config headline))
+
+  (defun pg-org-headline-set-contents (contents headline)
+    "Use `org-ml-headline-set-contents' to set the contents of
+    HEADLINE. Uses `pg-org-headline-logging-config' for logging
+    configuration information."
+    (org-ml-headline-set-contents
+     pg-org-headline-logging-config contents headline))
+
+  (defun pg-org-headline-map-contents (fun headline)
+    "Use `org-ml-headline-map-contents' to map the contents of
+    HEADLINE. Uses `pg-org-headline-logging-config' for logging
+    configuration information."
+    (org-ml-headline-map-contents
+        pg-org-headline-logging-config fun headline))
+
+  ;; Other logbook
+
+  (defun pg-org-headline-logbook-append-item (item headline)
+    "Use `org-ml-headline-append-item' to return the contents
+    of HEADLINE. Uses `pg-org-headline-logging-config' for logging
+    configuration information."
+    (org-ml-headline-append-item
+        pg-org-headline-logging-config item headline))
+
+#+end_src
+
 *** Logbook entries
 
-Fetches the text of each logbook entry associated with =headline=, as a =paragraph= element. Keeping the =item= element it's associated with seems superfluous, it's just an =org-ml-build-item= away.
+Org-ML provides two ways to get logbook items from a headline. The official way is via =org-ml-headline-get-logbook-items=, which takes the user's logging configuration into account. A proxy for this function that doesn't burden the caller with supplying configuration information is in Listing [[src/logging-configuration]].
+
+It is also straightforward to get logbook entries using the =org-ml-match= interface. The =pg-org-headline-logbook-entries= function in Listing [[src/headline-logbook-entries]] uses this method to return a headline's logbook entries. Despite not requiring the configuration info plist, it honors the =:log-into-drawer= value set in =pg-org-headline-logging-config=.
+
+The other major change in this function is that it returns the =paragraph= element associated with each logbook item, not the =item= element. This is often more convenient when the user merely wants to read the logbook. The functions defined in Listing [[src/headline-logbook-entries]] are more suitable to general-purpose use of the logbook, including manipulation or synthesis of lists of logbook items.
 
 #+name: src/headline-logbook-entries
 #+begin_src emacs-lisp
@@ -159,20 +274,21 @@ Fetches the text of each logbook entry associated with =headline=, as a =paragra
     "Given a headline org element, return its logbook entries as a
     list of paragraph elements. If the headline doesn't contain any
     logbook entries, return `nil'."
-    (->> headline
-         (org-ml-match
-          '(section
-            (:and drawer (:drawer-name "LOGBOOK"))
-            plain-list
-            item
-            paragraph))
-
-         ))
+    (let ((drawer-name (plist-get
+                        :log-into-drawer
+                        pg-org-headline-logging-config)))
+      (->> headline
+           (org-ml-match
+            '(section
+              (:and drawer (:drawer-name drawer-name))
+              plain-list
+              item
+              paragraph)))))
 #+end_src
 
-Tested thusly:
+The =pg-org-headline-logbook-entries= function is tested using the sample Org input in Listing [[input/logbook-simple]]. Listing [[t/headline-logbook-entries]] shows how the function can be used to rapidly consume the entries in the logbook.
 
-#+name: input-logbook-simple
+#+name: input/logbook-simple
 #+caption: Org document used in testing =pg-org-headline-logbook entries=
 #+begin_src org
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
@@ -189,12 +305,12 @@ Tested thusly:
     :END:
 #+end_src
 
-#+name: test-headline-logbook-entries
+#+name: t/headline-logbook-entries
 #+begin_src emacs-lisp :noweb eval :tangle no :results drawer
   <<src/headline-logbook-entries>>
   (require 's)
 
-  (pg-org-deftest headline-logbook-entries/1 input-logbook-simple
+  (pg-org-deftest pg-org/headline-logbook-entries input/logbook-simple
     (let* ((entries (->> doc
                          (org-ml-match '(headline))
                          (first)
@@ -242,10 +358,10 @@ A previous version of this function lived in =pm.org= and took =item= elements i
       (list to from (org-ml-remove-parents ts) notes)))
 #+end_src
 
-Tested thusly (TODO)
+The =pg-org-paragraph-parse-status-change= function is tested in Listing [[t/paragraph-parse-status-change]], using input from Listing [[input/logbook-status-changes]].
 
 
-#+name: input-logbook-status-changes
+#+name: input/logbook-status-changes
 #+caption: Sample used for testing
 #+begin_src org
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
@@ -268,12 +384,13 @@ Tested thusly (TODO)
 
 Note that =pg-org-paragraph-parse-status-change= returns =nil= if the parse fails, so the spurious additional item in the input is ignored
 
+#+name: t/paragraph-parse-status-change
 #+begin_src emacs-lisp :noweb eval :tangle no :results drawer
   <<src/paragraph-parse-status-change>>
   (require 'ts)
 
-  (pg-org-deftest pg-org-paragraph-parse-status-change/t
-      input-logbook-status-changes
+  (pg-org-deftest pg-org/paragraph-parse-status-change
+      input/logbook-status-changes
     (let ((entries (->> doc
                         (org-ml-match '(headline))
                         (first)
@@ -294,20 +411,20 @@ Note that =pg-org-paragraph-parse-status-change= returns =nil= if the parse fail
           (ts=  (ts-parse-org-element act-ts) (ts-parse-org exp-ts))
           (string-equal (org-ml-to-trimmed-string act-notes) exp-notes)))))
 
-  (pg-ert-run-tests-string "paragraph-parse-status-change")
+  (pg-ert-run-tests-string "pg-org/paragraph-parse-status-change")
 
 #+end_src
 
 
 *** Lookahead matching
 
-The =org-ml-match= function in Org-ML is very powerful, including a generalize =:pred= function that can match on a user-supplied predicate. Match predicates take a single argument representing the node currently being evaluated, and return =t= iff the node should match, whatever the predicate determines that to mean.
+The =org-ml-match= function is very powerful, including a generalized =:pred= function that can match on a user-supplied predicate. Match predicates take a single argument representing the node currently being evaluated, and return =t= if the node should match, for whatever definition the predicate uses.
 
-One limitation of =org-ml-match= predicates is a lack of "lookahead" a capability: There's no natural way to select a node based on the properties of the nodes it contains. One can build predicates that do this by, themselves, calling =org-ml-match=; this is inconvenient for ad-hoc matching.
+One limitation of =org-ml-match= predicates is a lack of a "lookahead" capability: There's no natural way to select a node based on the properties of the nodes it contains. One /can/ build predicates that, themselves, call =org-ml-match= on a node to find matching child nodes, but this is inconvenient for ad-hoc matching.
 
 The following is a way around that limitation. =pg-org-match-lookahead= takes a set of =org-ml-match= criteria /\kappa/ and returns a predicate that applies those criteria to the node under consideration–meaning, it's a predicate that asserts that there exists one or more child nodes beneath the current node that match /\kappa/.
 
-#+name: lookahead-ex/1
+#+name: ex/lookahead/1
 #+begin_src org :results none :exports code :tangle no
   ,* Foo
   ,** Tasks
@@ -318,35 +435,35 @@ The following is a way around that limitation. =pg-org-match-lookahead= takes a 
   ,* Additional notes
 #+end_src
 
-For example, consider the task of matching only the  headlines in Listing [[lookahead-ex/1]] that contain subheadings for tasks. As can be seen in Listing [[lookahead-ex/1.1]] the match criteria =(headline (:and headline (:raw-value "Tasks")))= will match the subheads, but not the tasks. (It is sometimes possible to backtrack to an ancestor from a child node, but not always and not reliably.)
+For example, consider the task of matching only the  headlines in Listing [[ex/lookahead/1]] that contain subheadings for tasks. As can be seen in Listing [[ex/lookahead/1.1]] the match criteria =(headline (:and headline (:raw-value "Tasks")))= will match the subheads, but not the tasks. (It is sometimes possible to backtrack to an ancestor from a child node, but not always and not reliably.)
 
-#+name: lookahead-ex/1.1
+#+name: ex/lookahead/1.1
 #+begin_src emacs-lisp :results code :exports code :tangle no
-  (pg-org-with-src-doc lookahead-ex/1
+  (pg-org-with-src-doc ex/lookahead/1
     (->> doc
          (org-ml-match '(headline (:and headline (:raw-value "Tasks"))))
          (-map #'org-ml-remove-parents)))
 #+end_src
 
-Using a lookahead predicate, however, it is possible to get the result we want, as in Listing [[lookahead-ex/1.2]].
+Using a lookahead predicate, however, it is possible to get the result we want, as in Listing [[ex/lookahead/1.2]].
 
-#+name: lookahead-ex/1.2
+#+name: ex/lookahead/1.2
 #+begin_src emacs-lisp :results code :exports code :tangle no
   (defun my-task-predicate (node)
     (org-ml-match '((:and headline (:raw-value "Tasks"))) node))
 
-  (pg-org-with-src-doc lookahead-ex/1
+  (pg-org-with-src-doc ex/lookahead/1
     (->> doc
          (org-ml-match '((:and headline (:pred my-task-predicate))))
          (-map #'org-ml-remove-parents)))
 #+end_src
 
-The tradeoff here is obviously recursion, but the maximum recursion here should be the maximum depth of the document tree, absent chicanery in the predicate like searching on a node's parent.
+The tradeoff here is obviously recursion, but the maximum recursion should be the maximum depth of the document tree, absent chicanery in the predicate like searching on a node's parent.
 
 **** General-purpose lookahead
 <<sct-gp-lookahead>>
 
-We can and do define a generalized function for returning a lookahead-style match predicate. It's a simple partial application of =org-ml-match=.
+Listing [[src/lookahead]] shows a generalized function for returning a lookahead-style match predicate. It's a simple partial application of =org-ml-match=.
 
 #+name: src/lookahead
 #+begin_src emacs-lisp
@@ -358,12 +475,12 @@ We can and do define a generalized function for returning a lookahead-style matc
     (-partial #'org-ml-match match-criteria))
 #+end_src
 
-This function is not as useful as we might wish, because the value of =:pred= must be a symbol, not an actual function. So the code in Listing [[lookahead-ex/2.1]] doesn't work.
+This function is not as useful as we might wish, because the value of =:pred= must be a symbol, not an actual function. So the code in Listing [[ex/lookahead/2.1]], for example doesn't work.
 
-#+name: lookahead-ex/2.1
+#+name: ex/lookahead/2.1
 #+begin_src emacs-lisp :results code :exports code :tangle no
   ;; This doesn't work....
-  (pg-org-with-src-doc lookahead-ex/1
+  (pg-org-with-src-doc ex/lookahead/1
       (->> doc
            (org-ml-match `((:and headline
                                  (:pred ,(pg-org-lookahead
@@ -372,16 +489,16 @@ This function is not as useful as we might wish, because the value of =:pred= mu
 #+end_src
 
 
-It can, however, be used somewhat awkwardly with =cl-letf=, as shown by the test in Listing [[test-lookahead]].
+It can, however, be used somewhat awkwardly with =cl-letf=, as shown by the test in Listing [[t/lookahead]].
 
 
-#+name: test-lookahead
+#+name: t/lookahead
 #+begin_src emacs-lisp :exports code  :noweb eval :tangle no :results drawer
   <<src/lookahead>>
 
 
-  (pg-org-deftest pg-org-lookahead/t
-      lookahead-ex/1
+  (pg-org-deftest pg-org/lookahead
+      ex/lookahead/1
     (cl-letf* (((symbol-function 'has-tasks)
                 (lambda (el)
                   (pg-org-lookahead
@@ -390,17 +507,19 @@ It can, however, be used somewhat awkwardly with =cl-letf=, as shown by the test
       (pg-ert-shouldmap results '("Foo" "Bar" "Baz")
         (string-equal (org-ml-get-property :raw-value act) exp))))
 
-  (pg-ert-run-tests-string "pg-org-lookahead/t")
+  (pg-ert-run-tests-string "pg-org/lookahead")
 #+end_src
+
+This construct adds considerably to the complexity of an =org-match= call, but enables a powerful way of searching and selecting nodes in a document. The =pg-org-match= function presents this power while hiding the complexity.
 
 **** =pg-org-match=
 
 Using the =cl-letf= trick described in Section [[sct-gp-lookahead]], we can write a macro that extends =org-ml-match= with some new functionality.
 
 First, we can implement a =:lookahead= selector that takes match criteria and applies it to the node using =pg-org-lookahead= using the =cl-letf= trick. That  will simplify the =org-ml-match= call in Listing [[test-lookahead]]
-to the code in Listing [[pg-org-match-ex/lookahead]].
+to the code in Listing [[ex/match/lookahead]].
 
-#+name: pg-org-match-ex/lookahead
+#+name: ex/match/lookahead
 #+begin_src emacs-lisp :exports code :tangle no
   (pg-org-match '((:and headline
                         (:lookahead
@@ -409,9 +528,9 @@ to the code in Listing [[pg-org-match-ex/lookahead]].
                 node)
 #+end_src
 
-We can also extend the match syntax in a very powerful way, with /anaphoric predicates/. This would permit a user to specify a predicate as arbitrary code in the match criterion itself. Consider, for instance, a selector for all timestamps after a certain time. Currently, candidate =timestamp= elements would be selected with =org-ml-match=, then filtered. With an anaphoric predicate, this could be declared in a single match structure.
+We can also extend the match syntax in a very powerful way, with /anaphoric predicates/. This would permit a user to specify a predicate as arbitrary code in the match criterion itself. Consider, for instance, a selector for all timestamps after a certain time. Currently, candidate =timestamp= elements would be selected with =org-ml-match=, then filtered. With an anaphoric predicate, this could be declared in a single match structure, as in Listing [[ex/match/anaphoric-pred/1]].
 
-#+name: pg-org-match-ex/anaphoric
+#+name: ex/match/anaphoric-pred/1
 #+begin_src emacs-lisp :exports code :tangle no
   ;; Only timestamps from the last 7 days
   (pg-org-match '((:and timestamp
@@ -420,9 +539,9 @@ We can also extend the match syntax in a very powerful way, with /anaphoric pred
                 node)
 #+end_src
 
-Some of this logic could still be encapsulated in a function, as shown in Listing [[pg-org-match-ex/anaphoric-fn]]. This increases readability and code reuse, as functions like =timestamp-within-last= could be used in many places.
+Some of this logic could still be encapsulated in a function, as shown in Listing [[ex/match/anaphoric-pred/2]]. This increases readability and code reuse, as functions like =timestamp-within-last= could be used in many places.
 
-#+name: pg-org-match-ex/anaphoric-fn
+#+name: ex/match/anaphoric-pred/2
 #+begin_src emacs-lisp :exports code :tangle no
   ;; Only timestamps from the last 7 days
   (defun timestamp-within-last (num unit el)
@@ -433,9 +552,9 @@ Some of this logic could still be encapsulated in a function, as shown in Listin
                 node)
 #+end_src
 
-This would translate to the code in Listing [[pg-org-match-ex/anaphoric-unrolled]].
+This would translate to the code in Listing [[ex/match/anaphoric-pred/3]].
 
-#+name: pg-org-match-ex/anaphoric-unrolled
+#+name: ex/match/anaphoric-pred/3
 #+begin_src emacs-lisp :exports code :tangle no
   ;; Only timestamps from the last 7 days
   (defun timestamp-within-last (num unit el)
@@ -450,12 +569,14 @@ This would translate to the code in Listing [[pg-org-match-ex/anaphoric-unrolled
 
 ***** =pg-org--match-build-pattern=
 
-The main work of the =pg-org-match= macro is done in =pg-org--match-build-pattern=, which recursively traverses a match pattern, making some transformations as necessary to add our new functionality. The code for this function is in [[src/pg-org--match-build-pattern]]. The input to =pg-org--match-build-pattern= is an =org-ml-match= pattern. The output is a double =(clauses pattern)=, which =pattern= is the original pattern transformed as necessary to enable our additional functionality, and =clauses= is a set of =(symbol function)= pairs. Using =cl-letf= and the =org-ml-match= =:pred= functionality, we can implement =:lookahead= and =:-pred= using only these additional functions and transformations.
+The main work of the =pg-org-match= macro is done in =pg-org--match-build-pattern=, which recursively traverses a match pattern, making some transformations as necessary to add our new functionality. The code for this function is in [[src/-match-build-pattern]].
 
+The input to =pg-org--match-build-pattern= is an =org-ml-match= pattern. The output is a double =(clauses pattern)=, which =pattern= is the original pattern transformed as necessary to enable our additional functionality, and =clauses= is a set of =(symbol function)= pairs. Using =cl-letf= and the =org-ml-match= =:pred= functionality, we can implement =:lookahead= and =:-pred= using only these additional functions and transformations.
 
-#+name: src/pg-org--match-build-pattern
+#+name: src/-match-build-pattern
 #+begin_src emacs-lisp
   (defun pg-org--match-build-pattern (pattern)
+    ;; Make this (-let (...) (case ...)) into a (pcase ...)?
     (-let (((tok . rest) pattern))
       (case tok
         ;; The patterns we transform:
@@ -465,7 +586,8 @@ The main work of the =pg-org-match= macro is done in =pg-org--match-build-patter
            ;;(message "FUCK: :lookahead %s %s" tok rest)
            (-let* ((sym (gensym "lookahead-"))
                    (clause
-                    `((symbol-function ,sym) (lambda (el) (pg-org-lookahead ,(car rest) el))))
+                    `((symbol-function (quote ,sym))
+                      (lambda (el) (org-ml-match (quote ,(car rest)) el))))
                    (new-pattern `(:pred ,sym)))
              (list (list clause) new-pattern))))
         ;; - :-pred
@@ -536,23 +658,27 @@ The main work of the =pg-org-match= macro is done in =pg-org--match-build-patter
         )))
 #+end_src
 
-#+RESULTS: src/pg-org--match-build-pattern
-: pg-org--match-build-pattern
 
 ****** Testing
 
-The =pg-org--match-build-pattern= function makes a lot of decisions. Listing [[test/pg-org--match-build-pattern-1]] shows a unit test for basic functionality, demonstrating that the function can traverse the match structure non-destructively in the cases where it is just proxying =org-ml-match=.
+The =pg-org--match-build-pattern= function makes a lot of decisions. Listing [[t/-match-build-pattern/1]] shows a unit test for basic functionality, demonstrating that the function can traverse the match structure non-destructively in the cases where it is just proxying =org-ml-match=.
 
-#+name: pg-org--match-build-pattern-1
+#+name: t/-match-build-pattern/1
 #+begin_src emacs-lisp :noweb yes :exports code :tangle no :results drawer
-  <<src/pg-org--match-build-pattern>>
+  <<src/-match-build-pattern>>
 
-  (ert-deftest pg-org--match-build-pattern-1-t ()
+  (ert-deftest pg-org/-match-build-pattern/1 ()
     (cl-macrolet ((-? (test-form expected-value)
                       `(should (equal (pg-org--match-build-pattern ,test-form)
                                       ,expected-value))))
       (-? '()
           '(nil nil))
+
+      ;; In case you're wondering, org-ml-match does this too
+      (should-error (pg-org--match-build-pattern 'headline))
+
+      (-? '(headline)
+          '(nil (headline)))
 
       (-? '(:nth 2 headline)
           '(nil (:nth 2 headline)))
@@ -575,17 +701,17 @@ The =pg-org--match-build-pattern= function makes a lot of decisions. Listing [[t
       (-? '(:and headline (:drawer-name "LOGBOOK"))
           '(nil (:and headline (:drawer-name "LOGBOOK"))))))
 
-  (pg-ert-run-tests-string "pg-org--match-build-pattern-1-t")
+  (pg-ert-run-tests-string "pg-org/-match-build-pattern/1")
 #+end_src
 
-Testing our added functionality is more challenging, as it introduces code containing unique symbols created with =gensym=. We can still make assertions about the structure of the output, however, as shown in [[test/pg-org--match-build-pattern-2]] and [[test/pg-org--match-build-pattern-3]].
+Testing our added functionality is more challenging, as it introduces code containing unique symbols created with =gensym=. We can still make assertions about the structure of the output, however, as shown in [[t/-match-build-pattern/2]] and [[t/-match-build-pattern/3]].
 
-#+name: pg-org--match-build-pattern-2
+#+name: t/-match-build-pattern/2
 #+caption: Testing lookahead functionality in =pg-org--match-built-pattern=
 #+begin_src emacs-lisp :noweb yes :exports code :tangle no :results drawer
-  <<src/pg-org--match-build-pattern>>
+  <<src/-match-build-pattern>>
 
-  (ert-deftest pg-org--match-build-pattern-2-t ()
+  (ert-deftest pg-org/-match-build-pattern/2 ()
     (let ((output (pg-org--match-build-pattern '((:lookahead (headline))))))
       (let* ((sym (cadr (caaar output)))
              (fn  (cadaar output))
@@ -596,15 +722,15 @@ Testing our added functionality is more challenging, as it introduces code conta
         (should (equal fn expected-fn))
         (should (equal output expected)))))
 
-  (pg-ert-run-tests-string "pg-org--match-build-pattern-2-t")
+  (pg-ert-run-tests-string "pg-org/-match-build-pattern/2")
 #+end_src
 
-#+name: pg-org--match-build-pattern-3
+#+name: t/-match-build-pattern/3
 #+caption: Testing anaphoric predicate functionality in =pg-org--match-built-pattern=
 #+begin_src emacs-lisp :noweb yes :exports code :tangle no :results drawer
-  <<src/pg-org--match-build-pattern>>
+  <<src/-match-build-pattern>>
 
-  (ert-deftest pg-org--match-build-pattern-3-t ()
+  (ert-deftest pg-org/-match-build-pattern/3 ()
     (let ((output (pg-org--match-build-pattern '((:-pred (equal (foo el) 1))))))
       (let* ((sym (cadr (caaar output)))
              (fn  (cadaar output))
@@ -615,65 +741,70 @@ Testing our added functionality is more challenging, as it introduces code conta
         (should (equal fn expected-fn))
         (should (equal output expected)))))
 
-  (pg-ert-run-tests-string "pg-org--match-build-pattern-3-t")
+  (pg-ert-run-tests-string "pg-org/-match-build-pattern/3")
 #+end_src
+
+
 
 ***** =pg-org-match=
 
-Listing [[src/pg-org-match]] shows the very simple =pg-org-match= function. Clearly, all the heavy lifting is done in =pg-org--match-build-pattern=. This is the public entry point, however, so the function is well-documented.
+Listing [[src/match]] shows the very simple =pg-org-match= function. Clearly, all the heavy lifting is done in =pg-org--match-build-pattern=. This is the public entry point, however, so the function is well-documented.
 
-#+name: src/pg-org-match
+#+name: src/match
 #+begin_src emacs-lisp
-  (defmacro pg-org-match (pattern node)
-    "Match PATTERN against NODE, in the form of `org-ml-match', but with a more powerful extended syntax.
+    (defmacro pg-org-match (pattern node)
+      "Match PATTERN against NODE, in the form of `org-ml-match', but with a more powerful extended syntax.
 
-  `pg-org-match' supports the following additional match patterns:
+    `pg-org-match' supports the following additional match patterns:
+  ()
+    `(:lookahead SUBPATTERN)' runs a second `org-ml-match' on the
+    children of the current node, returning a true value if
+    SUBPATTERN matches any of the node's children. In other words, it
+    matches nodes based on the properties of the nodes' children. In
+    this way, one can, say, match headlines with a LOGBOOK drawer
+    with the following pattern:
 
-  `(:lookahead SUBPATTERN)' runs a second `org-ml-match' on the
-  children of the current node, returning a true value if
-  SUBPATTERN matches any of the node's children. In other words, it
-  matches nodes based on the properties of the nodes' children. In
-  this way, one can, say, match headlines with a LOGBOOK drawer
-  with the following pattern:
+      (:and headline
+            (:lookahead (section (:and drawer
+                                       (:drawer-name \"LOGBOOK\")))))
 
-    (:and headline
-          (:lookahead (section (:and drawer
-                                     (:drawer-name \"LOGBOOK\")))))
+    `(:-pred CODE)' implements an anaphoric predicate. CODE is
+    interpreted as the body of a lambda expression, which is called
+    on a node using `(:pred ...)'. CODE may refer to the variable
+    `el', which is the element currently being considered. Thus, the
+    following code block:
 
-  `(:-pred CODE)' implements an anaphoric predicate. CODE is
-  interpreted as the body of a lambda expression, which is called
-  on a node using `(:pred ...)'. CODE may refer to the variable
-  `el', which is the element currently being considered. Thus, the
-  following code block:
-
-    (cl-letf ((fn (lambda (el)
-                     (org-ml-headline-has-tag \"work\" el))))
-      (org-ml-match '((:pred fn)) node))
+      (cl-letf ((fn (lambda (el)
+                       (org-ml-headline-has-tag \"work\" el))))
+        (org-ml-match '((:pred fn)) node))
 
 
-  Is equivalent to this call to `pg-org-match':
+    Is equivalent to this call to `pg-org-match':
 
-    (pg-org-match '((:-pred (org-ml-headline-has-tag \"work\" el))) node)
+      (pg-org-match '((:-pred (org-ml-headline-has-tag \"work\" el))) node)
 
-  In all other respects, this function is equivalent to a call to
-  `org-ml-match'.
-  "
-    (-let (((clauses new-pattern) (pg-org--match-build-pattern pattern)))
-      `(cl-letf ,clauses
-         (org-ml-match ,new-pattern ,node))))
+    In all other respects, this function is equivalent to a call to
+    `org-ml-match'.
+    "
+      (-let (((clauses new-pattern) (pg-org--match-build-pattern pattern)))
+        `(cl-letf ,clauses
+           (org-ml-match ,new-pattern ,node))))
 #+end_src
+
+
+
 
 ****** Testing
 
-In Listing [[pg-org-match-1]], we do one last white-box test of the macro to ensure that it generates the kind of code we expect.
+In Listing [[t/match/1]], we do one last white-box test of the macro to ensure that it generates the kind of code we expect.
 
-#+name: pg-org-match-1
+#+name: t/match/1
 #+caption: Testing pg-org-match
 #+begin_src emacs-lisp :noweb yes :exports code :tangle no :results drawer
-  <<src/pg-org--match-build-pattern>>
-  <<src/pg-org-match>>
+  <<src/-match-build-pattern>>
+  <<src/match>>
 
-  (ert-deftest pg-org-match-t ()
+  (ert-deftest pg-org/match/1 ()
     (let*  ((output (macroexpand-1
                      '(pg-org-match
                        ((:-pred (org-ml-headline-has-tag "work" el))) node)))
@@ -685,9 +816,170 @@ In Listing [[pg-org-match-1]], we do one last white-box test of the macro to ens
       (should (symbolp sym))
       (should (equal output expected))))
 
-  (pg-ert-run-tests-string "pg-org-match-t")
+  (pg-ert-run-tests-string "pg-org/match/1")
 
 #+end_src
+
+But will it blend? Let's find out. Our input for these tests is in Listing [[input-pg-org-match/t]].
+
+#+name: input/match
+#+caption: Sample used for testing
+#+begin_src org
+  ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
+
+
+  ,* DOING Rewire the security system
+    :PROPERTIES:
+    :ASSIGNEE: Bart Starr
+    :END:
+    :LOGBOOK:
+    - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+      Back on the case
+    - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+      Waiting on parts from the supplier
+    - State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+      In process, it's harder than it looks
+    - Not a status update
+    :END:
+
+  ,* TODO Something else to do
+    :PROPERTIES:
+    :ASSIGNEE: Johnny Unitas
+    :END:
+#+end_src
+
+
+
+#+name: t/match/2
+#+caption: A test showing the how pg-org--match-build-pattern works. Only the headline for "Rewire the security system" is selected because it contains a logbook.
+#+begin_src emacs-lisp :noweb yes :exports code :tangle no :results drawer
+  <<src/logging-configuration>>
+  <<src/-match-build-pattern>>
+  <<src/match>>
+
+  (pg-org-deftest pg-org/match/2
+      input/match
+    (let ((results (pg-org-match
+                    '((:and headline
+                            (:lookahead
+                             (section
+                              (:and drawer
+                                    (:drawer-name "LOGBOOK"))))))
+                    (org-ml-remove-parents doc)
+                    )))
+      (should (= (length results) 1))
+      (let ((result (car results)))
+        (should (equal (org-ml-get-type result) 'headline))
+        (should (equal (org-ml-get-property :raw-value result)
+                       "Rewire the security system")))))
+
+  (pg-ert-run-tests-string "pg-org/match/2")
+#+end_src
+
+#+RESULTS: t/match/2
+:results:
+   passed  1/1  pg-org/match/2 (0.000528 sec)
+
+Ran 1 tests, 1 results as expected, 0 unexpected (2021-12-29 23:05:29-0500, 0.000729 sec)
+:end:
+
+#+name: scratch/1
+#+caption: A test showing the how pg-org--match-build-pattern works
+#+begin_src emacs-lisp :noweb yes :exports code :tangle no :results code
+  <<src/-match-build-pattern>>
+  <<src/match>>
+
+  (pg-org-with-src-doc input/match
+    (pg-org-match
+     '((:and headline
+             (:lookahead
+              (section
+               (:and drawer
+                     (:drawer-name "LOGBOOK"))))))
+     (org-ml-remove-parents doc)
+     ))
+
+#+end_src
+
+#+RESULTS: scratch/1
+#+begin_src emacs-lisp
+((headline
+  (:raw-value "Rewire the security system" :begin 51 :end 481 :pre-blank 0 :contents-begin 86 :contents-end 480 :level 1 :priority nil :tags nil :todo-keyword "DOING" :todo-type todo :post-blank 1 :footnote-section-p nil :archivedp nil :commentedp nil :post-affiliated 51 :ASSIGNEE "Bart Starr" :title
+              ("Rewire the security system")
+              :parent nil)
+  (section
+   (:begin 86 :end 481 :contents-begin 86 :contents-end 480 :post-blank 1 :post-affiliated 86 :parent nil)
+   (property-drawer
+    (:begin 86 :end 133 :contents-begin 101 :contents-end 125 :post-blank 0 :post-affiliated 86 :parent nil)
+    (node-property
+     (:key "ASSIGNEE" :value "Bart Starr" :begin 101 :end 125 :post-blank 0 :post-affiliated 101 :parent nil)))
+   (drawer
+    (:begin 133 :end 480 :drawer-name "LOGBOOK" :contents-begin 145 :contents-end 472 :post-blank 0 :post-affiliated 133 :parent nil)
+    (plain-list
+     (:type unordered :begin 145 :end 472 :contents-begin 145 :contents-end 472 :structure
+            ((145 2 "- " nil nil nil 233)
+             (233 2 "- " nil nil nil 339)
+             (339 2 "- " nil nil nil 448)
+             (448 2 "- " nil nil nil 472))
+            :post-blank 0 :post-affiliated 145 :parent nil)
+     (item
+      (:bullet "- " :begin 145 :end 233 :contents-begin 149 :contents-end 233 :checkbox nil :counter nil :structure
+               ((145 2 "- " nil nil nil 233)
+                (233 2 "- " nil nil nil 339)
+                (339 2 "- " nil nil nil 448)
+                (448 2 "- " nil nil nil 472))
+               :pre-blank 0 :post-blank 0 :post-affiliated 145 :tag nil :parent nil)
+      (paragraph
+       (:begin 149 :end 233 :contents-begin 149 :contents-end 233 :post-blank 0 :post-affiliated 149 :parent nil)
+       "State \"DOING\"      from \"BLOCKED\"    "
+       (timestamp
+        (:type inactive :raw-value "[2021-12-11 Sat 20:06]" :year-start 2021 :month-start 12 :day-start 11 :hour-start 20 :minute-start 6 :year-end 2021 :month-end 12 :day-end 11 :hour-end 20 :minute-end 6 :begin 186 :end 209 :post-blank 1 :parent nil))
+       (line-break
+        (:begin 209 :end 212 :post-blank 0 :parent nil))
+       "    Back on the case\n"))
+     (item
+      (:bullet "- " :begin 233 :end 339 :contents-begin 237 :contents-end 339 :checkbox nil :counter nil :structure
+               ((145 2 "- " nil nil nil 233)
+                (233 2 "- " nil nil nil 339)
+                (339 2 "- " nil nil nil 448)
+                (448 2 "- " nil nil nil 472))
+               :pre-blank 0 :post-blank 0 :post-affiliated 233 :tag nil :parent nil)
+      (paragraph
+       (:begin 237 :end 339 :contents-begin 237 :contents-end 339 :post-blank 0 :post-affiliated 237 :parent nil)
+       "State \"BLOCKED\"    from \"DOING\"      "
+       (timestamp
+        (:type inactive :raw-value "[2021-12-11 Sat 20:05]" :year-start 2021 :month-start 12 :day-start 11 :hour-start 20 :minute-start 5 :year-end 2021 :month-end 12 :day-end 11 :hour-end 20 :minute-end 5 :begin 274 :end 297 :post-blank 1 :parent nil))
+       (line-break
+        (:begin 297 :end 300 :post-blank 0 :parent nil))
+       "    Waiting on parts from the supplier\n"))
+     (item
+      (:bullet "- " :begin 339 :end 448 :contents-begin 343 :contents-end 448 :checkbox nil :counter nil :structure
+               ((145 2 "- " nil nil nil 233)
+                (233 2 "- " nil nil nil 339)
+                (339 2 "- " nil nil nil 448)
+                (448 2 "- " nil nil nil 472))
+               :pre-blank 0 :post-blank 0 :post-affiliated 339 :tag nil :parent nil)
+      (paragraph
+       (:begin 343 :end 448 :contents-begin 343 :contents-end 448 :post-blank 0 :post-affiliated 343 :parent nil)
+       "State \"DOING\"      from \"TODO\"       "
+       (timestamp
+        (:type inactive :raw-value "[2021-12-11 Sat 20:04]" :year-start 2021 :month-start 12 :day-start 11 :hour-start 20 :minute-start 4 :year-end 2021 :month-end 12 :day-end 11 :hour-end 20 :minute-end 4 :begin 380 :end 403 :post-blank 1 :parent nil))
+       (line-break
+        (:begin 403 :end 406 :post-blank 0 :parent nil))
+       "    In process, it's harder than it looks\n"))
+     (item
+      (:bullet "- " :begin 448 :end 472 :contents-begin 452 :contents-end 472 :checkbox nil :counter nil :structure
+               ((145 2 "- " nil nil nil 233)
+                (233 2 "- " nil nil nil 339)
+                (339 2 "- " nil nil nil 448)
+                (448 2 "- " nil nil nil 472))
+               :pre-blank 0 :post-blank 0 :post-affiliated 448 :tag nil :parent nil)
+      (paragraph
+       (:begin 452 :end 472 :contents-begin 452 :contents-end 472 :post-blank 0 :post-affiliated 452 :parent nil)
+       "Not a status update\n")))))))
+#+end_src
+
+
 
 
 
