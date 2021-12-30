@@ -1,6 +1,6 @@
 (1
  (pm .
-     [(0 3 2 4)
+     [(0 3 2 5)
       ((emacs
 	(26 1))
        (dash
@@ -120,7 +120,7 @@
 	      (:maintainer "Phil Groce" . "pgroce@gmail.com")
 	      (:keywords "pandoc" "markdown" "org-mode" "latex" "pdf" "docx"))])
  (pg-org .
-	 [(0 2 2)
+	 [(0 3)
 	  ((emacs
 	    (26 1))
 	   (org-ml
@@ -162,7 +162,7 @@
 		 (:maintainer "Phil Groce" . "pgroce@gmail.com")
 		 (:keywords "gui"))])
  (pg-ert .
-	 [(0 1 2)
+	 [(0 1 3)
 	  ((dash
 	    (2 13 0)))
 	  "extensions to ert" single
