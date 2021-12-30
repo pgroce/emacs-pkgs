@@ -120,7 +120,7 @@
 	      (:maintainer "Phil Groce" . "pgroce@gmail.com")
 	      (:keywords "pandoc" "markdown" "org-mode" "latex" "pdf" "docx"))])
  (pg-org .
-	 [(0 3)
+	 [(0 3 1)
 	  ((emacs
 	    (26 1))
 	   (org-ml
