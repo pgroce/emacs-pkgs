@@ -15,7 +15,7 @@ This library contains anything I may find specifically useful when working with 
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.2.2
+  ;; Version: 0.3
   ;; Package-Requires: ((emacs "26.1") (org-ml "5.7") (dash "2.19") (s "1.12") (ts "0.3") (pg-ert "0.1"))
   ;; Keywords: productivity
 #+END_SRC
@@ -154,11 +154,11 @@ Many children of headlines can be useful to work with from the headline itself. 
 
 *** Logging configuration
 
-Several Org-ML functions related to headlines require the user to supply a logging configuration, specifying which drawer is the logbook drawer and whether to put clocks in the drawer. These functions provide a consistent interface to the logbook even when the configuration is non-default; they are also pure functions, which can be very useful. However, these configurations seldom change for most people; and interface that hides the configuration information is clearer and, for most uses, quite adequate.
+Several Org-ML functions related to headlines require the user to supply a logging configuration, specifying which drawer is the logbook drawer and whether to put clocks in the drawer. There are lots of good reasons for that. Perhaps the best is that the rules for determining a headline's logging configuration depend on context like a node's inherited properties; for a function operating on fragments of Org trees in isolation, there is no way to conclude what those are with any certainty. Passing the configuration also removes a source of side-effects, making the functions more generally useful.
 
-This package, provides a set of complementary functions to those in Org-ML for handling headline contents and logbooks that don't require the user to pass configuation information. We create a custom variable to hold this information, and provide proxy functions that use this variable for configuration information.
+All that said, these configurations seldom change for most people. An interface that hides the configuration information is clearer and, for most uses, quite adequate. For those who with to trade some possible inaccuracy and purity for simplicity, this package provides a set of complementary functions to those in Org-ML for handling headline contents and logbooks that don't require the user to pass configuration information. Instead, custom variable holds this information; proxy functions use this variable for configuration information. No other changes are made, both because they aren't required, and to facilitate switching over to the more fundamental functions if necessary.
 
-I am not  proxying clock-related functions like =org-ml-headline-set-logbook-clocks= at this time, because they aren't something I use very much.
+Org-ML defines one more function in this category, =org-ml-headline-logbook-convert-config=, which doesn't make sense to proxy here for obvious reasons.
 
 #+name: src/logging-configuration
 #+begin_src emacs-lisp
@@ -225,6 +225,36 @@ I am not  proxying clock-related functions like =org-ml-headline-set-logbook-clo
      headline))
 
 
+  ;; Logbook clocks
+
+  (defun pg-org-headline-get-logbook-clocks (headline)
+    "Use `org-ml-headline-get-logbook-clocks' to pull logbook clocks
+    off HEADLINE. Uses `pg-org-headline-logging-config' for logging
+    configuration information."
+    (org-ml-headline-get-logbook-clocks
+     pg-org-headline-logging-config
+     headline))
+
+  (defun pg-org-headline-set-logbook-clocks (clocks headline)
+    "Use `org-ml-headline-set-logbook-clocks' to set logbook clocks
+    for HEADLINE. Uses `pg-org-headline-logging-config' for logging
+    configuration information."
+    (org-ml-headline-set-logbook-clocks
+     pg-org-headline-logging-config
+     clocks
+     headline))
+
+  (defun pg-org-headline-map-logbook-clocks (fun headline)
+    "Use `org-ml-headline-map-logbook-clocks' to set logbook clocks
+    for HEADLINE. Uses `pg-org-headline-logging-config' for logging
+    configuration information."
+    (org-ml-headline-map-logbook-clocks
+     pg-org-headline-logging-config
+     fun
+     headline))
+
+
+
   ;; Contents
 
 
@@ -255,8 +285,24 @@ I am not  proxying clock-related functions like =org-ml-headline-set-logbook-clo
     "Use `org-ml-headline-append-item' to return the contents
     of HEADLINE. Uses `pg-org-headline-logging-config' for logging
     configuration information."
-    (org-ml-headline-append-item
-        pg-org-headline-logging-config item headline))
+    (org-ml-headline-logbook-append-item
+     pg-org-headline-logging-config item headline))
+
+  (defun pg-org-headline-logbook-append-open-clock (unixtime note headline)
+    "Use `org-ml-headline-logbook-append-open-clock' to add an open
+    clock into the logbook of HEADLINE. Uses
+    `pg-org-headline-logging-config' for logging configuration
+    information."
+    (org-ml-headline-logbook-append-open-clock
+     pg-org-headline-logging-config unixtime note headline))
+
+  (defun pg-org-headline-logbook-close-open-clock (unixtime note headline)
+    "Use `org-ml-headline-logbook-close-open-clock' to close an
+    open clock in the logbook of HEADLINE. Uses
+    `pg-org-headline-logging-config' for logging configuration
+    information."
+    (org-ml-headline-logbook-close-open-clock
+     pg-org-headline-logging-config unixtime note headline))
 
 #+end_src
 
@@ -306,7 +352,7 @@ The =pg-org-headline-logbook-entries= function is tested using the sample Org in
 #+end_src
 
 #+name: t/headline-logbook-entries
-#+begin_src emacs-lisp :noweb eval :tangle no :results drawer
+#+begin_src emacs-lisp :noweb eval :tangle no  :wrap src text
   <<src/headline-logbook-entries>>
   (require 's)
 
@@ -385,7 +431,7 @@ The =pg-org-paragraph-parse-status-change= function is tested in Listing [[t/par
 Note that =pg-org-paragraph-parse-status-change= returns =nil= if the parse fails, so the spurious additional item in the input is ignored
 
 #+name: t/paragraph-parse-status-change
-#+begin_src emacs-lisp :noweb eval :tangle no :results drawer
+#+begin_src emacs-lisp :noweb eval :tangle no  :wrap src text
   <<src/paragraph-parse-status-change>>
   (require 'ts)
 
@@ -493,7 +539,7 @@ It can, however, be used somewhat awkwardly with =cl-letf=, as shown by the test
 
 
 #+name: t/lookahead
-#+begin_src emacs-lisp :exports code  :noweb eval :tangle no :results drawer
+#+begin_src emacs-lisp :exports code  :noweb eval :tangle no  :wrap src text
   <<src/lookahead>>
 
 
@@ -571,7 +617,9 @@ This would translate to the code in Listing [[ex/match/anaphoric-pred/3]].
 
 The main work of the =pg-org-match= macro is done in =pg-org--match-build-pattern=, which recursively traverses a match pattern, making some transformations as necessary to add our new functionality. The code for this function is in [[src/-match-build-pattern]].
 
-The input to =pg-org--match-build-pattern= is an =org-ml-match= pattern. The output is a double =(clauses pattern)=, which =pattern= is the original pattern transformed as necessary to enable our additional functionality, and =clauses= is a set of =(symbol function)= pairs. Using =cl-letf= and the =org-ml-match= =:pred= functionality, we can implement =:lookahead= and =:-pred= using only these additional functions and transformations.
+The input to =pg-org--match-build-pattern= is an =org-ml-match= pattern, augmented with the extensions implemented in =pg-org-match=. The output is a double =(clauses pattern)=, which =pattern= is the original pattern transformed as necessary to enable our additional functionality, and =clauses= is a set of =(symbol function)= pairs. Using =cl-letf= and the =org-ml-match= =:pred= functionality, we can implement =:lookahead= and =:-pred= using only these additional functions and transformations.
+
+One thing to note in =pg-org-match-build-pattern= is that =:lookahead= is implemented with =pg-org-match= itself, allowing the user to implement lookahead matches with =:-pred= and (though the utility seems questionable) =:lookahead=.
 
 #+name: src/-match-build-pattern
 #+begin_src emacs-lisp
@@ -583,39 +631,35 @@ The input to =pg-org--match-build-pattern= is an =org-ml-match= pattern. The out
         ;; - :lookahead
         (:lookahead
          (progn
-           ;;(message "FUCK: :lookahead %s %s" tok rest)
            (-let* ((sym (gensym "lookahead-"))
                    (clause
                     `((symbol-function (quote ,sym))
-                      (lambda (el) (org-ml-match (quote ,(car rest)) el))))
+                      (lambda (el) (pg-org-match (quote ,(car rest)) el))))
                    (new-pattern `(:pred ,sym)))
              (list (list clause) new-pattern))))
         ;; - :-pred
         (:-pred
          (progn
-           (message "FUCK: :-pred %s %s" tok rest)
-           (-let* ((sym (gensym "lookahead-"))
+           (-let* ((sym (gensym "pred-"))
                    (clause
-                    `((symbol-function ,sym) (lambda (el) ,(car rest))))
+                    `((symbol-function (quote ,sym))
+                      (lambda (el) ,(car rest))))
                    (new-pattern `(:pred ,sym)))
              (list (list clause) new-pattern))))
         ;; unary prefixes; leave them unchanged and consume rest of the list
         ((:first :last :and :or :not)
          (progn
-           ;; (error "FUCK: :first :last :and :or :not")
            (-let (((clauses rest-pattern) (pg-org--match-build-pattern rest)))
              (list clauses (cons tok rest-pattern)))))
         ;; 2-ary prefixes
         (:nth
          (progn
-           ;; (error "FUCK: :nth")
            (-let* (((x . rest) rest)
                    ((clauses rest-pattern) (pg-org--match-build-pattern rest)))
              (list clauses (-concat `(,tok ,x) rest-pattern)))))
         ;; 3-ary prefixes
         (:sub
          (progn
-           ;; (error "FUCK: :sub")
            (-let* (((x y . rest) rest)
                    ((clauses rest-pattern) (pg-org--match-build-pattern rest)))
              (list clauses (-concat `(,tok ,x ,y) rest-pattern)))))
@@ -664,7 +708,7 @@ The input to =pg-org--match-build-pattern= is an =org-ml-match= pattern. The out
 The =pg-org--match-build-pattern= function makes a lot of decisions. Listing [[t/-match-build-pattern/1]] shows a unit test for basic functionality, demonstrating that the function can traverse the match structure non-destructively in the cases where it is just proxying =org-ml-match=.
 
 #+name: t/-match-build-pattern/1
-#+begin_src emacs-lisp :noweb yes :exports code :tangle no :results drawer
+#+begin_src emacs-lisp :noweb yes :exports code :tangle no  :wrap src text
   <<src/-match-build-pattern>>
 
   (ert-deftest pg-org/-match-build-pattern/1 ()
@@ -708,16 +752,16 @@ Testing our added functionality is more challenging, as it introduces code conta
 
 #+name: t/-match-build-pattern/2
 #+caption: Testing lookahead functionality in =pg-org--match-built-pattern=
-#+begin_src emacs-lisp :noweb yes :exports code :tangle no :results drawer
+#+begin_src emacs-lisp :noweb yes :exports code :tangle no  :wrap src text
   <<src/-match-build-pattern>>
 
   (ert-deftest pg-org/-match-build-pattern/2 ()
     (let ((output (pg-org--match-build-pattern '((:lookahead (headline))))))
-      (let* ((sym (cadr (caaar output)))
+      (let* ((sym (eval (cadr (caaar output))))
              (fn  (cadaar output))
-             (expected-fn '(lambda (el) (pg-org-lookahead (headline) el)))
-             (expected `((((symbol-function ,sym) ,expected-fn)) ((:pred ,sym)))))
-        (should (symbolp sym))
+             (expected-fn '(lambda (el) (pg-org-match '(headline) el)))
+             (expected `((((symbol-function (quote ,sym)) ,expected-fn)) ((:pred ,sym)))))
+        (should (symbolp sym)) ;; sym is quoted, so one more unboxing
         (should (functionp fn))
         (should (equal fn expected-fn))
         (should (equal output expected)))))
@@ -727,7 +771,7 @@ Testing our added functionality is more challenging, as it introduces code conta
 
 #+name: t/-match-build-pattern/3
 #+caption: Testing anaphoric predicate functionality in =pg-org--match-built-pattern=
-#+begin_src emacs-lisp :noweb yes :exports code :tangle no :results drawer
+#+begin_src emacs-lisp :noweb yes :exports code :tangle no  :wrap src text
   <<src/-match-build-pattern>>
 
   (ert-deftest pg-org/-match-build-pattern/3 ()
@@ -800,7 +844,7 @@ In Listing [[t/match/1]], we do one last white-box test of the macro to ensure t
 
 #+name: t/match/1
 #+caption: Testing pg-org-match
-#+begin_src emacs-lisp :noweb yes :exports code :tangle no :results drawer
+#+begin_src emacs-lisp :noweb yes :exports code :tangle no  :wrap src text
   <<src/-match-build-pattern>>
   <<src/match>>
 
@@ -848,12 +892,11 @@ But will it blend? Let's find out. Our input for these tests is in Listing [[inp
     :END:
 #+end_src
 
-
+The code in Listing [[t/match/2]] demonstrates the usage of =pg-org-match= with the =:lookahead= matcher. The match is done at the headline level, but only the headline for "Rewire the security system" is selected because it contains a logbook.
 
 #+name: t/match/2
-#+caption: A test showing the how pg-org--match-build-pattern works. Only the headline for "Rewire the security system" is selected because it contains a logbook.
-#+begin_src emacs-lisp :noweb yes :exports code :tangle no :results drawer
-  <<src/logging-configuration>>
+#+caption: A test showing how the :lookahead matcher works.
+#+begin_src emacs-lisp :noweb yes :exports code :tangle no  :wrap src text
   <<src/-match-build-pattern>>
   <<src/match>>
 
@@ -876,110 +919,31 @@ But will it blend? Let's find out. Our input for these tests is in Listing [[inp
   (pg-ert-run-tests-string "pg-org/match/2")
 #+end_src
 
-#+RESULTS: t/match/2
-:results:
-   passed  1/1  pg-org/match/2 (0.000528 sec)
+The code in Listing [[t/match/3]] exercises the =:-pred= matcher to search for a headline using a regular expression. The possibilities for =:-pred= are vast; =(:lookahead)= is simple to implement as =(:-pred (pg-org-match pattern el))=, for instance.
 
-Ran 1 tests, 1 results as expected, 0 unexpected (2021-12-29 23:05:29-0500, 0.000729 sec)
-:end:
-
-#+name: scratch/1
-#+caption: A test showing the how pg-org--match-build-pattern works
-#+begin_src emacs-lisp :noweb yes :exports code :tangle no :results code
+#+name: t/match/3
+#+begin_src emacs-lisp :noweb yes :exports code :tangle no :wrap src text
   <<src/-match-build-pattern>>
   <<src/match>>
+  (require 's)
 
-  (pg-org-with-src-doc input/match
-    (pg-org-match
-     '((:and headline
-             (:lookahead
-              (section
-               (:and drawer
-                     (:drawer-name "LOGBOOK"))))))
-     (org-ml-remove-parents doc)
-     ))
+  (pg-org-deftest pg-org/match/2
+      input/match
+    (let ((results
+           (pg-org-match '((:and headline
+                                 (:-pred
+                                  (s-matches-p
+                                   "else"
+                                   (org-ml-get-property :raw-value el)))))
+                         (org-ml-remove-parents doc))))
+      (should (= (length results) 1))
+      (let ((result (car results)))
+        (should (equal (org-ml-get-type result) 'headline))
+        (should (equal (org-ml-get-property :raw-value result)
+                       "Something else to do")))))
 
+  (pg-ert-run-tests-string "pg-org/match/2")
 #+end_src
-
-#+RESULTS: scratch/1
-#+begin_src emacs-lisp
-((headline
-  (:raw-value "Rewire the security system" :begin 51 :end 481 :pre-blank 0 :contents-begin 86 :contents-end 480 :level 1 :priority nil :tags nil :todo-keyword "DOING" :todo-type todo :post-blank 1 :footnote-section-p nil :archivedp nil :commentedp nil :post-affiliated 51 :ASSIGNEE "Bart Starr" :title
-              ("Rewire the security system")
-              :parent nil)
-  (section
-   (:begin 86 :end 481 :contents-begin 86 :contents-end 480 :post-blank 1 :post-affiliated 86 :parent nil)
-   (property-drawer
-    (:begin 86 :end 133 :contents-begin 101 :contents-end 125 :post-blank 0 :post-affiliated 86 :parent nil)
-    (node-property
-     (:key "ASSIGNEE" :value "Bart Starr" :begin 101 :end 125 :post-blank 0 :post-affiliated 101 :parent nil)))
-   (drawer
-    (:begin 133 :end 480 :drawer-name "LOGBOOK" :contents-begin 145 :contents-end 472 :post-blank 0 :post-affiliated 133 :parent nil)
-    (plain-list
-     (:type unordered :begin 145 :end 472 :contents-begin 145 :contents-end 472 :structure
-            ((145 2 "- " nil nil nil 233)
-             (233 2 "- " nil nil nil 339)
-             (339 2 "- " nil nil nil 448)
-             (448 2 "- " nil nil nil 472))
-            :post-blank 0 :post-affiliated 145 :parent nil)
-     (item
-      (:bullet "- " :begin 145 :end 233 :contents-begin 149 :contents-end 233 :checkbox nil :counter nil :structure
-               ((145 2 "- " nil nil nil 233)
-                (233 2 "- " nil nil nil 339)
-                (339 2 "- " nil nil nil 448)
-                (448 2 "- " nil nil nil 472))
-               :pre-blank 0 :post-blank 0 :post-affiliated 145 :tag nil :parent nil)
-      (paragraph
-       (:begin 149 :end 233 :contents-begin 149 :contents-end 233 :post-blank 0 :post-affiliated 149 :parent nil)
-       "State \"DOING\"      from \"BLOCKED\"    "
-       (timestamp
-        (:type inactive :raw-value "[2021-12-11 Sat 20:06]" :year-start 2021 :month-start 12 :day-start 11 :hour-start 20 :minute-start 6 :year-end 2021 :month-end 12 :day-end 11 :hour-end 20 :minute-end 6 :begin 186 :end 209 :post-blank 1 :parent nil))
-       (line-break
-        (:begin 209 :end 212 :post-blank 0 :parent nil))
-       "    Back on the case\n"))
-     (item
-      (:bullet "- " :begin 233 :end 339 :contents-begin 237 :contents-end 339 :checkbox nil :counter nil :structure
-               ((145 2 "- " nil nil nil 233)
-                (233 2 "- " nil nil nil 339)
-                (339 2 "- " nil nil nil 448)
-                (448 2 "- " nil nil nil 472))
-               :pre-blank 0 :post-blank 0 :post-affiliated 233 :tag nil :parent nil)
-      (paragraph
-       (:begin 237 :end 339 :contents-begin 237 :contents-end 339 :post-blank 0 :post-affiliated 237 :parent nil)
-       "State \"BLOCKED\"    from \"DOING\"      "
-       (timestamp
-        (:type inactive :raw-value "[2021-12-11 Sat 20:05]" :year-start 2021 :month-start 12 :day-start 11 :hour-start 20 :minute-start 5 :year-end 2021 :month-end 12 :day-end 11 :hour-end 20 :minute-end 5 :begin 274 :end 297 :post-blank 1 :parent nil))
-       (line-break
-        (:begin 297 :end 300 :post-blank 0 :parent nil))
-       "    Waiting on parts from the supplier\n"))
-     (item
-      (:bullet "- " :begin 339 :end 448 :contents-begin 343 :contents-end 448 :checkbox nil :counter nil :structure
-               ((145 2 "- " nil nil nil 233)
-                (233 2 "- " nil nil nil 339)
-                (339 2 "- " nil nil nil 448)
-                (448 2 "- " nil nil nil 472))
-               :pre-blank 0 :post-blank 0 :post-affiliated 339 :tag nil :parent nil)
-      (paragraph
-       (:begin 343 :end 448 :contents-begin 343 :contents-end 448 :post-blank 0 :post-affiliated 343 :parent nil)
-       "State \"DOING\"      from \"TODO\"       "
-       (timestamp
-        (:type inactive :raw-value "[2021-12-11 Sat 20:04]" :year-start 2021 :month-start 12 :day-start 11 :hour-start 20 :minute-start 4 :year-end 2021 :month-end 12 :day-end 11 :hour-end 20 :minute-end 4 :begin 380 :end 403 :post-blank 1 :parent nil))
-       (line-break
-        (:begin 403 :end 406 :post-blank 0 :parent nil))
-       "    In process, it's harder than it looks\n"))
-     (item
-      (:bullet "- " :begin 448 :end 472 :contents-begin 452 :contents-end 472 :checkbox nil :counter nil :structure
-               ((145 2 "- " nil nil nil 233)
-                (233 2 "- " nil nil nil 339)
-                (339 2 "- " nil nil nil 448)
-                (448 2 "- " nil nil nil 472))
-               :pre-blank 0 :post-blank 0 :post-affiliated 448 :tag nil :parent nil)
-      (paragraph
-       (:begin 452 :end 472 :contents-begin 452 :contents-end 472 :post-blank 0 :post-affiliated 452 :parent nil)
-       "Not a status update\n")))))))
-#+end_src
-
-
 
 
 
