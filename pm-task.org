@@ -1,0 +1,513 @@
+#+STYLE: <link rel="stylesheet" type="text/css" href="style.css">
+#+startup: indent entitiespretty
+#+TITLE: pm-task.org: Tasks
+
+This library extends Org mode's to-do items with more robust tools for external reporting, especially on multiuser tasks. Org already supports the following:
+
+- Task status
+- Event logging via the logbook, including automation-assist for logging status changes
+- Deadlines
+- A reasonably powerful query engine geared for use with the Org agenda
+
+The main extensions this library provides are:
+
+- Additional metadata, such as assignee
+- A different query engine geared toward collecting status information for reporting
+
+Acquiring tasks is not the responsbility of this library; tasks are just headlines with to-do keywords, Org has several ways to acquire those. It will provide some tools for filtering lists of tasks once they're acquired.
+
+* Project Management Versus Task Tracking
+:PROPERTIES:
+:CUSTOM_ID: sct-pm-vs-todo
+:END:
+
+Org implements a to-do tracker for an individual; this package implements tasks for project management, possibly among many users. With different goals come differences in nomenclature. Moreover, Org defines most of the elements of its to-do system syntactically, although some semantics are implied in the support tools Org implements, like clocks or the Org agenda. Put another way, Org gives you keywords and tags and logbook entries. Org mostly avoids defining what that means.
+
+By contrast, this package specifically imposes a semantic framework on these structures, drawn from that of project management and "issue tracking" tools such as Bugzilla and Jira. This model consists of the following elements:
+
+- /Tasks/ (sometimes /issues/) reflect finite-time, finite-effort units of work. Tasks may be typed.
+- The work in tasks may be done by many people. (Or, rarely, other entities like automated processes or teams.) One person is primarily responsible for getting the work done at a given time; that person is said to be /assigned/ the task.
+- A task has a lifecycle; it transitions between different /states/ or /statuses/ before a final disposition. Other events of interest may also occur in that time. (Those events' semantics often less well-defined, and may degenerate all the way back to a syntactic definition "Freeform text associated with a timestamp.")
+- Tasks usually have a textual /description/. The description is associated with the event of task creation, though it may be modified afterward.
+- While these are the core features of task trackers oriented toward project management, most associate additional metadata, such as related tasks or associated files. Allowable metadata may be defined by task type or status. (For instance, an issue that has been resolved may carry metadata about how it was resolved.)
+
+That said, this package is focused only on the construction of a rich task construct, which can be used in many ways by a project manager. To that end, every extension this package offers is optional; the most minimal task is a headline with a to-do item. In particular, this system should be easy to overlay onto preexisting Org files that have not been designed with this system in mind and still provide some value.
+
+* Future Work
+:PROPERTIES:
+:CUSTOM_ID: sct-future-work
+:END:
+
+** Comments and Temporal Event Logging
+
+- Necessity
+  - For comments: Not so much
+    - Bigger deal when multiple users get involved
+  - For other things: Somewhat more important
+    - Already ways to timestamp things in Org
+    - But: Having it in one place would have advantages when searching
+
+*** Event logging: Possible approaches
+
+**** Store events in Logbook
+
+Approach: Use the "notes" type of logbook entry as an event log
+
+Pros:
+- Keeps everything in the logbook
+  - Simplifies searching/sorting
+- Less extension of Org functionality
+
+Cons:
+- Have to deal with unrelated notes
+- No less complexity, just pushing it into the notes entry where there's less structural support (i.e., the "port 80" problem)
+- Limited expressiveness
+  - Full Org syntax up to and including blocks (e.g., =begin_src=), but no headlines
+
+
+**** Store events in custom drawer
+
+Pros:
+- Full control of that drawer
+- Somewhat centralized
+- Somewhat contained
+
+Cons:
+- More than about 2 drawers on a headline are awkward and unreadable
+
+*** Comments: Possible approaches
+
+**** Items in event log drawer
+
+Some pointers here: The =org-add-note= and =org-add-log-setup= functions. (Note that you can't add new note types, but may want to borrow the technique.)
+
+Pros:
+- Contained
+- Natural representation if you think of comments as rich event log entries
+- Metadata consolidated with content
+
+Cons:
+- Limited expressiveness (see above)
+- Harder to read
+
+
+**** Headlines
+
+Pros:
+- Very easy to read
+- Very expressive
+
+Cons:
+- Imposes some structure on the body of the headline
+  - Unfortunate precedent
+  - May not be fully backward-compatible
+- Creates linkage problem
+  - Unversioned metadata (e.g., "created-by") can be stored with comment
+  - Versioned metadata (e.g., "comment edited") should be stored as log entry
+  - Requires thinking about key relationships (org-id?)
+
+
+#+name: ex/task/3
+#+caption: A fully elaborated task
+#+begin_src org
+  ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
+
+
+  ,* DOING Rewire the security system
+    :PROPERTIES:
+    :ASSIGNEE: Bart Starr
+    :CUSTOM_ID: task-12345
+    :END:
+    :LOGBOOK:
+    - Note taken on [2021-12-10 Fri 09:06] \\
+      Comment [[task-12345-comment-9875]] edited by "Tobin Rote"
+    - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+      Back on the case
+    - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+      Waiting on parts from the supplier
+    - State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+      In process, it's harder than it looks
+    - Note taken on [2021-12-10 Fri 08:06] \\
+      Task created
+    :END:
+    :CHANGES:
+    - [2021-12-10 Fri 09:10] \\
+
+    - [2021-12-10 Fri 08:04] \\
+      Assignment changed to "Bart Starr" from ""
+    :END:
+
+  ,** Comments
+
+  ,*** Bart just won Super Bowl I
+      :PROPERTIES:
+      :CUSTOM_ID: comment-9876
+      :CREATED:  [2021-12-10 Fri 09:10]
+      :CREATED-BY: Vince Lombardi
+      :END:
+
+      He'll be back in the office in a few weeks.
+
+  ,*** What's the status?
+      :PROPERTIES:
+      :CUSTOM_ID: comment-9875
+      :CREATED:  [2021-12-10 Fri 09:05]
+      :CREATED-BY: Tobin Rote
+      :END:
+
+      A customer asked about the security system. Just checking....
+
+  ,*** Microphone check
+      :PROPERTIES:
+      :CUSTOM_ID: comment-9874
+      :CREATED:  [2021-12-10 Fri 09:00]
+      :CREATED-BY: Bart Starr
+      :END:
+      :CHANGES:
+      -
+      :END:
+      1, 2, what is this?
+#+end_src
+
+* Code
+
+
+
+** Package Header
+#+name: src-header
+#+BEGIN_SRC emacs-lisp :noweb-ref src
+  ;;; pm-task.el --- Task handling for project management
+
+  ;; Copyright (C) 2021 Phil Groce
+
+  ;; Author: Phil Groce <pgroce@gmail.com>
+  ;; Version: 0.1.2
+  ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (pg-ert "0.1") (pg-org "0.1"))
+  ;; Keywords: productivity
+#+END_SRC
+
+
+
+** Requires
+
+#+name: src/requires
+#+begin_src emacs-lisp :noweb-ref src
+  (require 'dash)
+  (require 's)
+  (require 'ts)
+  (require 'org-ml)
+  (require 'pg-ert)
+  (require 'pg-org)
+#+end_src
+
+
+** Tasks
+
+The simplest possible task is contained in Listing [[ex/task/1]].
+
+#+name: ex/task/1
+#+caption: A more complicated task
+#+begin_src org
+  ,* DOING Rewire the security system
+#+end_src
+
+As mentioned in [[#sct-pm-vs-todo]], a Task is just an Org to-do item, and the most minimal to-do item is, syntactically, a Task. Where possible, =pm-task= keeps the syntax and semantics of existing Org to-do mechanism like the to-do tags themselves, the =LOGBOOK= drawer, etc. A few additional semantic elements are also defined, built on existing Org primitives as much as possible.
+
+Listing [[ex/task/2]] shows a simple Org file containing a single task. This task also contains a logbook with several entries. One feature shown here that is not common to Org to-do items is an /Assignee/. This doesn't make much sense for Org's single-user task tracking, but the Tasks defined here are for managing projects with multiple contributors. The parts of a Task shown here are listed below; the description of a Task uses Org's structural terminology, refer to the Org manual, particularly the manual for the =org-element= package, if terms are unfamiliar.
+
+- The /status/, shown as the to-do keyword. Here, that status corresponds directly to the most recent logbook entry, meaning the Task is /synchronized/. This package can work with Tasks that are not synchronized, but not with full functionality.
+- The task /title/ is the title of the headline.
+- The logbook entries tracking changes to the to-do keyword are referred to here as /status changes/.
+
+#+name: ex/task/2
+#+caption: A more complicated task
+#+begin_src org
+  ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
+
+
+  ,* DOING Rewire the security system
+    :PROPERTIES:
+    :ASSIGNEE: Bart Starr
+    :END:
+    :LOGBOOK:
+    - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+      Back on the case
+    - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+      Waiting on parts from the supplier
+    - State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+      In process, it's harder than it looks
+    :END:
+
+    This is a good place to describe the issue. You can currently put anything you like here.
+
+  ,** Subheadings
+
+     You can also include subheadings and [[https://google.com/][links]] and anything else that makes sense.
+#+end_src
+
+Everything in Listing [[ex/task/2]] is standard Org syntax used in ways that Org expects. Extensions to this model have their own semantics, but are still constructed from Org primitives. A task exhibiting all the features =pm-task= supports is contained Listing [[ex/task/3]]. It demonstrates the following additional features:
+
+- An /assignee/, a user who is responsible for finishing the task
+- A number of /comments/
+- Unique IDs for the task and for each comment.
+- Additional logbook entries tracking event creation and comment editing
+
+Comments and the non-status events in the logbook are currently aspirational, see [[#sct-future-work]].
+
+** Accessing tasks
+
+The code in Listing [[src/accessors]] extracts information from tasks represented as Org element trees.
+
+#+name: src/accessors
+#+begin_src emacs-lisp :noweb-ref src
+  (defun pm-task-status-last-change (task)
+    "Returns the most recent logbook entry for TASK as a
+    list `(from to when notes)', where `from' and `to' are the
+    original and changed statuses, `when' is the org-element
+    representation of the timestamp, and `notes' is an Org
+    secondary string containing any associated notes."
+    (->> (pg-org-headline-logbook-entries task)
+         (first)
+         (pg-org-paragraph-parse-status-change)))
+
+  (defun pm-task-status-last-change-to (task)
+    "Returns the status changed to in the most recent logbook entry
+  for TASK. Returns `nil' if entry is not in synced to to-do state."
+    (->> (pm-task-status-last-change task)
+         (nth 0)))
+
+  (defun pm-task-status-last-change-from (task)
+    "Returns the status changed from in the most recent logbook
+  entry for TASK. Returns `nil' if entry is synced to to-do state."
+    (->> (pm-task-status-last-change task)
+         (nth 0)))
+
+  (defun pm-task-status-last-change-when (task)
+    "Returns the timestamp in the most recent logbook entry for
+  TASK. Returns `nil' if entry is synced to to-do state."
+    (->> (pm-task-status-last-change task)
+         (nth 0)))
+
+  (defun pm-task-status-last-change-notes (task)
+    "Returns the notes in the most recent logbook entry for
+  TASK. Returns `nil' if entry is synced to to-do state."
+    (->> (pm-task-status-last-change task)
+         (nth 0)))
+
+
+  (defun pm-task-assignee (task)
+    "Returns the user to whom the task is assigned. Returns `nil'
+    if there is no assignee."
+    (condition-case nil
+        (org-ml-get-property :assignee task)
+      (error
+       (condition-case nil
+           (org-ml-get-property :ASSIGNEE task)
+         (error nil)))))
+
+#+end_src
+** Selecting and parsing tasks
+
+Because a Task is an Org headline, it is easy to parse using Org's =org-element= library or Org-ML, as shown in Listing [[ex/parsing-a-headline]].
+
+#+name: ex/parsing-a-headline
+#+caption: Parsing a headline with =org-ml=
+#+begin_src emacs-lisp :noweb eval :tangle no :exports code :wrap src emacs-lisp
+  (pg-org-with-src-doc ex/task/1
+    (->> doc
+         (org-ml-match '(headline))
+         (first)
+         (org-ml-remove-parents)
+         (pp)))
+#+end_src
+
+Using =org-ml= and =pg-org=, we can search through the headlines for items of interest and, where necessary, verify preconditions. To simplify the process further, this package defines these operations as a series of predicates in terms of tasks. These predicates permit the user to select tasks directly based on their task-related semantics, such as resolution times or assigned users.
+
+*** Predicates
+
+This is a work in progress. As predicates are defined to satisfy use cases in [[#sct-use-cases]], they will be added here.
+
+#+name: src/predicates
+#+begin_src emacs-lisp :noweb-ref src
+  ;; Everything has to deal with unsynced tasks. It's the caller's
+  ;; responsibility to check if the task is synced before using.
+
+
+  (defun pm-task-is-synced (task)
+    "Return `t' if TASK has a to-do item that matches the current
+    state from the last entry in the logbook. If not, the logbook
+    can't be used to determine the time of the most recent status
+    change or the previous status."
+    (let ((todo (org-ml-get-property :todo-keyword task)))
+      (and todo
+           (equal todo (pm-task-status-last-change-to task)))))
+
+  ;; Time comparison
+
+  (defun pm-task-status-changed-after (timestamp task)
+    "Return `t' if last logbook entry for TASK occured after
+  TIMESTAMP. If TASK is not synced, results are undefined."
+    (ts> (pm-task-last-change-ts task) timestamp))
+
+  (defun pm-task-status-changed-on-or-after (timestamp task)
+    "Return `t' if last logbook entry for TASK occured after
+  TIMESTAMP and task is synced. If TASK is not synced, results are
+  undefined."
+    (ts>= (pm-task-last-change-ts task) timestamp))
+
+  (defun pm-task-status-changed-before (timestamp task)
+    "Return `t' if last logbook entry for TASK occured before
+  TIMESTAMP and task is synced. If TASK is not synced, results are
+  undefined."
+    (ts< (pm-task-last-change-ts task) timestamp))
+
+  (defun pm-task-status-changed-on-or-before (timestamp task)
+    "Return `t' if last logbook entry for TASK occured before
+  TIMESTAMP and task is synced. If TASK is not synced, results are
+  undefined."
+    (ts<= (pm-task-last-change-ts task) timestamp))
+
+
+  ;; Status comparison
+
+  (defun pm-task-status-in (statuses task)
+    "Return`t' if the current status of TASK is one of the strings
+    in STATUSES."
+    (memq (pm-task-current-status task) statuses))
+
+  ;; Assignee
+
+  (defun pg-task-is-assigned-to (user-or-users task)
+    (cond
+     ((eq user nil) nil)
+     ((stringp user) (s-equals-p user (pm-task-assignee task)))
+     ((listp user) (--some (pg-task-is-assigned-to it task) user))
+     ((symbolp user) (pg-task-is-assigned-to (symbol-name user) task))
+     (t (error "user-or-users must be nil, a string, a symbol, or list of strings/symbols"))))
+#+end_src
+
+**** Use Cases
+:PROPERTIES:
+:CUSTOM_ID: sct-use-cases
+:END:
+
+Let's work through some use cases and see what we need to make them happen. The Org file in Listing [[ex/task/1]] is the input to most of these examples.
+
+#+name: ex/task/1
+#+caption: Sample used for testing
+#+begin_src org
+  ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
+
+
+  ,* DOING Rewire the security system
+    :PROPERTIES:
+    :ASSIGNEE: Bart Starr
+    :END:
+    :LOGBOOK:
+    - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+      Back on the case
+    - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+      Waiting on parts from the supplier
+    - State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+      In process, it's harder than it looks
+    :END:
+
+  ,* DONE Get past the guard
+    :LOGBOOK:
+    - State "DONE"       from "TODO"       [2021-12-31 Fri 17:48] \\
+      Got past 'em, easy peasy
+    :END:
+#+end_src
+
+
+***** "Unsynced" tasks
+
+A task is said to be "synced" when its to-do item is identical to the "to" state of the most recent logbook entry. This is not a guarantee that the task is a complete record of all changes to the task, but the lack indicates that something is missing, and possibly that the task was not intended for processing by this package.
+
+The code in listing [[ex/unsynced-tasks]] selects only unsynchronized tasks. This would most likely be used to find tasks that should be synced but aren't, or to distinguish tasks for different kinds of processing.
+
+
+#+name: ex/unsynced-tasks
+#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp
+  <<src>>
+
+  (pg-org-with-src-doc ex/task/1
+    (->> doc
+         (pg-org-match
+          '(:and (headline
+                  (:-pred (and (not (pm-task-is-synced it)))))))))
+#+end_src
+
+
+***** Tasks created since \tau
+
+#+name: ex/tasks-resolved-since
+#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp
+  <<src>>
+
+  ;; t is a timestamp of interest (e.g., 7 days ago)
+
+  (pg-org-with-src-doc ex/task/1
+    (->> doc
+         (pg-org-match
+          '(:and (headline
+                  (:-pred (and (pm-task-is synced it)
+                               (pm-task-status-changed-on-or-after timestamp it)
+                               (pg-task-status-in '(DONE) it))))))))
+
+#+end_src
+
+***** Tasks updated since \tau
+
+***** Tasks resolved since \tau
+
+#+name: ex/tasks-resolved-since
+#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp
+  <<src>>
+
+  ;; t is a timestamp of interest (e.g., 7 days ago)
+
+  (pg-org-with-src-doc ex/task/2
+    (->> doc
+         (pg-org-match
+          '(:and (headline
+                  (:-pred (and (pm-task-synced-status it)
+                               (pm-task-status-changed-on-or-after
+                                timestamp it)
+                               (pg-task-status-in '(DONE) it))))))))
+
+#+end_src
+
+***** Tasks assigned to \upsilon
+
+#+name: ex/tasks-assigned-to
+#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp
+  ;; user is the name of the user we're looking for
+
+  (pg-org-with-src-doc ex/task/2
+    (->> doc
+         (pg-org-match
+          '(:and (headline
+                  (:-pred (pm-task-is-assigned-to user it)))))))
+#+end_src
+
+***** Tasks assigned to \upsilon since \tau
+
+***** Tasks reassigned since \tau
+
+***** Tasks with status \sigma
+
+***** All unresolved tasks
+
+***** Time-based selection
+
+A number of use-cases require selecting Tasks with timestamps that fall before, after, or between a given point or range in time. We can
+
+
+
+* Provide
+
+#+BEGIN_SRC emacs-lisp :noweb-ref src
+  (provide 'pm-task)
+  ;;; pm-task.el ends here
+#+END_SRC
