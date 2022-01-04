@@ -6,8 +6,9 @@
 This is how I manage the projects I work on. The idea is to provide optional structure to whatever someone (i.e., me) is already doing. Projects can co-exist beside other things that aren't recognized by this as such, but if a =project.org= file exists in a directory, some additional features are available in everyone's favorite time tracker, Emacs.
 
 
+* Commentary
 
-* Project setup
+** Project setup
 
 A directory underneath =pg-pm-active-projects= that contains a =project.org= file is considered a project. A skeleton =project.org= file looks like this
 
@@ -36,53 +37,48 @@ Now you can add to-do items in a project file and they will automatically show u
 
 
 
-* Features
+** Features
 
-** Org-agenda management
+*** Org-agenda management
 
 Use your project files as the inputs to your org-agenda. (Coming soon, or maybe, or never: Custom agenda view so I don't clobber =org-agenda-files=.)
 
-** Reporting
+*** Reporting
 
 Currently, I've only implemented one custom report, leaning heavily on =org-ml= to extract info and put it into a document (okay, the last part's aspirational). Coming soon, or maybe, or never: A framework for creating reports by selecting and transforming elements in the project according to a template. (I need to come up with a way that's more compelling than converting to XML via [[https://github.com/ndw/org-to-xml][org-to-xml]] or something to do that.)
 
 
-* Sample Tasks
-#+name: test
+** Sample Tasks
 
-#+begin_src emacs-lisp :results code
-  (org-ml-parse-this-headline)
+
+Listing [[input/sample-tasks]] provides some example code that will be used later to exercise code.
+
+#+name: input/sample-tasks
+#+begin_src org :tangle no :exports code
+  ,* Do a big thing
+  Do something that involves lots of smaller tasks getting done.
+  ,** DONE Smaller thing 1
+  :LOGBOOK:
+  - State "DONE"       from "DOING"      [2021-07-30 Fri 09:53] \\
+    Smaller thing 1 done! Results sent to *someone*.
+  :END:
+  ,** DONE Smaller thing 2
+  :LOGBOOK:
+  - State "DONE"       from "DOING"      [2021-08-06 Fri 09:55] \\
+    Smaller thing 2 finished, and sent off to customer.
+  :END:
+  ,* On the horizon
+  ,** TODO Do the laundry
+  This will never get done....
+  ,** DONE Eat breakfast
+  Done, but hardly an accomplishment
 #+end_src
-
-
-I'm putting some tasks here as an example for accomplishment processing.
-
-** Do a big thing
-Do something that involves lots of smaller tasks getting done.
-*** DONE Smaller thing 1
-:LOGBOOK:
-- State "DONE"       from "DOING"      [2021-07-30 Fri 09:53] \\
-  Smaller thing 1 done! Results sent to *someone*.
-:END:
-*** DONE Smaller thing 2
-:LOGBOOK:
-- State "DONE"       from "DOING"      [2021-08-06 Fri 09:55] \\
-  Smaller thing 2 finished, and sent off to customer.
-:END:
-** On the horizon
-*** TODO Do the laundry
-This will never get done....
-*** DONE Eat breakfast
-Done, but hardly an accomplishment
-
-
-
 
 * Code
 
 ** Package Header
 
-#+name: src-header
+#+name: src/header
 #+BEGIN_SRC emacs-lisp
   ;;; pm.el --- Project Management
 
@@ -102,9 +98,9 @@ I might make the projectile and helm dependencies conditional in the future, but
 
 I still need functions from both =ert= and =pg-ert=, so I'm requiring both. In practice, =pg-ert= also depends on =ert=, but hey, abstraction.
 
-#+name: src-requires
+#+name: src/requires
 #+begin_src emacs-lisp :noweb-ref requires
-  (require 'cl-lib)
+  (eval-when-compile (require 'cl-macs))
   (require 'org)
   (require 'dash)
   (require 's)
@@ -120,72 +116,11 @@ I still need functions from both =ert= and =pg-ert=, so I'm requiring both. In p
 
 
 
-** Testing
-
-This code is somewhat annoying to test. Some of it is UI code, but not much, so I'm comfortable testing that manually. Nearly all of the rest relies on buffers, however, so purely functional testing is challenging.
-
-To mitigate this annoyance, we use regression tests.
-
-*** Test fixture
-
-This code in [[pg-pm-deftest]] builds up to a macro =pg-pm-deftest=, which defines and ERT test in with access to an org-element tree built from an Org =src= block containing org-mode code.
-
-In the course of writing this, it became apparent that most of the functionality of the macro could be pulled out into two other macros that could be useful elsewhere, so =pg-org-with-src= handles running code in the context of a =src= block, and =pg-org-with-src-doc= builds on that to parse the block into an =org-element= tree. Both can be found in the =pg-org= library.
-
-#+name: src-pg-pm-deftest
-#+begin_src emacs-lisp :results silent
-  (defmacro pg-pm-deftest (test-name block-name &rest body)
-    "Use `pg-org-with-src-doc' to parse BLOCK-NAME into an
-  org-element tree, then define an ERT test named TEST-NAME (using
-  `ert-deftest') whose body is BODY."
-    (declare (indent 2))
-    `(pg-org-with-src-doc ,block-name
-       (ert-deftest ,test-name () ,@body)))
-#+end_src
-
-To use this fixture in the context of this document, we must first define a test Org document, such as the one in [[test-org-input]].
-
-#+name: input-org-test
-#+caption: Sample Org input for the test fixture
-#+begin_src org :noweb-ref test-org-input
-  ,#+TITLE: The Main Event
-  ,#+author: Jane Doe
-
-  ,* A headline
-
-  Some text
-
-  ,** A subheadline
-
-  Some subtext
-
-  ,* Another level-1 headline
-
-  Some additional text
-#+end_src
-
-
-
-
-#+name: test-example-deftest
-#+caption: Defining an example test
-#+begin_src emacs-lisp :noweb eval :tangle no :results drawer
-  <<src-pg-pm-deftest>>
-  (pg-pm-deftest pg-pm-sample-test input-org-test
-      (should (not (eq nil doc))))
-
-    (pg-ert-run-tests-string "pg-pm-sample-test")
-#+end_src
-
-
-For more complicated tests, it is wise to tangle the source blocks they depend on into the test, so changes to the code are automatically read.
-
-
 ** Active projects
 
 =pm.el= will look for these directories (actually the project file, but preserving the path) and keep a cache of them. Switch to any of these active projects with =pg-pm-switch-to-active-project=, which is more or less a restricted version of =projectile-switch-to-project=.
 
-#+name src-active-projects
+#+name src/active-projects
 #+begin_src emacs-lisp :noweb-ref active-projects
   (defcustom pg-pm-project-dir "~/active-projects"
     "Directory containing projects"
@@ -300,7 +235,7 @@ To do. This uses a lot of general Emacs state and may not be worth trying to uni
 
 Collect project metadata from each =project.org= file. This amounts to reading the keywords defined at the top level of the file.
 
-#+name: src-project-info
+#+name: src/project-info
 #+begin_src emacs-lisp
 
 
@@ -337,7 +272,7 @@ Collect project metadata from each =project.org= file. This amounts to reading t
 
 *** Testing
 
-#+name: input-project-ex
+#+name: input/project-ex
 #+begin_src org
   ,#+startup: indent
   ,#+TITLE: Example
@@ -345,11 +280,11 @@ Collect project metadata from each =project.org= file. This amounts to reading t
   A minimal example.
 #+end_src
 
-#+name: test-pm-project-meta
+#+name: t/pm-project-meta
 #+begin_src emacs-lisp :noweb eval :tangle no  :exports none
-  <<src-project-info>>
+  <<src/project-info>>
 
-  (pg-org-with-src input-project-ex
+  (pg-org-with-src input/project-ex
     (ert-deftest pg-pm-project-meta ()
       (should (s-equals? "Example" (pm-project-meta "TITLE" )))))
 
@@ -383,7 +318,7 @@ The task can contain other status change entries as well, but if a status change
 
 Most of the tests for this section will use this org file
 
-#+name: org-logbook-ex
+#+name: ex/logbook
 #+caption: Org-mode model file
 #+begin_src org
   ,#+name: Model file
@@ -419,7 +354,7 @@ We can get the logbook items using =org-ml-headline-get-logbook-items=. This req
 A better way to do this might be to generate it dynamically from the values of =org-log-into-drawer= and =org-clock-into-drawer=.
 
 
-#+name: src-headline-logbook-items
+#+name: src/headline-logbook-items
 #+begin_src emacs-lisp
   (defcustom pg-pm-project-file-logging-config
     '(:log-into-drawer "LOGBOOK" :clock-into-drawer t)
@@ -439,11 +374,11 @@ A better way to do this might be to generate it dynamically from the values of =
 ***** Testing
 #+name: hd-extracting-logbook-items-testing
 
-#+name: test-headline-logbook-items
+#+name: t/headline-logbook-items
 #+begin_src emacs-lisp :noweb eval :tangle no :results drawer
-<<src-headline-logbook-items>>
+<<src/headline-logbook-items>>
 
-  (pg-pm-deftest pg-pm-headline-logbook-items org-logbook-ex
+  (pg-org-deftest pm/headline-logbook-items ex/logbook
     (-let (((i1 i2 i3) (->> (org-ml-match '(headline) doc)
                             (car)
                             (pg-pm--headline-logbook-items)
@@ -454,7 +389,7 @@ A better way to do this might be to generate it dynamically from the values of =
       (should (s-starts-with? "State \"DOING\"" i2))
       (should (eq nil i3))))
 
-  (pg-ert-run-tests-string "pg-pm-headline-logbook-items")
+  (pg-ert-run-tests-string "pm/headline-logbook-items")
 #+end_src
 
 
@@ -466,7 +401,7 @@ As it happens, the output from =org-ml-logbookget-items= is a list of only the t
 **** Logging task status changes
 Org can be configured to write a logbook entry when certain todo keywords are set. This entry contains useful information, and has a regular form which we can parse.
 
-[[org-logbook-ex]] shows a headline containing several logbook entries. The top two were set by org-mode when the todo status of the headline was changed from =TODO= to =DOING=, and again from =DOING= to =DONE=. We will call entries of this type /status change/ entries, or just status changes.
+[[ex/logbook]] shows a headline containing several logbook entries. The top two were set by org-mode when the todo status of the headline was changed from =TODO= to =DOING=, and again from =DOING= to =DONE=. We will call entries of this type /status change/ entries, or just status changes.
 
 Logbook entries are just bullet lists, so the logbook can also contain entries for things other than status changes. These entries, however, do not appear to be parsed, as discussed in [[hd-extracting-logbook-items-testing]].
 
@@ -477,7 +412,7 @@ The regular expression in [[status-change-regex]] parses status change logbook e
 
 I've had issues using this regex with strings, possibly because the backslashes required to escape quotation marks are represented in the string somehow. (I was using =org-ml--from-string= which is, of course, private, and may have subtleties in it I do not yet appreciate.)
 
-#+name: src-status-change-regex
+#+name: src/status-change-regex
 #+begin_src emacs-lisp
   (defcustom pg-pm-rx-logbook-status-change
     (rx "State"
@@ -502,11 +437,11 @@ I've had issues using this regex with strings, possibly because the backslashes 
 
 We can create this one as a normal ERT test.
 
-#+name: test-status-change-regex
+#+name: t/status-change-regex
 #+begin_src emacs-lisp :noweb eval :tangle no :noweb-ref ert-deftest :results drawer
-  <<src-status-change-regex>>
+  <<src/status-change-regex>>
 
-  (ert-deftest pg-pm-re-test ()
+  (ert-deftest pm/re-test ()
     (let ((s "State \"DONE\"       from \"DOING\"      [2021-08-06 Fri 12:52]"))
       (should (s-match pg-pm-rx-logbook-status-change s))
       (should (equal (s-match pg-pm-rx-logbook-status-change s)
@@ -514,7 +449,7 @@ We can create this one as a normal ERT test.
                            "DONE"
                            "DOING")))))
 
-  (pg-org-ert-run-tests "pg-pm-re-test")
+  (pg-org-ert-run-tests "pm/re-test")
 #+end_src
 
 
@@ -526,7 +461,7 @@ This function parses an individual logbook entry, pulling out the status change 
 
 The format for this entry is technically settable in a variable (todo: find and cite) but the org-agenda code apparently makes assumptions about this format that make it difficult to change in practice.
 
-#+name: src-parse-task-status-change
+#+name: src/parse-task-status-change
 #+begin_src emacs-lisp
   (defun pg-pm--parse-task-status-change (lb-item)
     "Attempt to parse LB-ITEM as if it were a task status
@@ -554,11 +489,11 @@ The format for this entry is technically settable in a variable (todo: find and 
 
 
 
-#+name: test-parse-task-status-change
+#+name: t/parse-task-status-change
 #+begin_src emacs-lisp :noweb eval :tangle no :results drawer
-    <<parse-task-status-change>>
+  <<src/parse-task-status-change>>
 
-  (pg-pm-deftest pg-pm-status-change-items-test org-logbook-ex
+  (pg-org-deftest pm/status-change-items-test ex/logbook
     (-let* (((i1 i2) (->> (org-ml-match '(:any * item) doc)
                           (-map #'pg-pm--parse-task-status-change))))
       (should (equal `(DONE DOING ,(ts-parse-org "[2021-08-06 Fri 12:52]"))
@@ -567,7 +502,7 @@ The format for this entry is technically settable in a variable (todo: find and 
                      (list (first i2) (second i2) (ts-parse-org-element (third i2)))))
       ))
 
-  (pg-org-ert-run-tests "pg-pm-status-change-items-test")
+  (pg-org-ert-run-tests "pm/status-change-items-test")
 #+end_src
 
 
@@ -578,7 +513,7 @@ The format for this entry is technically settable in a variable (todo: find and 
 
 =pg-pm-task-query= permits the selection of tasks in a document based on the current status, the previous status, or the time of the last update. There are more possibilities for search, but these catch a fair number of use cases. The code is modular enough that it could be extended (for instance, to the timestamps of status changes other than the most recent one) without too much work, I think/hope.
 
-#+name: src-task-query
+#+name: src/task-query
 #+begin_src emacs-lisp
   (defun pg-pm--task (search-pred node)
     "Returns a task if the search criteria represented by
@@ -696,9 +631,9 @@ The format for this entry is technically settable in a variable (todo: find and 
 
 ****** Testing
 
-#+name: task-query-test-input
+#+name: input/task-query
 #+caption: Test input for pg-pm-task-query test
-#+begin_src org
+#+begin_src org :exports code :tangle no
 
   ,* Tasks
 
@@ -719,15 +654,14 @@ The format for this entry is technically settable in a variable (todo: find and 
 #+end_src
 
 
-#+name: test-task-query
+#+name: t/task-query
 #+begin_src emacs-lisp :noweb eval :tangle no
-  <<src-pg-pm-deftest>>
-  <<src-task-query>>
+  <<src/task-query>>
 
-  (pg-pm-deftest pg-pm-task-query-test task-query-test-input
+  (pg-org-deftest pg-pm/task-query input/task-query
     (should (not (equal nil (pg-pm-task-query :curr-status "DONE")))))
 
-  (pg-org-ert-run-tests "pg-pm-task-query-test")
+  (pg-org-ert-run-tests "pg-pm/task-query")
 #+end_src
 
 ** Accomplishments
@@ -748,7 +682,7 @@ Let's pull apart this functionality. First: finding candidate accomplishments. I
 
 An accandidate is quite simple, there's almost no need to define this as a function. It does, however, make it clear that we're introducing an abstraction, and it makes a convenient choice point if the notion of an accandidate (wow this is a dumb word) ever becomes more complicated.
 
-#+name: src-accandidates
+#+name: src/accandidates
 #+begin_src emacs-lisp
   (defun pg-pm--accandidates (node)
     "Return headline nodes for all tasks under NODE with the keyword DONE.
@@ -760,9 +694,10 @@ An accandidate is quite simple, there's almost no need to define this as a funct
 
 Let's test this out.
 
+#+name: t/accandidates
 #+begin_src emacs-lisp :noweb eval :tangle no :results code :exports none
-  <<src-accandidates>>
-  <<src-headline-logbook-items>>
+  <<src/accandidates>>
+  <<src/headline-logbook-items>>
 
   (->> (org-ml-parse-subtrees 'all)
        (pg-pm--accandidates)
@@ -775,6 +710,7 @@ There's a lot of useful, parseable information in logbook entries, but it isn't 
 
 Org will automatically add a logbook entry when to-do items are set to certain resolutions, as specified by the user. The format of this entry is specified in =org-log-note-headings=. It can be redefined, but Org documents that doing so will break =org-agenda=, so it seems safe to rely on this format in general. Based on that, it's easy enough to write a regular expression for any state transition, capturing the current to-do state, the new state, the timestamp of the change, and any notes the user has added.
 
+#+name: src/rx-logbook-resolved
 #+begin_src emacs-lisp :noweb-ref strans-regex
   (defcustom pg-pm-rx-logbook-resolved
     (rx "State"
@@ -796,6 +732,7 @@ Org will automatically add a logbook entry when to-do items are set to certain r
 
 Using this, we can convert a logbook entry corresponding to this regular expression (which I call a /state-transition log entry/ or /strans log entry/) into a simple list.
 
+#+name: src/-parse-strans-log-entry
 #+begin_src emacs-lisp :noweb-ref parse-strans-log-entry
   (defun pg-pm--parse-strans-log-entry (lb-item)
     "If LB-ITEM is a logbook entry that looks like it was generated
@@ -833,11 +770,12 @@ Using this, we can convert a logbook entry corresponding to this regular express
 
 That's a little dense. Let's test it out.
 
+#+name: t/-parse-strans-log-entry/1
 #+begin_src emacs-lisp :noweb eval :tangle no :results code :exports none
-  <<src-accandidates>>
-  <<headline-logbook-items>>
-  <<strans-regex>>
-  <<parse-strans-log-entry>>
+  <<src/accandidates>>
+  <<src/headline-logbook-items>>
+  <<src/rx-logbook-resolved>>
+  <<src/-parse-strans-log-entry>>
 
   (-let [(to from ts notes)
          (->> (org-ml-parse-subtrees 'all)
@@ -851,11 +789,12 @@ That's a little dense. Let's test it out.
 
 The string version is a bit easier to read.
 
+#+name: t/-parse-strans-log-entry/2
 #+begin_src emacs-lisp :noweb eval :tangle no :results code :exports none
-    <<src-accandidates>>
-    <<headline-logbook-items>>
-    <<strans-regex>>
-    <<parse-strans-log-entry>>
+    <<src/accandidates>>
+    <<src/headline-logbook-items>>
+    <<src/rx-logbook-resolved>>
+    <<src/-parse-strans-log-entry>>
 
     (->> (org-ml-parse-subtrees 'all)
          (pg-pm--accandidates)
@@ -873,11 +812,8 @@ Tasks are regular todo items that have been logged with some discipline. Don't h
 
 Specifically, something is a capital-t Task if the /last/ logbook entry for the headline is logged in Org's format for logging todo keywords, /and/ it matches the todo-keyword status of the headline's current keyword. (Put another way, if the current status of the headline was logged.)
 
+#+name: src/accomplishments
 #+begin_src emacs-lisp
-
-
-
-
   (defun pg-pm--build-task (headline)
     "Return a task from HEADLINE, or nil if HEADLINE is not a task."
     (let ((logbook-entries (->> headline
@@ -912,6 +848,7 @@ Specifically, something is a capital-t Task if the /last/ logbook entry for the 
 
 This library uses [[https://github.com/alphapapa/ts.el][ts.el]] to do time manipulation. These functions make =ts-adjust= a little easier to use with dynamic input.
 
+#+name: src/time-spec-from-string
 #+begin_src emacs-lisp :noweb-ref time-manip
   (defun pm-time-spec-from-string (time-spec)
     "Return a list of adjustments based on TIME-SPEC.
@@ -988,6 +925,7 @@ We may add more criteria to this definition later (e.g., that they must be tagge
 
 (You may wonder why this isn't a =defclass=. The reason is mainly that Emacs documentation doesn't handle functions generated by =defclass= too well, and I like my code to be discoverable from there.)
 
+#+name: src/accomplishment
 #+begin_src emacs-lisp :noweb-ref build-accomplishment
   (defun pg-pm--accomplishment? (headline strans-entries)
     "Returns a true value if the entries in STRANS-ENTRIES
@@ -1048,12 +986,13 @@ We may add more criteria to this definition later (e.g., that they must be tagge
 
 Used thusly:
 
+#+name: t/accomplishment/1
 #+begin_src emacs-lisp :noweb eval :tangle no :results drawer :exports code
-  <<src-accandidates>>
-  <<headline-logbook-items>>
-  <<strans-regex>>
-  <<parse-strans-log-entry>>
-  <<build-accomplishment>>
+  <<src/accandidates>>
+  <<src/headline-logbook-items>>
+  <<src/rx-logbook-resolved>>
+  <<src/-parse-strans-log-entry>>
+  <<src/accomplishment>>
 
   (->> (org-ml-parse-subtrees 'all)
        (pg-pm--accandidates)
@@ -1068,7 +1007,8 @@ As you can see, =pg-pm--build-accomplishment= is both a constructor and a predic
 
 The accomplishment record is convenient for processing, but we'll eventually want to represent accomplishments in Org. Building that now also gives us a "free" string representation. Here's what we're shooting
 
-#+begin_src emacs-lisp :noweb-ref accomplishment-to-org
+#+name: src/accomplishment-to-org
+#+begin_src emacs-lisp
   (defun pg-pm--accomplishments-build-plain-list (acc-items)
     "Build a plain-list with ACC-ITEMS as a list, not inlined."
     (if acc-items
@@ -1103,6 +1043,7 @@ The accomplishment record is convenient for processing, but we'll eventually wan
 
 This should generate something that looks like:
 
+#+name: ex/accomplishments-to-string
 #+begin_src org :tangle no
    ,* DCO Modeling
      - /(Jan 1 2021)/: Extracted workflows from Sari and Chuck's training
@@ -1113,13 +1054,14 @@ This should generate something that looks like:
 
 Used thusly:
 
+#+name: t/accomplishment-to-string
 #+begin_src emacs-lisp :noweb eval :tangle no :results code :exports code
-  <<src-accandidates>>
-  <<headline-logbook-items>>
-  <<strans-regex>>
-  <<parse-strans-log-entry>>
-  <<build-accomplishment>>
-  <<accomplishment-to-org>>
+  <<src/accandidates>>
+  <<src/headline-logbook-items>>
+  <<src/rx-logbook-resolved>>
+  <<src/-parse-strans-log-entry>>
+  <<src/accomplishment>>
+  <<src/accomplishment-to-org>>
 
 
   (->> (org-ml-parse-subtrees 'all)
@@ -1139,7 +1081,8 @@ Used thusly:
 Time to build the report.
 
 
-#+begin_src emacs-lisp :noweb-ref accomplishment-report
+#+name: src/accomplishment-report
+#+begin_src emacs-lisp
   (defun pg-pm--recent-accomplishments? (beg end accomplishment)
     "Return ACCOMPLISHMENT if its timestamp "
     (-let* (((_ (_ _ ts _)) accomplishment)
@@ -1215,7 +1158,7 @@ Time to build the report.
 
 We will use a simplified version of the example above, which includes a lot of edge cases.
 
-#+name:
+#+name: input/accomplishments
 #+caption: Org-mode snippet
 #+begin_src org
 
@@ -1250,9 +1193,24 @@ We can see that =org-ml= takes us a lot of the way there, but not all the way. T
 
 The reporting is basically fine, but separating the document structure from the content a bit more would be nice. There's a reason so many data-based web apps have template engines. And the document itself needs to include more than just "accomplishments."
 
-#+begin_src emacs-lisp
+TODO:
 
-#+end_src
+- [0/4] Use =pg-org= constructs for
+  - [ ] defining tests
+  - [ ] parsing logbook items
+  - [ ] matching tasks (via =:-pred= and =:lookahead=)
+  - [ ] building the report (via the soon-to-be renamed =org-ml-build=)
+- [ ] Reporting API
+  - Select tasks with code + declaration
+  - Build reports from template
+  - Sample queries
+    - Accomplishments: Resolved as done within =$duration=
+    - Progress: Open tasks with new logbook entries with =$duration=
+    - Project status: All open tasks in project, with description and last update
+- Additional structure for tasks
+  - Another drawer for logging things beside status changes
+    - Comments
+    - Changes to the description
 
 
 * Provide
