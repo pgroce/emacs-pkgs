@@ -360,7 +360,7 @@ The =pg-org-headline-logbook-entries= function is tested using the sample Org in
   (pg-org-deftest pg-org/headline-logbook-entries input/logbook-simple
     (let* ((entries (->> doc
                          (org-ml-match '(headline))
-                         (first)
+                         (car)
                          (pg-org-headline-logbook-entries)))
            (entry-strings (-map #'org-ml-to-trimmed-string entries)))
       (should (s-equals-p (nth 0 entry-strings) "Top entry"))
@@ -462,7 +462,7 @@ Note that =pg-org-paragraph-parse-status-change= returns =nil= if the parse fail
       input/logbook-status-changes
     (let ((entries (->> doc
                         (org-ml-match '(headline))
-                        (first)
+                        (car)
                         (pg-org-headline-logbook-entries)
                         (-keep #'pg-org-paragraph-parse-status-change))))
       (pg-ert-shouldmap
