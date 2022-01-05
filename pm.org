@@ -85,7 +85,7 @@ Listing [[input/sample-tasks]] provides some example code that will be used late
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.3.2.5
+  ;; Version: 0.3.2.6
   ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649") (helm "20210826.553") (pg-util "0.3") (pg-ert "0.1") (pg-org "0.1"))
   ;; Keywords: productivity
 #+END_SRC
