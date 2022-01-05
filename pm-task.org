@@ -181,7 +181,7 @@ Cons:
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.1.2.1
+  ;; Version: 0.1.2.2
   ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (pg-ert "0.1") (pg-org "0.1"))
   ;; Keywords: productivity
 #+END_SRC
@@ -267,7 +267,7 @@ The code in Listing [[src/accessors]] extracts information from tasks represente
     representation of the timestamp, and `notes' is an Org
     secondary string containing any associated notes."
     (->> (pg-org-headline-logbook-entries task)
-         (-keep #'(pg-org-paragraph-parse-status-change))))
+         (-keep #'pg-org-paragraph-parse-status-change)))
 
   (defun pm-task-status-last-change (task)
     "Returns the most recent status change logbook entry for

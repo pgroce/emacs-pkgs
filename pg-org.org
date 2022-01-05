@@ -15,7 +15,7 @@ This library contains anything I may find specifically useful when working with 
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.3.3
+  ;; Version: 0.3.4
   ;; Package-Requires: ((emacs "26.1") (org-ml "5.7") (dash "2.19") (s "1.12") (ts "0.3") (pg-ert "0.1"))
   ;; Keywords: productivity
 #+END_SRC
@@ -375,11 +375,31 @@ The =pg-org-headline-logbook-entries= function is tested using the sample Org in
 
 #+end_src
 
+*** Logbook Entry Types
 
-
-*** Status changes
+**** Status changes
 
 When configured to do so, Org will log changes between to-do keywords into the logbook. These logbook entries have a specific text format, but to Org it's still a single secondary string. This code parses that string and recovers the juicy data inside.
+
+#+name: src/rx-logbook-status-changed
+#+begin_src emacs-lisp
+  (defcustom pg-org--rx-logbook-status-change
+    (rx "State"
+        (+ whitespace)
+        "\"" (group (+ (not "\""))) "\""
+        (+ whitespace)
+        "from"
+        (+ whitespace)
+        "\"" (group (+ (not "\""))) "\"")
+    "Regex matching log entries of to-do state transitions, per the
+    default state format string in
+    `org-log-note-headings'. Capturing accomplishments will break
+    if that entry in `org-log-note-headings' is changed. (As will
+    large chunks of org-agenda.) In that case, it will be necessary
+    to customize this regex to correspond."
+    :type 'regexp
+    :group 'pg-org)
+#+end_src
 
 A previous version of this function lived in =pm.org= and took =item= elements instead of =paragraph= elements. This function works better with the output of the new and improved =pg-org-headline-logbook-entries=, however.
 
@@ -395,7 +415,7 @@ A previous version of this function lived in =pm.org= and took =item= elements i
     (-when-let* [((_ _ s ts . the-rest)  para)
                  ;; parse out the to and from states
                  ((_ to from) (->> (org-ml-to-trimmed-string s)
-                                   (s-match pg-pm-rx-logbook-resolved)))
+                                   (s-match pg-org--rx-logbook-status-change)))
                  ;; if notes exist, create as new paragraph
                  (notes (->> (if (org-ml-is-type 'line-break (first the-rest))
                                  ;; trick to inline (cdr the-rest) as args
