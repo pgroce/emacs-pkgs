@@ -174,14 +174,14 @@ Cons:
 
 
 ** Package Header
-#+name: src-header
+#+name: src/header
 #+BEGIN_SRC emacs-lisp :noweb-ref src
   ;;; pm-task.el --- Task handling for project management
 
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.1.2.2
+  ;; Version: 0.1.2.3
   ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (pg-ert "0.1") (pg-org "0.1"))
   ;; Keywords: productivity
 #+END_SRC
@@ -351,26 +351,25 @@ A set of tests demonstrates their usage. The input for these tests is in Listing
 *** =pm-task-status-last-change=
 
 #+name: t/status-last-change
-#+begin_src emacs-lisp :noweb yes :exports code :results code :tangle no :wrap src text
-    <<src>>
+#+begin_src emacs-lisp :noweb eval :tangle no  :wrap src text
+  <<src>>
 
-    (pg-org-with-src-doc ex/task/basic-test
-      (->> (org-ml-match '(headline) doc)
-           (nth 0)
-           (pm-task-status-last-change)
-  ))
+  (pg-org-deftest pm-task/status-last-change
+      ex/task/basic-test
+    (-let (((from to timestamp notes)
+            (->> (org-ml-match '(headline) doc)
+                 (nth 0)
+                 (pm-task-status-last-change))))
+      (should (string-equal to "DOING"))
+      (should (string-equal from "BLOCKED"))
+      (should (ts= (ts-parse-org-element timestamp) (ts-parse-org "[2021-12-11 Sat 20:06]")))
+      (should (string-equal (org-ml-to-trimmed-string notes) "Back on the case"))))
+
+  (pg-ert-run-tests-string "pm-task/status-last-change")
 #+end_src
 
 
-#+begin_src emacs-lisp :noweb yes :exports code :results code :tangle no :wrap src text
-    <<src>>
 
-    (pg-org-with-src-doc ex/task/basic-test
-      (->> (org-ml-match '(headline) doc)
-           (nth 0)
-           (pm-task-status-last-change)
-  ))
-#+end_src
 
 ** Selecting and parsing tasks
 

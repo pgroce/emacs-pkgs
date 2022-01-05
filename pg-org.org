@@ -15,7 +15,7 @@ This library contains anything I may find specifically useful when working with 
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.3.4
+  ;; Version: 0.3.5
   ;; Package-Requires: ((emacs "26.1") (org-ml "5.7") (dash "2.19") (s "1.12") (ts "0.3") (pg-ert "0.1"))
   ;; Keywords: productivity
 #+END_SRC
@@ -414,7 +414,7 @@ A previous version of this function lived in =pm.org= and took =item= elements i
     user. Otherwise, return nil."
     (-when-let* [((_ _ s ts . the-rest)  para)
                  ;; parse out the to and from states
-                 ((_ to from) (->> (org-ml-to-trimmed-string s)
+                 ((_ from to) (->> (org-ml-to-trimmed-string s)
                                    (s-match pg-org--rx-logbook-status-change)))
                  ;; if notes exist, create as new paragraph
                  (notes (->> (if (org-ml-is-type 'line-break (first the-rest))
@@ -451,7 +451,9 @@ The =pg-org-paragraph-parse-status-change= function is tested in Listing [[t/par
     :END:
 #+end_src
 
-Note that =pg-org-paragraph-parse-status-change= returns =nil= if the parse fails, so the spurious additional item in the input is ignored
+Note that =pg-org-paragraph-parse-status-change= returns =nil= if the parse fails, so the spurious additional item in the input is ignored.
+
+(TODO: I think this test is broken? Look at it more later.)
 
 #+name: t/paragraph-parse-status-change
 #+begin_src emacs-lisp :noweb eval :tangle no  :wrap src text
@@ -482,6 +484,13 @@ Note that =pg-org-paragraph-parse-status-change= returns =nil= if the parse fail
 
   (pg-ert-run-tests-string "pg-org/paragraph-parse-status-change")
 
+#+end_src
+
+#+RESULTS: t/paragraph-parse-status-change
+#+begin_src text
+   passed  1/1  pg-org/paragraph-parse-status-change (0.001009 sec)
+
+Ran 1 tests, 1 results as expected, 0 unexpected (2022-01-05 17:27:56-0500, 0.001134 sec)
 #+end_src
 
 
@@ -571,7 +580,7 @@ It can, however, be used somewhat awkwardly with =cl-letf=, as shown by the test
     (cl-letf* (((symbol-function 'has-tasks)
                 (lambda (el)
                   (pg-org-lookahead
-                   '((:and headline (:raw-value "Tasks"))) el)))
+                   '((:and headline (:raw-value "Tasks"))))))
                (results (org-ml-match '((:and headline (:pred has-tasks))) doc)))
       (pg-ert-shouldmap results '("Foo" "Bar" "Baz")
         (string-equal (org-ml-get-property :raw-value act) exp))))
@@ -579,7 +588,7 @@ It can, however, be used somewhat awkwardly with =cl-letf=, as shown by the test
   (pg-ert-run-tests-string "pg-org/lookahead")
 #+end_src
 
-This construct adds considerably to the complexity of an =org-match= call, but enables a powerful way of searching and selecting nodes in a document. The =pg-org-match= function presents this power while hiding the complexity.
+This construct adds considerably to the complexity of an =org-match= call, but enables a powerful way of searching and selecting nodes in a document. The =pg-org-match= function presents this power while hiding ythe complexity.
 
 **** =pg-org-match=
 
