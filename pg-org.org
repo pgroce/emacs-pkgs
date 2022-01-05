@@ -322,8 +322,8 @@ The other major change in this function is that it returns the =paragraph= eleme
   list of paragraph elements. If the headline doesn't contain any
   logbook entries, return `nil'."
     (let ((drawer-name (plist-get
-                        :log-into-drawer
-                        pg-org-headline-logging-config)))
+                        pg-org-headline-logging-config
+                        :log-into-drawer)))
       (->> headline
            (org-ml-match
             '(section
@@ -371,9 +371,11 @@ The =pg-org-headline-logbook-entries= function is tested using the sample Org in
       (should (eq (nth 0 (nth 1 entries)) 'paragraph))
       (should (eq (nth 0 (nth 2 entries)) 'paragraph))))
 
-  (pg-ert-run-tests-string "headline-logbook-entries/1")
+  (pg-ert-run-tests-string "pg-org/headline-logbook-entries")
 
 #+end_src
+
+
 
 *** Status changes
 
