@@ -93,36 +93,72 @@ Speaking of testing, here's a convenience macro for using =ert-deftest= with =pg
 
 ** Org-ml as a template engine
 
-=org-ml= has a regular convention for its constructors; for each element type /t/, a corresponding =org-ml= object can be created using =org-ml-t=.
+=org-ml= has a regular convention for its constructors; for each element type /t/, a corresponding =org-ml= object can be created using =org-ml-t=. Since lisp code is data, and since there are Org-ml builders for every org element type, this means we use these constructors as a kind of simplified DSL for specifying Org documents or, more powerfully, templates.
 
-This regularity permits a little hack, which in turn makes it possible to create a declarative tree of element names and parameters describing them, then later turn the tree into an =org-ml= object tree.
+As an example, consider Listing [[ex/org-ml-build/1/code]], which is code for building a very simple document with one headline. If name is "Phil", this will generate the Org document in [[ex/org-ml-build/1/results]].
 
-My main use for this has been to decrease clutter when I'm building an Org element tree or subtree from scratch, since this removes the need to type =org-ml-build-= before every type.
+#+name: ex/org-ml-build/1/code
+#+begin_src emacs-lisp :tangle no
+  (defun hello-org (name)
+    (list (org-ml-build-section
+           (org-ml-build-headline
+            :title (format "Hello %s!" name)
+            (org-ml-build-section
+             (org-ml-build-paragraph! "Hi there!"))))))
+#+end_src
 
-TODO: I need to decide on a prefix here. =pg-org= is pretty long when you're using it, but using =org-ml= is presumptuous. But I'm writing extensions to =org-ml=. I should probably look at namespace libraries....
+#+name: ex/org-ml-build/1/results
+#+begin_src org :tangle no
+  ,* Hello Phil
+    Hi there!
+#+end_src
 
-#+name: src/build
+There is a lot of duplication in the nested calls to =org-ml-build-*= functions; it would be nice to remove that. But beyond that, imagine treating that set of =build= calls as a template, as in Listing [[ex/org-ml-build/2/code]].
+
+#+name: ex/org-ml-build/2/code
+#+begin_src emacs-lisp :tangle no
+  (let ((hello-org-template
+         '(org-ml-build-section
+           (org-ml-build-headline :title name)))
+        (name "Phil"))
+    (eval hello-org-template))
+#+end_src
+
+Lisp is beautiful. Perhaps, however, it can be made moreso. There's a lot of duplication in =hello-org-template=, ideally it could be written as it is in Listing [[ex/org-ml-build/3/code]].
+
+#+name: ex/org-ml-build/3/code
+#+begin_src emacs-lisp :tangle no
+  (let ((hello-org-template
+         '(section (headline :title name)))
+        (name "Phil"))
+    (eval hello-org-template))
+#+end_src
+
+We can't, of course, pass =hello-org-template= to =eval= as we have done here. But if we precede that evaluation with a transformation of =hello-org-template= to restore the =org-ml-build-= prefix, we certainly can. This is the purpose of =pg-org-build=.
+
+#+name: src/org-ml-build
 #+begin_src emacs-lisp
+  (defun pg-org--ml-build-spec (spec)
+    "Build the input to `org-ml-build' from `spec'."
+    (pg-util-tree-transform-2
+     spec
+     :transformer
+     (lambda (node)
+       (let ((head (car node)))
+         (cond
+          ((not (symbolp head))
+           (error "Unexpected non-symbol %s" head))
+          ((eq head 'quote)
+           `(:node ,node :stop t))
+          (t
+           (let* ((new-name (format "org-ml-build-%s" (symbol-name head)))
+                  (new-sym (intern-soft new-name)))
+             (if (not new-sym)
+                 (error "Void function: %s" new-name)
+               `(:node ,(cons new-sym (cdr node)))))))))))
 
-  (defun org-ml-normalize (tree)
-    "Convert TREE into an org-ml build invocation, by prepending
-    \"org-ml-build-\" to the symbol in first position of the
-    list. This function is then applied recursively to all the tree
-    node's children. (In this case, any lists contained in TREE
-    whose first element is a symbol.) "
-    ;; Only handle lists whose first element is a symbol
-    (if (symbolp (car tree))
-        ;; Normalize the root node
-        (->> (cons (->> (car tree)
-                        (symbol-name)
-                        (concat "org-ml-build-")
-                        (intern))
-                   (cdr tree))
-             ;; ...and its children
-             (--map (if (listp it) (org-ml-normalize it) it)))
-      tree))
 
-  (defun org-ml-build (spec)
+  (defun pg-org-ml-build (spec)
     "Transform SPEC into an org-element tree using constructors for
   elements in `org-ml'.
 
@@ -145,9 +181,19 @@ TODO: I need to decide on a prefix here. =pg-org= is pretty long when you're usi
       :title (org-ml-build-secondary-string! \"foo\")
       (org-ml-build-section
         (org-ml-build-paragraph! \"paragraph text\")))"
-    (eval (org-ml-normalize spec)))
+    (eval (pg-org--ml-build-spec spec)))
+
+  (defalias 'org-ml-build 'pg-org-ml-build)
 #+end_src
 
+The code in Listing [[ex/org-ml-build/4]] demonstrates the usage of =pg-org-ml-build=.
+
+#+name: ex/org-ml-build/4
+#+begin_src emacs-lisp :tangle no :results code :wrap src emacs-lisp :noweb yes
+  <<src/org-ml-build>>
+
+  (pg-org-ml-build '(timestamp! '(2019 1 1 0 0)))
+#+end_src
 
 ** Working with headlines
 
