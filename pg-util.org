@@ -335,7 +335,7 @@ For example, if one is transforming according to the rules of s-expressions, for
 This could also be done for efficiency, if a transform function can determine that no further transformations of their children are necessary.
 
 #+name: src/tree-transform-2
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :results silent
   (defcustom pg-util-tree-traversal-max-depth 50
     "Default maximum recursion for `pg-util-tree-transform'.")
 
@@ -384,12 +384,9 @@ This could also be done for efficiency, if a transform function can determine th
   (defalias '/tree-transform-2 'pg-util-tree-transform-2)
 #+end_src
 
-#+RESULTS: src/tree-transform-2
-: /tree-transform-2
+The use of this function is more complex than =tree-transform=, but more powerful, as seen in Listing [[ex/tree-transform-2/usage/1]]. Here we demonstrate how to stop the traversal algorithm from descending into quoted nodes–including quoted elements. (Recall that ='a= is equivalent to =(quote a)=.)
 
-The use of this function is more complex than =tree-transform=, but more powerful, as seen in Listing [[ex/tree-transform-2/usage]]. Here we demonstrate how to stop the traversal algorithm from descending into quoted nodes–including quoted elements. (Recall that ='a= is equivalent to =(quote a)=.)
-
-#+name: ex/tree-transform-2/usage
+#+name: ex/tree-transform-2/usage/1
 #+begin_src emacs-lisp :noweb yes :tangle no :results code :wrap src emacs-lisp
   <<src/tree-transform-2>>
 
@@ -411,7 +408,7 @@ The use of this function is more complex than =tree-transform=, but more powerfu
      :transformer 'transformer))
 #+end_src
 
-#+NAME: ex/tree-transform-2/usage
+#+NAME: ex/tree-transform-2/usage1/results
 #+begin_src emacs-lisp :tangle no
 ('a
  (foo-b c)
@@ -422,14 +419,64 @@ The use of this function is more complex than =tree-transform=, but more powerfu
   i))
 #+end_src
 
+
+Note that the =pg-util-tree-transform= functions return a copy of their input, as shown in Listing [[ex/tree-transform-2/usage/2]].
+
+#+name: ex/tree-transform-2/usage/2
+#+begin_src emacs-lisp :noweb yes :tangle no :results code :wrap src emacs-lisp
+  <<src/tree-transform-2>>
+
+  (cl-letf (((symbol-function 'transformer)
+             (lambda (node)
+               (let ((head (car node)))
+                 (cond
+                  ((not (symbolp head))
+                   `(:node ,node))
+                  ((eq head 'quote)
+                   `(:node ,node :stop t))
+                  (t
+                   (let* ((new-name (->> (symbol-name head)
+                                         (format "foo-%s")))
+                          (new-sym (intern new-name)))
+                     `(:node ,(cons new-sym (cdr node)))))))))
+            (input-tree '(a '(b c) d (e f))))
+    (list :transformed
+          (/tree-transform-2
+           input-tree
+           :transformer 'transformer)
+          :original
+          input-tree))
+#+end_src
+
+#+name: ex/tree-transform-2/usage/2/results
+#+begin_src emacs-lisp :tangle no
+(:transformed
+ (foo-a
+  '(b c)
+  d
+  (foo-e f))
+ :original
+ (a
+  '(b c)
+  d
+  (e f)))
+#+end_src
+
+
+
+
 **** Implementing =pg-util-tree-transform= in terms of =pg-util-tree-transform-2=
 
 While =pg-util-tree-transform-2= is more powerful, it is much easier to write transformation functions for =tree-transform=; it would be nicer to use where possible. Fortunately, it can be implemented easily in terms of =pg-util-tree-transform-2=, as shown in Listing [[src/tree-transform-1]]. (It is necessary to use lexical binding for the =transform= adapter to avoid shadowing issues with =transform= in =pg-util-tree-transform-2=.)
 
 #+name: src/tree-transform-1
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :results silent
   (cl-defun pg-util-tree-transform
-      "Traverse a tree, transforming subtrees with TRANSFORMER. This function is a simpler, less powerful version of `pg-util-tree-transform-2'.
+      (tree &key
+            (branch? 'listp)
+            (transformer 'identity)
+            (max-depth nil))
+    "Traverse a tree, transforming subtrees with TRANSFORMER. This function is a simpler, less powerful version of `pg-util-tree-transform-2'.
 
   BRANCH? is called on all elements of TREE. If it returns `t', the
   `pg-util-tree-transform' will descend into the element. By
@@ -442,10 +489,7 @@ While =pg-util-tree-transform-2= is more powerful, it is much easier to write tr
   The optional MAX-DEPTH parameter can be used to limit the depth
   of the tree. If it is not supplied, the default in
   `pg-util-tree-traversal-max-depth' is used"
-    (tree &key
-          (branch? 'listp)
-          (transformer 'identity)
-          (max-depth nil))
+
     (lexical-let* ((transformer-1 transformer)
                    (transformer-2
                     (lambda (node) `(:node ,(funcall transformer-1 node)))))
