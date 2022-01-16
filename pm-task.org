@@ -102,7 +102,7 @@ Cons:
   - Unfortunate precedent
   - May not be fully backward-compatible
 - Creates linkage problem
-  - Unversioned metadata (e.g., "created-by") can be stored with comment
+  - Unversioned metadata (e.g., "creator") can be stored with comment
   - Versioned metadata (e.g., "comment edited") should be stored as log entry
   - Requires thinking about key relationships (org-id?)
 
@@ -139,11 +139,11 @@ Cons:
 
   ,** Comments
 
-  ,*** Bart just won Super Bowl I
+  ,*** Bart jst won Super Bowl I
       :PROPERTIES:
       :CUSTOM_ID: comment-9876
       :CREATED:  [2021-12-10 Fri 09:10]
-      :CREATED-BY: Vince Lombardi
+      :CREATOR: Vince Lombardi
       :END:
 
       He'll be back in the office in a few weeks.
@@ -152,7 +152,7 @@ Cons:
       :PROPERTIES:
       :CUSTOM_ID: comment-9875
       :CREATED:  [2021-12-10 Fri 09:05]
-      :CREATED-BY: Tobin Rote
+      :CREATOR: Tobin Rote
       :END:
 
       A customer asked about the security system. Just checking....
@@ -161,7 +161,7 @@ Cons:
       :PROPERTIES:
       :CUSTOM_ID: comment-9874
       :CREATED:  [2021-12-10 Fri 09:00]
-      :CREATED-BY: Bart Starr
+      :CREATOR: Bart Starr
       :END:
       :CHANGES:
       -
@@ -169,10 +169,6 @@ Cons:
       1, 2, what is this?
 #+end_src
 
-** Task creation
-*** =pm-task-build=?
-
-Right now the only way to work with a task is as text in a buffer, or as an Org element tree. It should be possible to create tasks (and components like comments) a priori. This can, of course, be done by assembling Org element components or using something like =org-ml-from-string=, so this is a low priority.
 
 * Code
 
@@ -196,7 +192,7 @@ Right now the only way to work with a task is as text in a buffer, or as an Org 
 ** Requires
 
 #+name: src/requires
-#+begin_src emacs-lisp :noweb-ref src
+#+begin_src emacs-lisp :results silent :noweb-ref src
   (require 'dash)
   (require 's)
   (require 'ts)
@@ -258,6 +254,78 @@ Everything in Listing [[ex/task/2]] is standard Org syntax used in ways that Org
 - Additional logbook entries tracking event creation and comment editing
 
 Comments and the non-status events in the logbook are currently aspirational, see [[#sct-future-work]].
+
+** Creating and Updating Tasks
+
+The code in Listing [[src/builders]] creates new tasks. One can, of course, create tasks by hand, or treat existing Org headlines as, tasks, but these functions produce tasks with all the optional features, notably timestamps for events such as creation and reassignment.
+
+#+name: src/builders
+#+begin_src emacs-lisp :results silent :noweb-ref src
+  (defun pm-task-build (the-headline keyword description assignee user)
+    (let* ((now-ts  (ts-now))
+           (now-str (ts-format "[%Y-%m-%d %a %H:%M]" now-ts))
+           (now-org `(timestamp 'inactive
+                                ,(ts-year now-ts)
+                                ,(ts-month now-ts)
+                                ,(ts-day now-ts)
+                                ,(ts-year now-ts)
+                                ,(ts-month now-ts)
+                                ,(ts-day now-ts)
+                                :hour-start ,(ts-hour now-ts)
+                                :minute-start ,(ts-minute now-ts)
+                                :hour-end ,(ts-hour now-ts)
+                                :minute-end ,(ts-minute now-ts)))
+           (user (or user (user-login-name)))
+           ;; no default for assignee; if it's nil, don't include it
+           (the-headline (or the-headline ""))
+           (keyword (or keyword "TODO"))
+           (description (or description ""))
+           (assignee (or assignee "")))
+      `(headline
+        :title (secondary-string! ,the-headline)
+        :todo-keyword ,keyword
+        (section
+         (property-drawer
+          ;; Interestingly, org-element stores node properties as strings,
+          ;; including org-mode timestamps. But in a buffer, they're
+          ;; handled as regular timestamps. ¯\_(ツ)_/¯
+          (node-property "CREATED" ,now-str)
+          (node-property "CREATOR" ,user)
+          (node-property "ASSIGNEE" ,assignee))
+         (drawer
+          "LOGBOOK"
+          :post-blank 1
+          (plain-list
+           (item (paragraph
+                  ,(format "Task created by \"%s\" on %s" user now-str)))))
+         (paragraph! ,description)))))
+#+end_src
+
+The
+
+#+begin_src emacs-lisp :noweb yes :tangle no :wrap src org
+  <<src/builders>>
+  (->> (pm-task-build "FooBar" "TODO" "Foo the bar!" "harry bovik" "frank gorshin")
+       (pg-org-ml-build)
+       (org-ml-to-trimmed-string))
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+,* TODO FooBar
+:PROPERTIES:
+:CREATED:  [2022-01-16 Sun 11:56]
+:CREATOR:  frank gorshin
+:ASSIGNEE: harry bovik
+:END:
+:LOGBOOK:
+- Task created by "frank gorshin" on [2022-01-16 Sun 11:56]
+:END:
+
+Foo the bar!
+#+end_src
+
+
 
 ** Accessing tasks
 
@@ -325,10 +393,24 @@ The code in Listing [[src/accessors]] extracts information from tasks represente
     (or (org-ml-headline-get-node-property "assignee" task)
         (org-ml-headline-get-node-property "ASSIGNEE" task)))
 
-#+end_src
 
-#+RESULTS: src/accessors
-: pm-task-assignee
+  (defun pm-task-created-on (task)
+    "Returns the time of this tasks creation, as a ts
+    structure. Returns `nil' if TASK has no \"CREATED\" or
+    \"created\" property drawer, or if the contents of that
+    property are not a valid org-mode timestamp."
+    (when-let* ((created (or (org-ml-headline-get-node-property "created" task)
+                             (org-ml-headline-get-node-property "CREATED" task)))
+                (created-ts (ts-parse-org created)))
+      created-ts))
+
+  (defun pm-task-creator (task)
+    "Returns the creator of this task, or `nil' if none is specified."
+    (or (org-ml-headline-get-node-property "CREATOR" task)
+        (org-ml-headline-get-node-property "creator" task)))
+
+
+#+end_src
 
 *** Testing
 
@@ -343,6 +425,8 @@ A set of tests demonstrates their usage. The input for these tests is in Listing
   ,* DOING Rewire the security system
     :PROPERTIES:
     :ASSIGNEE: Bart Starr
+    :CREATED:  [2021-12-01 Wed 10:00]
+    :CREATOR: Vince Lombardi
     :END:
     :LOGBOOK:
     - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:36] \\
@@ -464,6 +548,40 @@ This test uses an additional input, shown in Listing [[input/current-status]]. (
 
 
 
+**** =pm-task-created-on=
+
+#+name: t/created-on
+#+begin_src emacs-lisp :noweb eval :wrap src text
+  <<src/accessors>>
+
+  (pg-org-deftest  pm-task/created-on
+      input/basic
+    (let ((created (->> (org-ml-match '(headline) doc)
+                        (nth 0)
+                        (pm-task-created-on))))
+      (should (ts= created (ts-parse-org "[2021-12-01 Wed 10:00]")))))
+
+  (pg-ert-run-tests-string "pm-task/created-on")
+#+end_src
+
+**** =pm-task-creator=
+
+#+name: t/creator
+#+begin_src emacs-lisp :noweb eval :wrap src text
+  <<src/accessors>>
+
+  (pg-org-deftest  pm-task/creator
+      input/basic
+    (let ((creator (->> (org-ml-match '(headline) doc)
+                        (nth 0)
+                        (pm-task-creator))))
+      (should (string-equal creator "Vince Lombardi"))))
+
+  (pg-ert-run-tests-string "pm-task/creator")
+#+end_src
+
+
+
 ** Selecting and parsing tasks
 
 Because a Task is an Org headline, it is easy to parse using Org's =org-element= library or Org-ML, as shown in Listing [[ex/parsing-a-headline]].
@@ -505,32 +623,31 @@ This is a work in progress. As predicates are defined to satisfy use cases in [[
     "Return `t' if last logbook entry for TASK is equal to
   TIMESTAMP, a ts object. If TASK is not synced, results are
   undefined."
-    (ts=  (pm-task-status-last-change-timestamp task) timestamp))
+    (ts=  timestamp (pm-task-status-last-change-timestamp task)))
 
   (defun pm-task-status-changed-after (timestamp task)
     "Return `t' if last logbook entry for TASK occured after
   TIMESTAMP, a ts object. If TASK is not synced, results are
   undefined."
-    (ts>  (pm-task-status-last-change-timestamp task) timestamp))
+    (ts< timestamp (pm-task-status-last-change-timestamp task)))
 
   (defun pm-task-status-changed-on-or-after (timestamp task)
     "Return `t' if last logbook entry for TASK occured after
   TIMESTAMP (a ts object) and task is synced. If TASK is not
   synced, results are undefined."
-    (ts>= (pm-task-status-last-change-timestamp task) timestamp))
+    (ts<=  timestamp (pm-task-status-last-change-timestamp task)))
 
   (defun pm-task-status-changed-before (timestamp task)
     "Return `t' if last logbook entry for TASK occured before
   TIMESTAMP (a ts object) and task is synced. If TASK is not
   synced, results are undefined."
-    (ts< (pm-task-status-last-change-timestamp task) timestamp))
+    (ts> timestamp (pm-task-status-last-change-timestamp task)))
 
   (defun pm-task-status-changed-on-or-before (timestamp task)
     "Return `t' if last logbook entry for TASK occured before
   TIMESTAMP and task is synced. If TASK is not synced, results are
   undefined."
-    (ts<= (pm-task-status-last-change-timestamp task) timestamp))
-
+    (ts>= timestamp (pm-task-status-last-change-timestamp task)))
 
   ;; Status comparison
 
@@ -567,7 +684,7 @@ This is a work in progress. As predicates are defined to satisfy use cases in [[
 
 **** Testing
 
-***** =pm-task-is-synced=                                        :worked:
+***** =pm-task-is-synced=                                 :worked:tested:
 
 This task uses its own test input, shown in Listing [[input/is-synced/1]] and [[input/is-synced/2]].
 
@@ -606,9 +723,9 @@ This task uses its own test input, shown in Listing [[input/is-synced/1]] and [[
   (pg-ert-run-tests-string "pm-task/is-synced")
 #+end_src
 
-***** =pm-task-status-changed-*=
+***** =pm-task-status-changed-*=                          :worked:tested:
 
-These functions are trivial extensions of =pm-task-last-change-timestamp=, so they are a low priority to test.
+These functions are trivial extensions of =pm-task-last-change-timestamp=, so they were a low priority to test.
 
 They were, naturally, among the ugliest functions to debug. /Always test./
 
@@ -701,11 +818,11 @@ They were, naturally, among the ugliest functions to debug. /Always test./
 #+RESULTS: t/task-status-changed
 #+begin_src text
 
-Ran 0 tests, 0 results as expected, 0 unexpected (2022-01-09 13:25:38-0500, 0.000063 sec)
+Ran 0 tests, 0 results as expected, 0 unexpected (2022-01-09 15:09:15-0500, 0.000067 sec)
 #+end_src
 
 
-***** =pm-task-status-in=                                        :worked:
+***** =pm-task-status-in=                                 :worked:tested:
 
 Input shown in Listing [[input/status-in/1]].
 
@@ -758,7 +875,7 @@ Input shown in Listing [[input/status-in/1]].
   (pg-ert-run-tests-string "pm-task/status-in")
 #+end_src
 
-***** =pm-task-is-assigned-to=                                   :worked:
+***** =pm-task-is-assigned-to=                            :worked:tested:
 
 Input shown in Listing [[input/is-assigned-to]].
 
@@ -845,43 +962,87 @@ Input shown in Listing [[input/is-assigned-to]].
 Let's work through some use cases and see what we need to make them happen. The Org file in Listing [[input/basic]] is the input to most of these examples.
 
 
-**** "Unsynced" tasks                                      :worked:tested:
+**** Synced and unsynced tasks                             :worked:tested:
 
 A task is said to be "synced" when its to-do item is identical to the "to" state of the most recent logbook entry. This is not a guarantee that the task is a complete record of all changes to the task, but the lack indicates that something is missing, and possibly that the task was not intended for processing by this package.
 
-The code in listing [[ex/unsynced-tasks]] selects only unsynchronized tasks. This would most likely be used to find tasks that should be synced but aren't, or to distinguish tasks for different kinds of processing.
+The code in listings [[ex/unsynced-tasks/1]] and [[ex/unsynced-tasks/2]] selects only unsynchronized tasks. This would most likely be used to find tasks that should be synced but aren't, or to distinguish tasks for different kinds of processing.
+
+One consideration is what to do with tasks that are in an initial state. Currently, nothing is done, but the right answer is probably to look for a =CREATED= property and assume the task is synced if it that is present.
+
+We use Listing [[input/unsynced-tasks]] to test this, as [[input/basic]] lacks unsynced tasks.
+
+#+name: input/unsynced-tasks
+#+caption: Sample used for testing
+#+begin_src org
+  ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
 
 
-#+name: ex/unsynced-tasks
+  ,* DOING Rewire the security system
+    :PROPERTIES:
+    :ASSIGNEE: Bart Starr
+    :CREATED:  [2021-12-01 Wed 10:00]
+    :CREATOR: Vince Lombardi
+    :END:
+    :LOGBOOK:
+    - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:36] \\
+      Back on the case
+    - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:25] \\
+      Waiting on parts from the supplier
+    - State "DOING"      from "TODO"       [2021-12-11 Sat 20:14] \\
+      In process, it's harder than it looks
+    :END:
+
+  ,* DONE Get past the guard
+    :LOGBOOK:
+    - State "DONE"       from "TODO"       [2021-12-31 Fri 17:48] \\
+      Got past 'em, easy peasy
+    :END:
+
+  ,* TODO Hey how'd this get here?
+
+
+#+end_src
+
+
+#+name: ex/unsynced-tasks/1
 #+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp :results code :tangle no
   <<src>>
 
-  (pg-org-with-src-doc input/basic
+  (pg-org-with-src-doc input/unsynced-tasks
     (->> doc
          (pg-org-match '((:and headline
                                (:-pred (pm-task-is-synced el)))))
-         (-map #'org-ml-remove-parents)))
+         (-map (-partial #'org-ml-get-property :raw-value))))
+#+end_src
+
+#+name: ex/unsynced-tasks/2
+#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp :results code :tangle no
+  <<src>>
+
+  (pg-org-with-src-doc input/unsynced-tasks
+    (->> doc
+         (pg-org-match '((:and headline
+                               (:-pred (not (pm-task-is-synced el))))))
+         (-map (-partial #'org-ml-get-property :raw-value))))
 #+end_src
 
 Note that, in this case, nothing is gained by using =pg-org-match=; one can just as easily use =(org-ml-match '((:and headline (:pred pm-task-is-synced))))=. (Assuming use of the =->>= macro as in the example.) The =pg-org-match= function is more useful when =pm-task-is-synced= and other predicates are used concurrently. It is often beneficial to use =pm-task-is-synced= in this way, to assure a task is synced before using other predicates that only make sense when applied to synchronized tasks.
 
 
-**** Tasks created since \tau                                        :worked:
+**** Tasks created since \tau
 
-#+begin_src emacs-lisp :noweb eval :tangle no :results code :wrap src emacs-lisp
-<<src>>
-  (pg-org-with-src-doc input/basic
-    (let* ((el (nth 0 (org-ml-match '(headline) doc)))
-           (timestamp (ts-parse-org "[2021-12-11 Sat 20:25]")))
-      (pm-task-status-changed-on-or-after timestamp el)))
-#+end_src
+This use case requires that task creation be tracked.
 
-#+name: ex/tasks-resolved-since
+**** Tasks updated since \tau                                 :worked:tested:
+This will return only the headline for "Get past the guard", as the timestamp for that headline falls on the time being searched for.
+
+#+name: ex/tasks-updated-since
 #+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp :results code :tangle no
   <<src>>
 
-  ;; t is a timestamp of interest (e.g., 7 days ago)
-  (let ((timestamp (ts-parse-org "[2021-12-11 Sat 20:25]")))
+
+  (let ((timestamp (ts-parse-org "[2021-12-31 Fri 17:48]")))
     (pg-org-with-src-doc input/basic
       (->> doc
            (pg-org-match
@@ -890,55 +1051,115 @@ Note that, in this case, nothing is gained by using =pg-org-match=; one can just
                      (and (pm-task-is-synced el)
                           (pm-task-status-changed-on-or-after
                            timestamp el))))))
-           (-map #'org-ml-remove-parents))))
+           (-map (-partial #'org-ml-get-property :raw-value)))))
+#+end_src
+
+#+RESULTS: ex/tasks-updated-since
+#+begin_src emacs-lisp
+("Get past the guard")
+#+end_src
+
+**** Tasks resolved since \tau                                :worked:tested:
+
+Each project has its own set of statuses, some of which can indicate that a task has been resolved in some way. It may make sense to relate project metadata to tasks at some point; one use for that is relating a task to the valid statuses for that task.
+
+For now, we can just use =pm-task-status-in= and supply our own set of statuses.
+
+For demonstration purposes,  we will augment our example to include tasks with other statuses representing completion. The modified input is in Listing [[input/resolved-since]].
+
+#+name: input/resolved-since
+#+caption: Sample used for testing
+#+begin_src org
+  ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@) CANCELLED(@)
+
+
+  ,* DOING Rewire the security system
+    :PROPERTIES:
+    :ASSIGNEE: Bart Starr
+    :CREATED:  [2021-12-01 Wed 10:00]
+    :CREATOR: Vince Lombardi
+    :END:
+    :LOGBOOK:
+    - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:36] \\
+      Back on the case
+    - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:25] \\
+      Waiting on parts from the supplier
+    - State "DOING"      from "TODO"       [2021-12-11 Sat 20:14] \\
+      In process, it's harder than it looks
+    :END:
+
+  ,* CANCELLED Crack the safe
+    :LOGBOOK:
+    - State "CANCELLED"  from "TODO"       [2021-12-10 Fri 08:00] \\
+      Safe's empty! We've been rumbled!
+    :END:
+
+  ,* DONE Get past the guard
+    :LOGBOOK:
+    - State "DONE"       from "TODO"       [2021-12-31 Fri 17:48] \\
+      Got past 'em, easy peasy
+    :END:
 #+end_src
 
 
-**** Tasks updated since \tau
-
-**** Tasks resolved since \tau                                       :worked:
-
 #+name: ex/tasks-resolved-since
-#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp
+#+begin_src emacs-lisp :noweb yes :results code :tangle no :wrap src emacs-lisp
   <<src>>
 
   ;; t is a timestamp of interest (e.g., 7 days ago)
 
-  (pg-org-with-src-doc input/basic
-    (->> doc
-         (pg-org-match
-          '((:and (headline
-                   (:-pred (and (pm-task-synced-status it)
-                                (pm-task-status-changed-on-or-after
-                                 timestamp it)
-                                (pg-task-status-in '(DONE) it)))))))))
+  (let ((timestamp (ts-parse-org "[2021-12-13 Mon 07:00]")))
+    (pg-org-with-src-doc input/resolved-since
+      (->> doc
+           (pg-org-match
+            '((:and headline
+                    (:-pred
+                     (and (pm-task-is-synced el)
+                          (pm-task-status-in '("DONE" "CANCELLED") el))))))
+           (-map (-partial #'org-ml-get-property :raw-value)))))
 
 #+end_src
 
-**** Tasks assigned to \upsilon                                          :worked:
+**** Tasks assigned to \upsilon                                   :worked:tested:
+
 
 #+name: ex/tasks-assigned-to
-#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp
-  ;; user is the name of the user we're looking for
+#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp :results code
+  <<src>>
 
   (pg-org-with-src-doc input/basic
     (->> doc
          (pg-org-match
-          '(:and (headline
-                  (:-pred (pm-task-is-assigned-to user it)))))))
+          '((:and headline (:-pred (pm-task-is-assigned-to "Bart Starr" el)))))
+         (-map (-partial #'org-ml-get-property :raw-value))))
 #+end_src
 
+#+RESULTS: ex/tasks-assigned-to
+#+begin_src emacs-lisp
+("Rewire the security system")
+
 **** Tasks assigned to \upsilon since \tau
+This use case requires that assignment changes be fully tracked, with timestamps for task creation and reassignment.
 
 **** Tasks reassigned since \tau
 
-**** Tasks with status \sigma
+**** Tasks with status \sigma                                   :worked:tested:
+
+
+#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp :results code
+  (pg-org-with-src-doc input/basic
+    (->> doc
+         (pg-org-match
+          '((:and headline (:-pred (pm-task-status-in '("DONE") el)))))
+         (-map (-partial #'org-ml-get-property :raw-value))))
+#+end_src
+
+#+RESULTS:
+#+begin_src emacs-lisp
+("Get past the guard")
+#+end_src
 
 **** All unresolved tasks
-
-**** Time-based selection
-
-A number of use-cases require selecting Tasks with timestamps that fall before, after, or between a given point or range in time. We can
 
 
 
