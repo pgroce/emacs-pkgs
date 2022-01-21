@@ -220,6 +220,8 @@ Org-ML defines one more function in this category, =org-ml-headline-logbook-conv
     :type '(plist)
     :group 'pm)
 
+  (defun pg-org-get-log-into-drawer ()
+    (plist-get pg-org-headline-logging-config :log-into-drawer))
 
   ;; Supercontents
 
@@ -379,7 +381,7 @@ A logbook has the structure shown in Listing [[ex/logbook-structure]]: A =drawer
 #+begin_src emacs-lisp
   (defun pg-org-logbook ()
     "Create a new, empty logbook drawer as an Org element."
-    (org-ml-build-drawer "LOGBOOK"))
+    (org-ml-build-drawer (pg-org-get-log-into-drawer)))
 
   ;; Constructors
 
