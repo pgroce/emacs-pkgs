@@ -356,9 +356,13 @@ A logbook has the structure shown in Listing [[ex/logbook-structure]]: A =drawer
 
 #+name: src/logbook
 #+begin_src emacs-lisp
-  (defun pg-org-logbook ()
-    "Create a new, empty logbook drawer as an Org element."
-    (org-ml-build-drawer (pg-org-get-log-into-drawer)))
+  (defun pg-org-logbook (&optional post-blank)
+    "Create a new, empty logbook drawer as an Org element. If
+  POST-BLANK is non-nil, the drawer will be created with a
+  `post-blank' value of 1."
+    (if post-blank
+        (org-ml-build-drawer (pg-org-get-log-into-drawer) :post-blank post-blank)
+      (org-ml-build-drawer (pg-org-get-log-into-drawer))))
 
   ;; Constructors
 
