@@ -223,6 +223,9 @@ Org-ML defines one more function in this category, =org-ml-headline-logbook-conv
   (defun pg-org-get-log-into-drawer ()
     (plist-get pg-org-headline-logging-config :log-into-drawer))
 
+  (defun pg-org-get-clock-into-drawer ()
+    (plist-get pg-org-headline-logging-config :clock-into-drawer))
+
   ;; Supercontents
 
   (defun pg-org-headline-get-supercontents (headline)
