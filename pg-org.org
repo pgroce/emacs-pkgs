@@ -375,9 +375,6 @@ A logbook has the structure shown in Listing [[ex/logbook-structure]]: A =drawer
 #+end_src
 
 
-
-xXx TODO xXx
-
 #+name: src/logbook
 #+begin_src emacs-lisp
   (defun pg-org-logbook ()
