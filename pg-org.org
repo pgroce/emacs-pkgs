@@ -214,70 +214,55 @@ Org-ML defines one more function in this category, =org-ml-headline-logbook-conv
 
 #+name: src/logging-configuration
 #+begin_src emacs-lisp
-  (defcustom pg-org-headline-logging-config
-    '(:log-into-drawer "LOGBOOK" :clock-into-drawer t)
-    "Default logging format for Org files."
-    :type '(plist)
-    :group 'pm)
 
-  (defun pg-org-get-log-into-drawer ()
-    (plist-get pg-org-headline-logging-config :log-into-drawer))
+  (defun pg-org--build-logging-config ()
+    `(:log-into-drawer ,(org-log-into-drawer)
+      :clock-into-drawer (,org-clock-into-drawer)))
 
-  (defun pg-org-get-clock-into-drawer ()
-    (plist-get pg-org-headline-logging-config :clock-into-drawer))
 
   ;; Supercontents
 
   (defun pg-org-headline-get-supercontents (headline)
     "Use `org-ml-headline-get-supercontents' to return the
-    supercontents of HEADLINE. Uses
-    `pg-org-headline-logging-config' for logging configuration
-    information."
+    supercontents of HEADLINE."
     (org-ml-headline-get-supercontents
-     pg-org-headline-logging-config headline))
+     (pg-org--build-logging-config) headline))
 
   (defun pg-org-headline-set-supercontents (supercontents headline)
     "Use `org-ml-headline-set-supercontents' to set the
-    supercontents of HEADLINE. Uses
-    `pg-org-headline-logging-config' for logging configuration
-    information."
+    supercontents of HEADLINE."
     (org-ml-headline-set-supercontents
-     pg-org-headline-logging-config supercontents headline))
+     (pg-org--build-logging-config) supercontents headline))
 
   (defun pg-org-headline-map-supercontents (fun headline)
     "Use `org-ml-headline-map-supercontents' to map the
-    supercontents of HEADLINE. Uses
-    `pg-org-headline-logging-config' for logging configuration
-    information."
+    supercontents of HEADLINE."
     (org-ml-headline-map-supercontents
-        pg-org-headline-logging-config fun headline))
+        (pg-org--build-logging-config) fun headline))
 
 
   ;; Logbook items
 
   (defun pg-org-headline-get-logbook-items (headline)
     "Use `org-ml-headline-get-logbook-items' to pull logbook items
-    off HEADLINE. Uses `pg-org-headline-logging-config' for logging
-    configuration information."
+    off HEADLINE."
     (org-ml-headline-get-logbook-items
-     pg-org-headline-logging-config
+     (pg-org--build-logging-config)
      headline))
 
   (defun pg-org-headline-set-logbook-items (items headline)
     "Use `org-ml-headline-set-logbook-items' to set logbook items
-    for HEADLINE. Uses `pg-org-headline-logging-config' for logging
-    configuration information."
+    for HEADLINE."
     (org-ml-headline-set-logbook-items
-     pg-org-headline-logging-config
+     (pg-org--build-logging-config)
      items
      headline))
 
   (defun pg-org-headline-map-logbook-items (fun headline)
     "Use `org-ml-headline-map-logbook-items' to set logbook items
-    for HEADLINE. Uses `pg-org-headline-logging-config' for logging
-    configuration information."
+    for HEADLINE."
     (org-ml-headline-map-logbook-items
-     pg-org-headline-logging-config
+     (pg-org--build-logging-config)
      fun
      headline))
 
@@ -286,27 +271,24 @@ Org-ML defines one more function in this category, =org-ml-headline-logbook-conv
 
   (defun pg-org-headline-get-logbook-clocks (headline)
     "Use `org-ml-headline-get-logbook-clocks' to pull logbook clocks
-    off HEADLINE. Uses `pg-org-headline-logging-config' for logging
-    configuration information."
+    off HEADLINE."
     (org-ml-headline-get-logbook-clocks
-     pg-org-headline-logging-config
+     (pg-org--build-logging-config)
      headline))
 
   (defun pg-org-headline-set-logbook-clocks (clocks headline)
     "Use `org-ml-headline-set-logbook-clocks' to set logbook clocks
-    for HEADLINE. Uses `pg-org-headline-logging-config' for logging
-    configuration information."
+    for HEADLINE."
     (org-ml-headline-set-logbook-clocks
-     pg-org-headline-logging-config
+     (pg-org--build-logging-config)
      clocks
      headline))
 
   (defun pg-org-headline-map-logbook-clocks (fun headline)
     "Use `org-ml-headline-map-logbook-clocks' to set logbook clocks
-    for HEADLINE. Uses `pg-org-headline-logging-config' for logging
-    configuration information."
+    for HEADLINE."
     (org-ml-headline-map-logbook-clocks
-     pg-org-headline-logging-config
+     (pg-org--build-logging-config)
      fun
      headline))
 
@@ -317,49 +299,41 @@ Org-ML defines one more function in this category, =org-ml-headline-logbook-conv
 
   (defun pg-org-headline-get-contents (headline)
     "Use `org-ml-headline-get-contents' to return the contents of
-    HEADLINE. Uses `pg-org-headline-logging-config' for logging
-    configuration information."
+    HEADLINE."
     (org-ml-headline-get-contents
-     pg-org-headline-logging-config headline))
+     (pg-org--build-logging-config) headline))
 
   (defun pg-org-headline-set-contents (contents headline)
     "Use `org-ml-headline-set-contents' to set the contents of
-    HEADLINE. Uses `pg-org-headline-logging-config' for logging
-    configuration information."
+    HEADLINE."
     (org-ml-headline-set-contents
-     pg-org-headline-logging-config contents headline))
+     (pg-org--build-logging-config) contents headline))
 
   (defun pg-org-headline-map-contents (fun headline)
     "Use `org-ml-headline-map-contents' to map the contents of
-    HEADLINE. Uses `pg-org-headline-logging-config' for logging
-    configuration information."
+    HEADLINE."
     (org-ml-headline-map-contents
-        pg-org-headline-logging-config fun headline))
+        (pg-org--build-logging-config) fun headline))
 
   ;; Other logbook
 
   (defun pg-org-headline-logbook-append-item (item headline)
     "Use `org-ml-headline-append-item' to return the contents
-    of HEADLINE. Uses `pg-org-headline-logging-config' for logging
-    configuration information."
+    of HEADLINE."
     (org-ml-headline-logbook-append-item
-     pg-org-headline-logging-config item headline))
+     (pg-org--build-logging-config) item headline))
 
   (defun pg-org-headline-logbook-append-open-clock (unixtime note headline)
     "Use `org-ml-headline-logbook-append-open-clock' to add an open
-    clock into the logbook of HEADLINE. Uses
-    `pg-org-headline-logging-config' for logging configuration
-    information."
+    clock into the logbook of HEADLINE."
     (org-ml-headline-logbook-append-open-clock
-     pg-org-headline-logging-config unixtime headline))
+     (pg-org--build-logging-config) unixtime headline))
 
   (defun pg-org-headline-logbook-close-open-clock (unixtime note headline)
     "Use `org-ml-headline-logbook-close-open-clock' to close an
-    open clock in the logbook of HEADLINE. Uses
-    `pg-org-headline-logging-config' for logging configuration
-    information."
+    open clock in the logbook of HEADLINE."
     (org-ml-headline-logbook-close-open-clock
-     pg-org-headline-logging-config unixtime note headline))
+     (pg-org--build-logging-config) unixtime note headline))
 
 #+end_src
 
