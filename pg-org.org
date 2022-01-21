@@ -186,6 +186,9 @@ We can't, of course, pass =hello-org-template= to =eval= as we have done here. B
   (defalias 'org-ml-build 'pg-org-ml-build)
 #+end_src
 
+#+RESULTS: src/org-ml-build
+: org-ml-build
+
 The code in Listing [[ex/org-ml-build/4]] demonstrates the usage of =pg-org-ml-build=.
 
 #+name: ex/org-ml-build/4
@@ -194,6 +197,8 @@ The code in Listing [[ex/org-ml-build/4]] demonstrates the usage of =pg-org-ml-b
 
   (pg-org-ml-build '(timestamp! '(2019 1 1 0 0)))
 #+end_src
+
+
 
 ** Working with headlines
 
@@ -353,7 +358,194 @@ Org-ML defines one more function in this category, =org-ml-headline-logbook-conv
 
 #+end_src
 
-*** Logbook entries
+
+*** Logbook access
+
+Syntactically, a logbook is just a =drawer= containing an itemized list of entries, and that's the only interface Org-ML provides to it, with some limited exceptions Semantically, it's an event log. The following code provides an interface for working with logbooks that considers it at that level.
+
+A logbook has the structure shown in Listing [[ex/logbook-structure]]: A =drawer= containing a =plain-list= and a set of items. The items are frequently formatted specially as well.
+
+#+name ex/logbook-structure
+#+begin_src emacs-lisp
+  (drawer
+   (plain-list
+    (item (paragraph))
+    (item (paragraph))
+    (item (paragraph))))
+#+end_src
+
+
+
+xXx TODO xXx
+
+#+name: src/logbook
+#+begin_src emacs-lisp
+  (defun pg-org-logbook ()
+    "Create a new, empty logbook drawer as an Org element."
+    (org-ml-build-drawer "LOGBOOK"))
+
+  ;; Constructors
+
+  (defun pg-org-logbook-from-plain-list (plain-list)
+    "Create a logbook using `pg-org-logbook', whose child is
+  PLAIN-LIST."
+    (->> (pg-org-logbook)
+         (org-ml-set-children (list plain-list))))
+
+  (defun pg-org-logbook-from-items (items)
+    "Create a logbook using `pg-org-logbook-from-plain-list',
+  containing ITEMS in its enclosed list."
+    (let ((plain-list (->> (org-ml-build-plain-list)
+                           (org-ml-set-children items))))
+      (pg-org-logbook-from-plain-list plain-list)))
+
+  (defun pg-org-logbook-from-paragraphs (paragraphs)
+    "Create a logbook using `pg-org-logbook-from-items', with each
+  paragraph in PARAGRAPH enclosed in an item."
+    (->> (--map (org-ml-build-item it) paragraphs)
+         (pg-org-logbook-from-items)))
+
+  (defun pg-org-logbook-from-strings (strings)
+    "Create a logbook using `pg-org-logbook-from-paragraphs', with
+    each string in STRINGS enclosed in a paragraph element."
+    (->> (--map (org-ml-build-paragraph! it) strings)
+         (pg-org-logbook-from-paragraphs)))
+
+
+  ;; Accessors
+  (defun pg-org-logbook-get-plain-list (logbook)
+    "Get the contents of LOGBOOK as a plain-list Org element."
+    (->> (org-ml-get-children logbook)
+         (nth 0)))
+
+  (defun pg-org-logbook-get-items (logbook)
+    "Get the contents of LOGBOOK as a list of item elements."
+    (->> (pg-org-logbook-get-plain-list logbook)
+         (org-ml-get-children)))
+
+  (defun pg-org-logbook-get-paragraphs (logbook)
+    "Get the contents of LOGBOOK as a list of paragraph elements."
+    (--map (->> (org-ml-get-children it)
+                (nth 0))
+           (pg-org-logbook-get-items logbook)))
+
+  (defun pg-org-logbook-get-strings (logbook)
+    "Get the contents of LOGBOOK as a list of strings."
+    (->> (pg-org-logbook-get-paragraphs logbook)
+         (-map #'org-ml-to-trimmed-string)))
+
+  ;; Mutators
+
+  (defun pg-org-logbook-prepend-item (item logbook)
+    "Return new logbook based on LOGBOOK with ITEM prepended to the
+  beginning (top) of the list of items."
+    (->> (pg-org-logbook-get-items logbook)
+         (cons item)
+         (pg-org-logbook-from-items)))
+
+  (defun pg-org-logbook-prepend-paragraph (paragraph logbook)
+    "Return new logbook with PARAGRAPH wrapped in an item element
+  and prepended to the plain-list in LOGBOOK using
+  `pg-org-logbook-prepend-item'."
+    (pg-org-logbook-prepend-item (org-ml-build-item! paragraph) logbook))
+
+  (defun pg-org-logbook-prepend-string (s logbook)
+    "Return new logbook with S wrapped in a paragraph element and
+    prepended to LOGBOOK using
+    `pg-org-logbook-prepend-paragraph'. S is enclosed in a
+    paragraph using `org-ml-build-paragraph!', so formatting can be
+    used in the string."
+  (pg-org-logbook-prepend-paragraph (org-ml-build-paragraph! s) logbook))
+
+  (defun pg-org-logbook-prepend-secondary-string (ss logbook)
+    "Return new logbook with SS wrapped in a paragraph element and
+    item and prepended to LOGBOOK using
+    `pg-org-logbook-prepend-item'."
+    (->> (org-ml-build-item)
+         (org-ml-item-set-paragraph ss)
+         (funcall (-flip #'pg-org-logbook-prepend-item) logbook)))
+
+
+#+end_src
+
+The logbook functions are tested in Listing [[t/logbook]].
+
+#+name: t/logbook
+#+begin_src emacs-lisp :tangle no :noweb yes :wrap src text
+  <<src/logbook>>
+
+  (ert-deftest pg-org/logbook ()
+    (let* ((item-1-str "I *1*")
+           (item-2-str "I 2")
+
+           (strings (list item-1-str item-2-str))
+           (paragraphs (-map #'org-ml-build-paragraph! strings))
+           (items (-map #'org-ml-build-item paragraphs))
+
+           (item-3-str "I =3=")
+           (item-3-sec-str (org-ml-build-secondary-string! item-3-str))
+           (item-3-paragraph (org-ml-build-paragraph! item-3-str))
+           (item-3-item (org-ml-build-item item-3-paragraph))
+
+           (expected-logbook (pg-org-ml-build
+                              `(drawer
+                                "LOGBOOK"
+                                (plain-list
+                                 (item (paragraph! ,item-1-str))
+                                 (item (paragraph! ,item-2-str))))))
+
+           (expected-logbook-prepended (pg-org-ml-build
+                                        `(drawer
+                                          "LOGBOOK"
+                                          (plain-list
+                                           (item (paragraph! ,item-3-str))
+                                           (item (paragraph! ,item-1-str))
+                                           (item (paragraph! ,item-2-str)))))))
+
+      ;; Builders
+      (should (equal (org-ml-build-drawer "LOGBOOK") (pg-org-logbook)))
+      (should (equal expected-logbook
+                     (pg-org-logbook-from-strings strings)))
+      (should (equal expected-logbook
+                     (pg-org-logbook-from-items items)))
+      (should (equal expected-logbook
+                     (pg-org-logbook-from-paragraphs paragraphs)))
+
+      ;; Accessors
+      (should (equal strings
+                     (pg-org-logbook-get-strings expected-logbook)))
+      (should (equal items
+                     (pg-org-logbook-get-items expected-logbook)))
+      (should (equal paragraphs
+                     (pg-org-logbook-get-paragraphs expected-logbook)))
+
+      ;; Mutators
+      (should (equal expected-logbook-prepended
+                     (pg-org-logbook-prepend-string
+                      item-3-str
+                      expected-logbook)))
+
+      (should (equal expected-logbook-prepended
+                     (pg-org-logbook-prepend-paragraph
+                      item-3-paragraph
+                      expected-logbook)))
+
+      (should (equal expected-logbook-prepended
+                     (pg-org-logbook-prepend-item
+                      item-3-item
+                      expected-logbook)))
+
+      (should (equal expected-logbook-prepended
+                     (pg-org-logbook-prepend-secondary-string
+                      item-3-sec-str
+                      expected-logbook)))))
+
+
+  (pg-ert-run-tests-string "pg-org/logbook")
+#+end_src
+
+*** Logbook Entries on the Headline
+
 
 Org-ML provides two ways to get logbook items from a headline. The official way is via =org-ml-headline-get-logbook-items=, which takes the user's logging configuration into account. A proxy for this function that doesn't burden the caller with supplying configuration information is in Listing [[src/logging-configuration]].
 
@@ -530,13 +722,6 @@ Note that =pg-org-paragraph-parse-status-change= returns =nil= if the parse fail
 
   (pg-ert-run-tests-string "pg-org/paragraph-parse-status-change")
 
-#+end_src
-
-#+RESULTS: t/paragraph-parse-status-change
-#+begin_src text
-   passed  1/1  pg-org/paragraph-parse-status-change (0.001009 sec)
-
-Ran 1 tests, 1 results as expected, 0 unexpected (2022-01-05 17:27:56-0500, 0.001134 sec)
 #+end_src
 
 
