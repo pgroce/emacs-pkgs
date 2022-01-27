@@ -6,6 +6,15 @@
 
 This library contains anything I may find specifically useful when working with Org Mode files, which I use constantly both in my regular workflow and as a literate programming tool.
 
+** Style
+
+This package tries as much as possible to play nicely with the [[https://github.com/magnars/dash.el][dash.el]] package. Where possible, the last argument in a function is the input that is "operated on," meaning it is, in the judgement of the author, the most likely argument to be passed in via a threading macro like =->>=. This may clarify some choices.
+
+For instance, function signatures that may otherwise naturally include keyword arguments must work around the =cl-defun= convention of putting keywords after positional arguments. Such functions may, therefore, include an argument containing keyword-like options in a plist in order to ensure that the last argument is positional (and likely to be passed in via a threading macro).
+
+Where such an accomodation is more trouble than it's worth, you may still see some work done to make the function work with composition operators like =-partial= and =-flip=.
+
+
 ** Package Header
 
 #+name: src/header
@@ -31,6 +40,86 @@ This library contains anything I may find specifically useful when working with 
   (require 's)
   (require 'ts)
 #+end_src
+
+
+** Org and =ts=
+
+The =ts= time library has functions for parsing Org timestamp strings and elements. Building Org timestamp strings and elements from =ts= structures is also fairly easy, but functions for doing so are provided in Listing [[src/ts]] in order to further simplify the process.
+
+#+name: src/ts
+#+begin_src emacs-lisp
+  (defun pg-org--ts-to-tuple (include-tod ts-elem)
+    (--> ts-elem
+         (if include-tod
+             (list (ts-year it) (ts-month it) (ts-day it))
+           (list
+            (ts-year it) (ts-month it) (ts-day it)
+            (ts-hour it) (ts-minute it)))))
+
+  (defun pg-org-build-timestamp-from-ts (options ts-elem)
+    "Create an Org timestamp element representing the same time as TS-ELEM.
+
+   OPTIONS is a plist of optional parameters.  The keywords for
+   this plist can be :active, :repeater, and :warning. The
+   semantics of these options are identical to the active,
+   repeater, and warning arguments to
+   `org-ml-build-timestamp!'. Additionally, the option
+   :include-tod, if supplied, indicates to include the hours and
+   minutes from TS-ELEM in the output.
+
+  Note that nil is a valid, empty plist, and may be supplied if
+   none of these options are to be used."
+    (let ((ts-tuple (pg-org--ts-to-tuple (plist-get options :include-tod)
+                                         ts-elem)))
+      (org-ml-build-timestamp! ts-tuple
+                               :active   (plist-get options :active)
+                               :repeater (plist-get options :repeater)
+                               :warning  (plist-get options :warning))))
+
+  (defun pg-org-build-timestamp-range-from-ts (options ts-elem-start ts-elem-end)
+    "Create an Org timestamp range from TS-ELEM-START and
+  TS-ELEM-END. For the semantics of OPTIONS, see
+  `pg-org-build-timestamp-from-ts'."
+    (let ((start (pg-org--ts-to-tuple (plist-get options :include-tod)
+                                      ts-elem-start))
+          (end   (pg-org--ts-to-tuple (plist-get options :include-tod)
+                                      ts-elem-end)))
+      (org-ml-build-timestamp! start
+                               :end end
+                               :active   (plist-get options :active)
+                               :repeater (plist-get options :repeater)
+                               :warning  (plist-get options :warning))))
+
+
+#+end_src
+
+
+The tests for the timestamp functions above are in Listing [[t/ts]].
+
+#+name: t/ts
+#+begin_src emacs-lisp :tangle no :noweb yes
+  <<src/ts>>
+
+  (ert-deftest pg-org/timestamp-from-ts ()
+      (cl-letf* (((symbol-function '>should)
+                  (lambda (i o)
+                    (should (string-equal (org-ml-to-trimmed-string i) o))))
+                 (t-1 (ts-parse "2022-01-27 08:18:19 -0500"))
+                 (t-0 (ts-adjust 'year -2 t-1)))
+        (>should (pg-org-build-timestamp-from-ts nil t-0)
+                 "[2020-01-27 Mon 08:18]")
+        (>should (pg-org-build-timestamp-from-ts '(:active t) t-0)
+                 "<2020-01-27 Mon 08:18>")
+        (>should (pg-org-build-timestamp-from-ts '(:warning (all 1 day)) t-0)
+                 "[2020-01-27 Mon 08:18 -1d]")
+        (>should (pg-org-build-timestamp-range-from-ts '(:active t) t-0 t-1)
+                 "<2020-01-27 Mon 08:18>--<2022-01-27 Thu 08:18>")))
+
+  (pg-ert-run-tests-string "pg-org/timestamp-from-ts")
+
+#+end_src
+
+
 
 ** Working on Source Blocks
 
@@ -361,7 +450,7 @@ A logbook has the structure shown in Listing [[ex/logbook-structure]]: A =drawer
   POST-BLANK is non-nil, the drawer will be created with a
   `post-blank' value of 1."
     (if post-blank
-        (org-ml-build-drawer (pg-org-get-log-into-drawer) :post-blank post-blank)
+        (org-ml-build-drawer (pg-org-get-log-into-drawer) :post-blank 1)
       (org-ml-build-drawer (pg-org-get-log-into-drawer))))
 
   ;; Constructors
