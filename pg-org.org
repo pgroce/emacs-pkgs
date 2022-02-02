@@ -47,7 +47,7 @@ Where such an accomodation is more trouble than it's worth, you may still see so
 The =ts= time library has functions for parsing Org timestamp strings and elements. Building Org timestamp strings and elements from =ts= structures is also fairly easy, but functions for doing so are provided in Listing [[src/ts]] in order to further simplify the process.
 
 #+name: src/ts
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :results silent
   (defun pg-org--ts-to-tuple (include-tod ts-elem)
     (--> ts-elem
          (if include-tod
@@ -293,6 +293,108 @@ The code in Listing [[ex/org-ml-build/4]] demonstrates the usage of =pg-org-ml-b
 
 Many children of headlines can be useful to work with from the headline itself. This is especially true in =org-ml-match=, where it is often convenient to select a headline based on features of its children.
 
+*** Headline node property access
+Headline node properties–meaning the key-value pairs stored in the =PROPERTIES= drawer of the headline–are simply lists of keys and their associated values. Unlike a dictionary or hashtable structure, keys can be stored multiple times, both with and without different capitalization. Consider Example [[ex/node-properties/pathological]], for example. The headline titled =Buffalo?= has seven properties named with the word "buffalo." Some are capitalized differently, some are not. Some are exact duplicates, others are not.
+
+#+name: ex/node-properties/pathological
+#+begin_src org :tangle no :exports code
+  ,* Buffalo?
+    :PROPERTIES:
+    :BUFFALO:  BUFFALO
+    :BUFFALO:  BUFFALO
+    :buffalo:  buffalo
+    :Buffalo:  Buffalo
+    :BuffalO:  BuffalO
+    :Buffalo:  Buffalo
+    :BuffalO:  Buffal0
+    :END:
+
+    Bison.
+#+end_src
+
+The =org-ml-headline-get-node-proeprty= and =org-ml-headline-set-node-property= work simply and well for the common case where there is a single entry for a property. They do not account for multiple properties with the same key, and they work only in a case-sensitive way. If multiple values are set for a property, the getter will get the first property in order from the top, and the setter will update the same property, or insert a new property if none exist. They also do not indicate /when/ multiple values exist. So these functions work, and are very easy to use, but do not give the user a good sense of the state of the property list except that the property being retrieved or set is, in some sense, now one of the properties.
+
+At the price of simplicity, the =pg-org-headline-get-node-property= and =pg-org-headline-set-node-property= functions provide more complete guarantees about the state of the property list, by treating it as a multi-valued dictionary. Updating operations can be done with or without respect to case, at the user's option.
+
+The order of items in the property drawers is sorted lexicographically by key when the properties are modified. This may unnecessarily move some properties around, but it ensures that the list is returned in a predictable state, even if values for a given key are in various parts of the list.
+
+
+
+#+name src/node-properties
+#+begin_src emacs-lisp :results silent
+  (defun pg-org-headline-get-node-property (case-sensitive? key headline)
+    "Return a list of all values of property with KEY in HEADLINE, or nil if not found.
+
+  If CASE-SENSITIVE? is nil, test for key equality with KEY
+  irrespective of case.
+
+  Contrast with `org-ml-headline-get-node-property', which returns
+  only the first value found and is case sensitive."
+    (let ((props (org-ml-headline-get-node-properties headline)))
+      (->> props
+           (--filter (let ((k (org-ml-get-property :key it)))
+                       (if case-sensitive?
+                           (string-equal k key)
+                         (string-equal (downcase k) (downcase key)))))
+           (--map (org-ml-get-property :value it)))))
+
+  (defun pg-org-headline-set-node-property (case-sensitive? action key values headline)
+    "Set node properties for KEY to VALUES in HEADLINE.
+
+  If CASE-SENSITIVE? is nil, test for key equality with KEY irrespective of case.
+
+  If ACTION is the symbol replace, any preexisting properties on
+  HEADLINE with KEY will be removed. (I.e., the set of values in
+  VALUES will replace the ones currently in HEADLINE.) For other
+  values of ACTION, preexisting values will be left alone. Note
+  that CASE-SENSITIVE? will affect how key equality is determined,
+  and thus which keys will be replaced.
+
+  The returned headline will have all properties returned in
+  lexicographically sorted order."
+
+    (cl-letf* ((orig-key key)
+               (key (if case-sensitive? key (downcase key)))
+
+               ;; Function to use for comparing properties for key
+               ;; equality
+               ((symbol-function 'key-equal)
+                (lambda (prop)
+                  (let ((other-key (org-ml-get-property :key prop)))
+                    (if case-sensitive?
+                        (string-equal key other-key)
+                      (string-equal key (downcase other-key))))))
+
+               ;; Function to use for comparing keys for sorting.
+               ;;
+               ;; n.b.: When we're sorting the list of properties, we
+               ;; DON'T want to observe case-sensitive?; that's just for
+               ;; setting the values.
+               ((symbol-function 'key-lessp)
+                (lambda (this that)
+                  (string-lessp (org-ml-get-property :key this)
+                                (org-ml-get-property :key that))))
+
+               ;; New properties to add to headline
+               ;; n.b.: Build value props with original-case key
+               (added-props (--map (org-ml-build-node-property orig-key it) values))
+
+               ;; Properties to retain from headline
+               (existing-props
+                (--> (org-ml-headline-get-node-properties headline)
+                     (if (eq action 'replace)
+                         (-remove #'key-equal it)
+                       it)))
+
+               ;; Properties in their final form
+               (new-props (sort
+                           (-flatten-n 1 (list added-props existing-props))
+                           #'key-lessp)))
+
+      (org-ml-headline-set-node-properties new-props headline)))
+
+#+end_src
+
 *** Logging configuration
 
 Several Org-ML functions related to headlines require the user to supply a logging configuration, specifying which drawer is the logbook drawer and whether to put clocks in the drawer. There are lots of good reasons for that. Perhaps the best is that the rules for determining a headline's logging configuration depend on context like a node's inherited properties; for a function operating on fragments of Org trees in isolation, there is no way to conclude what those are with any certainty. Passing the configuration also removes a source of side-effects, making the functions more generally useful.
@@ -302,7 +404,7 @@ All that said, these configurations seldom change for most people. An interface 
 Org-ML defines one more function in this category, =org-ml-headline-logbook-convert-config=, which doesn't make sense to proxy here for obvious reasons.
 
 #+name: src/logging-configuration
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :results silent
 
   (defun pg-org--build-logging-config ()
     `(:log-into-drawer ,(org-log-into-drawer)
@@ -427,6 +529,7 @@ Org-ML defines one more function in this category, =org-ml-headline-logbook-conv
 #+end_src
 
 
+
 *** Logbook access
 
 Syntactically, a logbook is just a =drawer= containing an itemized list of entries, and that's the only interface Org-ML provides to it, with some limited exceptions Semantically, it's an event log. The following code provides an interface for working with logbooks that considers it at that level.
@@ -444,14 +547,14 @@ A logbook has the structure shown in Listing [[ex/logbook-structure]]: A =drawer
 
 
 #+name: src/logbook
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :results silent
   (defun pg-org-logbook (&optional post-blank)
     "Create a new, empty logbook drawer as an Org element. If
   POST-BLANK is non-nil, the drawer will be created with a
   `post-blank' value of 1."
     (if post-blank
-        (org-ml-build-drawer (pg-org-get-log-into-drawer) :post-blank 1)
-      (org-ml-build-drawer (pg-org-get-log-into-drawer))))
+        (org-ml-build-drawer (org-log-into-drawer) :post-blank 1)
+      (org-ml-build-drawer (org-log-into-drawer))))
 
   ;; Constructors
 
