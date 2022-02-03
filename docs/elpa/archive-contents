@@ -27,7 +27,7 @@
        (:maintainer "Phil Groce" . "pgroce@gmail.com")
        (:keywords "productivity"))])
  (pm-task .
-	  [(0 1 2 3)
+	  [(0 1 3)
 	   ((emacs
 	     (26 1))
 	    (dash
@@ -41,14 +41,14 @@
 	    (pg-ert
 	     (0 1))
 	    (pg-org
-	     (0 1)))
+	     (0 4)))
 	   "Task handling for project management" single
 	   ((:authors
 	     ("Phil Groce" . "pgroce@gmail.com"))
 	    (:maintainer "Phil Groce" . "pgroce@gmail.com")
 	    (:keywords "productivity"))])
  (pg-util .
-	  [(0 3)
+	  [(0 3 2)
 	   ((dash
 	     (2 13 0)))
 	   "Utility functions" single
@@ -120,7 +120,7 @@
 	      (:maintainer "Phil Groce" . "pgroce@gmail.com")
 	      (:keywords "pandoc" "markdown" "org-mode" "latex" "pdf" "docx"))])
  (pg-org .
-	 [(0 3 5)
+	 [(0 4)
 	  ((emacs
 	    (26 1))
 	   (org-ml

@@ -1,9 +1,9 @@
 ;;; pg-util.el --- Utility functions
 
-;; Copyright (C) 2017-2020 Phil Groce
+;; Copyright (C) 2017-2022 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.3
+;; Version: 0.3.2
 ;; Package-Requires: ((dash "2.13.0"))
 ;; Keywords: utility
 
@@ -179,6 +179,80 @@ Examples:
   l)
 
 (defalias '/prioritize 'pg-util-prioritize)
+
+(defcustom pg-util-tree-traversal-max-depth 50
+  "Default maximum recursion for `pg-util-tree-transform'.")
+
+(defun pg-util--tree-transform-2-recursive
+    (remaining-depth branch? transformer tree)
+  (if (= 0 remaining-depth)
+      tree
+    (let* ((transformed-plist (funcall transformer tree))
+           (transformed-node (plist-get transformed-plist :node)))
+      (--map-when
+       (and (not (plist-get transformed-plist :stop))
+            (funcall branch? it))
+       (pg-util--tree-transform-2-recursive
+        (- remaining-depth 1) branch? transformer it)
+       transformed-node))
+    ))
+
+(defun pg-util--tree-transform-2-identity (node) `(:node ,node))
+
+(cl-defun pg-util-tree-transform-2 (tree &key
+                                         (branch? 'listp)
+                                         (transformer 'pg-util--tree-transform-2-identity)
+                                         (max-depth nil))
+    "Traverse a tree, transforming subtrees with TRANSFORMER.
+
+BRANCH? is called on all elements of TREE. If it returns `t', the
+`pg-util-tree-transform' will descend into the element. By
+default, BRANCH? is set to `listp'; if this function returns
+non-nil and the input is not a list, results are undefined.
+
+TRANSFORMER is a function that takes a tree node (i.e., a list)
+as input, and outputs a plist. The keys of the plist are:
+
+  :node - The transformed node
+  :stop - (Optional) If non-nil, don't descend into children of this node
+
+The optional MAX-DEPTH parameter can be used to limit the depth
+of the tree. If it is not supplied, the default in
+`pg-util-tree-traversal-max-depth' is used"
+  (let ((depth (if (eq nil max-depth)
+                   pg-util-tree-traversal-max-depth
+                 max-depth)))
+    (pg-util--tree-transform-2-recursive
+     depth branch? transformer tree)))
+
+(defalias '/tree-transform-2 'pg-util-tree-transform-2)
+
+(cl-defun pg-util-tree-transform
+    (tree &key
+          (branch? 'listp)
+          (transformer 'identity)
+          (max-depth nil))
+  "Traverse a tree, transforming subtrees with TRANSFORMER. This function is a simpler, less powerful version of `pg-util-tree-transform-2'.
+
+BRANCH? is called on all elements of TREE. If it returns `t', the
+`pg-util-tree-transform' will descend into the element. By
+default, BRANCH? is set to `listp'; if this function returns
+non-nil and the input is not a list, results are undefined.
+
+TRANSFORMER is a function that takes a tree node (i.e., a list)
+as input, transforms it, and returns the transformed node.
+
+The optional MAX-DEPTH parameter can be used to limit the depth
+of the tree. If it is not supplied, the default in
+`pg-util-tree-traversal-max-depth' is used"
+
+  (lexical-let* ((transformer-1 transformer)
+                 (transformer-2
+                  (lambda (node) `(:node ,(funcall transformer-1 node)))))
+    (pg-util-tree-transform-2 tree
+                              :branch? branch?
+                              :transformer transformer-2
+                              :max-depth max-depth)))
 
 ;;;###autoload
 (defun pg-util-minor-mode-active-p (minor-mode)
