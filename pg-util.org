@@ -27,7 +27,8 @@ Many of these functions come from [[mwd5i@mwd5i.org][Michael Duggan]]. Thanks, D
 * Requires
 
 #+BEGIN_SRC emacs-lisp
-  (require 'cl)
+  (require 'cl-lib)
+  (require 'find-func)
   (require 'dash)
 #+END_SRC
 
@@ -61,8 +62,13 @@ This makes for a very powerful debugging tool. Just replace, say, =(foo x)= with
 I use [[https://github.com/magnars/dash.el][dash.el]] for most list manipulation, but these functions have proven very convenient over the years.
 
 #+begin_src emacs-lisp
+  (defgroup pg nil
+    "Customization group for pg-* family of libraries.")
+
   (defcustom pg-error-on-deprecation nil
-    "Set to `t' to change deprecation warnings to (traceable) errors.")
+    "Set to `t' to change deprecation warnings to (traceable) errors."
+    :type 'boolean
+    :group 'pg)
 
   ;;;###autoload
   (defun pg-util-zip (lists)
@@ -137,8 +143,8 @@ I use [[https://github.com/magnars/dash.el][dash.el]] for most list manipulation
   `pg-util-list-update-1'."
     (let ((rc l1))
       (cl-dolist (elt2 l2 rc)
-        (let ((matcher-all matcher)
-              (matcher-1 (lambda (elt1) (funcall matcher-all elt1 elt2))))
+        (let* ((matcher-all matcher)
+               (matcher-1 (lambda (elt1) (funcall matcher-all elt1 elt2))))
           (setq rc (pg-util-list-update-1
                     rc
                     elt2
@@ -337,7 +343,9 @@ This could also be done for efficiency, if a transform function can determine th
 #+name: src/tree-transform-2
 #+begin_src emacs-lisp :results silent
   (defcustom pg-util-tree-traversal-max-depth 50
-    "Default maximum recursion for `pg-util-tree-transform'.")
+    "Default maximum recursion for `pg-util-tree-transform'."
+    :type 'integer
+    :group 'pg)
 
   (defun pg-util--tree-transform-2-recursive
       (remaining-depth branch? transformer tree)

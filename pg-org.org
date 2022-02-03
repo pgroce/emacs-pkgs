@@ -36,6 +36,7 @@ Where such an accomodation is more trouble than it's worth, you may still see so
 #+begin_src emacs-lisp
   (eval-when-compile (require 'cl-macs))
   (require 'org-ml)
+  (require 'org-clock)
   (require 'dash)
   (require 's)
   (require 'ts)
@@ -408,7 +409,7 @@ Org-ML defines one more function in this category, =org-ml-headline-logbook-conv
 
   (defun pg-org--build-logging-config ()
     `(:log-into-drawer ,(org-log-into-drawer)
-      :clock-into-drawer (,org-clock-into-drawer)))
+      :clock-into-drawer ,(org-clock-into-drawer)))
 
 
   ;; Supercontents
@@ -731,9 +732,7 @@ The other major change in this function is that it returns the =paragraph= eleme
     "Given a headline org element, return its logbook entries as a
   list of paragraph elements. If the headline doesn't contain any
   logbook entries, return `nil'."
-    (let ((drawer-name (plist-get
-                        pg-org-headline-logging-config
-                        :log-into-drawer)))
+    (let ((drawer-name (org-log-into-drawer)))
       (->> headline
            (org-ml-match
             '(section
@@ -827,7 +826,7 @@ A previous version of this function lived in =pm.org= and took =item= elements i
                  ((_ from to) (->> (org-ml-to-trimmed-string s)
                                    (s-match pg-org--rx-logbook-status-change)))
                  ;; if notes exist, create as new paragraph
-                 (notes (->> (if (org-ml-is-type 'line-break (first the-rest))
+                 (notes (->> (if (org-ml-is-type 'line-break (nth 0 the-rest))
                                  ;; trick to inline (cdr the-rest) as args
                                  (let ((para-objs (-map (lambda (x) `(quote ,x)) (cdr the-rest))))
                                    (eval `(org-ml-build-paragraph ,@para-objs)))
