@@ -823,7 +823,7 @@ This test uses an additional input, shown in Listing [[input/current-status]]. (
 #+end_src
 
 #+name: t/current-status
-#+begin_src emacs-lisp :noweb eval :tangle no  :wrap src text
+#+begin_src emacs-lisp :tangle no :noweb eval :tangle no  :wrap src text
   <<src/accessors>>
   (pg-org-deftest pm-task/current-status/1
       input/basic
@@ -844,7 +844,7 @@ This test uses an additional input, shown in Listing [[input/current-status]]. (
 **** =pm-task-assignee=
 
 #+name: t/assignee
-#+begin_src emacs-lisp :noweb eval :wrap src text
+#+begin_src emacs-lisp :tangle no :noweb eval :wrap src text
   <<src/accessors>>
 
   (pg-org-deftest  pm-task/assignee
@@ -862,7 +862,7 @@ This test uses an additional input, shown in Listing [[input/current-status]]. (
 **** =pm-task-created-on=
 
 #+name: t/created-on
-#+begin_src emacs-lisp :noweb eval :wrap src text
+#+begin_src emacs-lisp :tangle no :noweb eval :wrap src text
   <<src/accessors>>
 
   (pg-org-deftest  pm-task/created-on
@@ -878,7 +878,7 @@ This test uses an additional input, shown in Listing [[input/current-status]]. (
 **** =pm-task-creator=
 
 #+name: t/creator
-#+begin_src emacs-lisp :noweb eval :wrap src text
+#+begin_src emacs-lisp :tangle no :noweb eval :wrap src text
   <<src/accessors>>
 
   (pg-org-deftest  pm-task/creator
@@ -899,7 +899,7 @@ Because a Task is an Org headline, it is easy to parse using Org's =org-element=
 
 #+name: ex/parsing-a-headline
 #+caption: Parsing a headline with =org-ml=
-#+begin_src emacs-lisp :noweb eval :tangle no :exports code :results code :wrap src emacs-lisp
+#+begin_src emacs-lisp :tangle no :noweb eval :tangle no :exports code :results code :wrap src emacs-lisp
   (pg-org-with-src-doc ex/task/2
     (->> doc
          (org-ml-match '(headline))
@@ -1000,7 +1000,7 @@ This is a work in progress. As predicates are defined to satisfy use cases in [[
 This task uses its own test input, shown in Listing [[input/is-synced/1]] and [[input/is-synced/2]].
 
 #+name: input/is-synced/1
-#+begin_src org
+#+begin_src org :tangle no
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
 
   ,* DOING A Synced Task
@@ -1013,14 +1013,14 @@ This task uses its own test input, shown in Listing [[input/is-synced/1]] and [[
 #+end_src
 
 #+name: input/is-synced/2
-#+begin_src org
+#+begin_src org :tangle no
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
 
   ,* DOING An unsynced task
 #+end_src
 
 #+name: t/is-synced
-#+begin_src  emacs-lisp :noweb eval :tangle no  :wrap src text
+#+begin_src  emacs-lis :tangle nop :noweb eval :tangle no  :wrap src text
   (pg-org-deftest pm-task/is-synced/1
       input/is-synced/1
     (-let (((task . _) (org-ml-match '(headline) doc)))
@@ -1041,7 +1041,7 @@ These functions are trivial extensions of =pm-task-last-change-timestamp=, so th
 They were, naturally, among the ugliest functions to debug. /Always test./
 
 #+name: t/task-status-changed
-#+begin_src emacs-lisp :noweb eval :tangle no  :wrap src text
+#+begin_src emacs-lisp :tangle no :noweb eval :tangle no  :wrap src text
   <<src>>
 
 
@@ -1126,19 +1126,13 @@ They were, naturally, among the ugliest functions to debug. /Always test./
   (pg-ert-run-tests-string "pm-test/status-changed-on")
 #+end_src
 
-#+RESULTS: t/task-status-changed
-#+begin_src text
-
-Ran 0 tests, 0 results as expected, 0 unexpected (2022-01-09 15:09:15-0500, 0.000067 sec)
-#+end_src
-
 
 ***** =pm-task-status-in=                                 :worked:tested:
 
 Input shown in Listing [[input/status-in/1]].
 
 #+name: input/status-in/1
-#+begin_src org
+#+begin_src org :tangle no
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
   #
   ,* TODO to-do
@@ -1147,7 +1141,7 @@ Input shown in Listing [[input/status-in/1]].
 #+end_src
 
 #+name: t/status-in
-#+begin_src  emacs-lisp :noweb eval :tangle no  :wrap src text
+#+begin_src  emacs-lis :tangle nop :noweb eval :tangle no  :wrap src text
   <<src/predicates>>
   (pg-org-deftest pm-task/status-in
       input/status-in/1
@@ -1191,7 +1185,7 @@ Input shown in Listing [[input/status-in/1]].
 Input shown in Listing [[input/is-assigned-to]].
 
 #+name: input/is-assigned-to
-#+begin_src org
+#+begin_src org :tangle no
 
   ,* TODO Thing 1
     :PROPERTIES:
@@ -1219,7 +1213,7 @@ Input shown in Listing [[input/is-assigned-to]].
 #+end_src
 
 #+name: t/is-assigned-to
-#+begin_src  emacs-lisp :noweb eval :tangle no  :wrap src text
+#+begin_src  emacs-lis :tangle nop :noweb eval :tangle no  :wrap src text
   <<src>>
 
   (pg-org-deftest pm-task/is-assigned-to
@@ -1317,7 +1311,7 @@ We use Listing [[input/unsynced-tasks]] to test this, as [[input/basic]] lacks u
 
 
 #+name: ex/unsynced-tasks/1
-#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp :results code :tangle no
+#+begin_src emacs-lisp :tangle no :noweb yes :wrap src emacs-lisp :results code :tangle no
   <<src>>
 
   (pg-org-with-src-doc input/unsynced-tasks
@@ -1328,7 +1322,7 @@ We use Listing [[input/unsynced-tasks]] to test this, as [[input/basic]] lacks u
 #+end_src
 
 #+name: ex/unsynced-tasks/2
-#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp :results code :tangle no
+#+begin_src emacs-lisp :tangle no :noweb yes :wrap src emacs-lisp :results code :tangle no
   <<src>>
 
   (pg-org-with-src-doc input/unsynced-tasks
@@ -1365,11 +1359,6 @@ This will return only the headline for "Get past the guard", as the timestamp fo
            (-map (-partial #'org-ml-get-property :raw-value)))))
 #+end_src
 
-#+RESULTS: ex/tasks-updated-since
-#+begin_src emacs-lisp
-("Get past the guard")
-#+end_src
-
 **** Tasks resolved since \tau                                :worked:tested:
 
 Each project has its own set of statuses, some of which can indicate that a task has been resolved in some way. It may make sense to relate project metadata to tasks at some point; one use for that is relating a task to the valid statuses for that task.
@@ -1380,7 +1369,7 @@ For demonstration purposes,  we will augment our example to include tasks with o
 
 #+name: input/resolved-since
 #+caption: Sample used for testing
-#+begin_src org
+#+begin_src org :tangle no
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@) CANCELLED(@)
 
 
@@ -1454,17 +1443,12 @@ This use case requires that assignment changes be fully tracked, with timestamps
 **** Tasks with status \sigma                                   :worked:tested:
 
 
-#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp :results code
+#+begin_src emacs-lisp :tangle no :noweb yes :wrap src emacs-lisp :results code
   (pg-org-with-src-doc input/basic
     (->> doc
          (pg-org-match
           '((:and headline (:-pred (pm-task-status-in '("DONE") el)))))
          (-map (-partial #'org-ml-get-property :raw-value))))
-#+end_src
-
-#+RESULTS:
-#+begin_src emacs-lisp
-("Get past the guard")
 #+end_src
 
 **** All unresolved tasks
