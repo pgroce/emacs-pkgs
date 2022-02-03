@@ -176,7 +176,7 @@ Listing [[ex/task/2]] shows a simple Org file containing a single task. This tas
 
 #+name: ex/task/2
 #+caption: A more complicated task
-#+begin_src org
+#+begin_src org :tangle no
   ,#+seq_todo: TODO DOING(@) BLOCKED(@) | DONE(@)
 
 
@@ -267,7 +267,7 @@ The =pm-task-build= function can be exercised with the code in Listing [[ex/buil
 
 
 #+name: ex/build/1/result
-#+begin_src org
+#+begin_src org :tangle no
 ,* TODO FooBar
 :PROPERTIES:
 :CREATED:  [2022-01-24 Mon 19:11]
@@ -491,7 +491,7 @@ We can combine these techniques into a general-purpose logging function, as seen
 #+end_src
 
 #+RESULTS: ex/logbook/log
-#+begin_src org
+#+begin_src org :tangle no
 ,* DOING Rewire the security system
 :PROPERTIES:
 :ASSIGNEE: Bart Starr
@@ -557,7 +557,7 @@ Use of =pm-task-annotate= is shown in Listing [[ex/logbook/1]], with results in 
 #+end_src
 
 #+name: ex/logbook/1/results
-#+begin_src org
+#+begin_src org :tangle no
 ,* DOING Rewire the security system
 :PROPERTIES:
 :ASSIGNEE: Bart Starr
@@ -608,7 +608,7 @@ The =pm-task-reassign= function changes the assignee. The function is defined in
 #+end_src
 
 #+name: ex/reassign/1/results
-#+begin_src org
+#+begin_src org :tangle no
 ,* DOING Rewire the security system
 :PROPERTIES:
 :ASSIGNEE: Bret Farvrvre
@@ -729,7 +729,7 @@ A set of tests demonstrates their usage. The input for these tests is in Listing
 
 #+name: input/basic
 #+caption: Sample used for testing
-#+begin_src org
+#+begin_src org :tangle no
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
 
 
@@ -818,7 +818,7 @@ A set of tests demonstrates their usage. The input for these tests is in Listing
 This test uses an additional input, shown in Listing [[input/current-status]]. (Technically, a bare headline is not a task, but a core design principle of this library is to be liberal in what is accepted.)
 
 #+name: input/current-status
-#+begin_src org
+#+begin_src org :tangle no
   ,* No status here
 #+end_src
 
