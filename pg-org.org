@@ -24,7 +24,7 @@ Where such an accomodation is more trouble than it's worth, you may still see so
   ;; Copyright (C) 2022 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.4
+  ;; Version: 0.4.1
   ;; Package-Requires: ((emacs "26.1") (org-ml "5.7") (dash "2.19") (s "1.12") (ts "0.3") (pg-ert "0.1"))
   ;; Keywords: productivity
 #+END_SRC
@@ -537,7 +537,7 @@ Syntactically, a logbook is just a =drawer= containing an itemized list of entri
 A logbook has the structure shown in Listing [[ex/logbook-structure]]: A =drawer= containing a =plain-list= and a set of items. The items are frequently formatted specially as well.
 
 #+name ex/logbook-structure
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no :exports code
   (drawer
    (plain-list
     (item (paragraph))
