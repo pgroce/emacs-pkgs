@@ -48,7 +48,7 @@
 	    (:maintainer "Phil Groce" . "pgroce@gmail.com")
 	    (:keywords "productivity"))])
  (pg-util .
-	  [(0 3 3)
+	  [(0 3 4)
 	   ((dash
 	     (2 13 0)))
 	   "Utility functions" single
@@ -120,7 +120,7 @@
 	      (:maintainer "Phil Groce" . "pgroce@gmail.com")
 	      (:keywords "pandoc" "markdown" "org-mode" "latex" "pdf" "docx"))])
  (pg-org .
-	 [(0 4 2)
+	 [(0 4 3)
 	  ((emacs
 	    (26 1))
 	   (org-ml
