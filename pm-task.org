@@ -38,60 +38,14 @@ That said, this package is focused only on the construction of a rich task const
 :CUSTOM_ID: sct-future-work
 :END:
 
-** Comments and Temporal Event Logging
 
-- Necessity
-  - For comments: Not so much
-    - Bigger deal when multiple users get involved
-  - For other things: Somewhat more important
-    - Already ways to timestamp things in Org
-    - But: Having it in one place would have advantages when searching
+** Comments: Possible approaches
 
-*** Event logging: Possible approaches
+Some UI pointers in the =org-add-note= and =org-add-log-setup= functions. (Note that you can't add new note types, but may want to borrow the technique.)
 
-**** Store events in Logbook
+Annotations (short comments stored in the logbook) have been implemented. It is not yet clear that more elaborate comments are necessary, since the description can be arbitrarily complex.
 
-Approach: Use the "notes" type of logbook entry as an event log
-
-Pros:
-- Keeps everything in the logbook
-  - Simplifies searching/sorting
-- Less extension of Org functionality
-
-Cons:
-- Have to deal with unrelated notes
-- No less complexity, just pushing it into the notes entry where there's less structural support (i.e., the "port 80" problem)
-- Limited expressiveness
-  - Full Org syntax up to and including blocks (e.g., =begin_src=), but no headlines
-
-
-**** Store events in custom drawer
-
-Pros:
-- Full control of that drawer
-- Somewhat centralized
-- Somewhat contained
-
-Cons:
-- More than about 2 drawers on a headline are awkward and unreadable
-
-*** Comments: Possible approaches
-
-**** Items in event log drawer
-
-Some pointers here: The =org-add-note= and =org-add-log-setup= functions. (Note that you can't add new note types, but may want to borrow the technique.)
-
-Pros:
-- Contained
-- Natural representation if you think of comments as rich event log entries
-- Metadata consolidated with content
-
-Cons:
-- Limited expressiveness (see above)
-- Harder to read
-
-
-**** Headlines
+*** Headlines
 
 Pros:
 - Very easy to read
@@ -109,7 +63,7 @@ Cons:
 
 #+name: ex/task/3
 #+caption: A fully elaborated task
-#+begin_src org
+#+begin_src org :tangle no
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
 
 
@@ -182,8 +136,8 @@ Cons:
   ;; Copyright (C) 2021 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.1.2.3
-  ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (pg-ert "0.1") (pg-org "0.1"))
+  ;; Version: 0.1.3
+  ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (pg-ert "0.1") (pg-org "0.4"))
   ;; Keywords: productivity
 #+END_SRC
 
@@ -208,7 +162,7 @@ The simplest possible task is contained in Listing [[ex/task/1]].
 
 #+name: ex/task/1
 #+caption: A more complicated task
-#+begin_src org
+#+begin_src org :tangle no
   ,* DOING Rewire the security system
 #+end_src
 
@@ -223,7 +177,7 @@ Listing [[ex/task/2]] shows a simple Org file containing a single task. This tas
 #+name: ex/task/2
 #+caption: A more complicated task
 #+begin_src org
-  ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
+  ,#+seq_todo: TODO DOING(@) BLOCKED(@) | DONE(@)
 
 
   ,* DOING Rewire the security system
@@ -248,18 +202,17 @@ Listing [[ex/task/2]] shows a simple Org file containing a single task. This tas
 
 Everything in Listing [[ex/task/2]] is standard Org syntax used in ways that Org expects. Extensions to this model have their own semantics, but are still constructed from Org primitives. A task exhibiting all the features =pm-task= supports is contained Listing [[ex/task/3]]. It demonstrates the following additional features:
 
-- An /assignee/, a user who is responsible for finishing the task
-- A number of /comments/
+- An /assignee/, a user who is responsible for finishing the task. The default assignee is "UNASSIGNED" (Canonically uppercase, but case-insensitive variants will be accepted. The package doesn't support any version of "unassigned" as a valid username.)
 - Unique IDs for the task and for each comment.
 - Additional logbook entries tracking event creation and comment editing
 
 Comments and the non-status events in the logbook are currently aspirational, see [[#sct-future-work]].
 
-** Creating and Updating Tasks
+** Building a task
 
-The code in Listing [[src/builders]] creates new tasks. One can, of course, create tasks by hand, or treat existing Org headlines as, tasks, but these functions produce tasks with all the optional features, notably timestamps for events such as creation and reassignment.
+The code in Listing [[src/build]] generates a task from input parameters, as a data structure built from Org elements. The word =build= will be used to refer to this kind of creation, as opposed to hand-building a task in a buffer, or deriving a text representation from an Org element (likely also for insertion into a buffer).
 
-#+name: src/builders
+#+name: src/build
 #+begin_src emacs-lisp :results silent :noweb-ref src
   (defun pm-task-build (the-headline keyword description assignee user)
     (let* ((now-ts  (ts-now))
@@ -291,7 +244,8 @@ The code in Listing [[src/builders]] creates new tasks. One can, of course, crea
           ;; handled as regular timestamps. ¯\_(ツ)_/¯
           (node-property "CREATED" ,now-str)
           (node-property "CREATOR" ,user)
-          (node-property "ASSIGNEE" ,assignee))
+          (node-property "ASSIGNEE" ,assignee)
+          (node-property "CUSTOM_ID" ,(format "pm-task-%s" (org-id-uuid))))
          (drawer
           "LOGBOOK"
           :post-blank 1
@@ -301,25 +255,28 @@ The code in Listing [[src/builders]] creates new tasks. One can, of course, crea
          (paragraph! ,description)))))
 #+end_src
 
-The
+The =pm-task-build= function can be exercised with the code in Listing [[ex/build/1]], with the result in Listing [[ex/build/1/result]].
 
+#+name: ex/build/1
 #+begin_src emacs-lisp :noweb yes :tangle no :wrap src org
-  <<src/builders>>
-  (->> (pm-task-build "FooBar" "TODO" "Foo the bar!" "harry bovik" "frank gorshin")
+  <<src/build>>
+  (->> (pm-task-build "FooBar" "TODO" "Foo the bar!" "Harry Bovik" "Frank Gorshin")
        (pg-org-ml-build)
        (org-ml-to-trimmed-string))
 #+end_src
 
-#+RESULTS:
+
+#+name: ex/build/1/result
 #+begin_src org
 ,* TODO FooBar
 :PROPERTIES:
-:CREATED:  [2022-01-16 Sun 11:56]
-:CREATOR:  frank gorshin
-:ASSIGNEE: harry bovik
+:CREATED:  [2022-01-24 Mon 19:11]
+:CREATOR:  Frank Gorshin
+:ASSIGNEE: Harry Bovik
+:CUSTOM_ID: pm-task-17c6ffbc-1ab9-44c1-b48a-b973b7aeed43
 :END:
 :LOGBOOK:
-- Task created by "frank gorshin" on [2022-01-16 Sun 11:56]
+- Task created by "Frank Gorshin" on [2022-01-24 Mon 19:11]
 :END:
 
 Foo the bar!
@@ -327,78 +284,432 @@ Foo the bar!
 
 
 
-** Accessing tasks
+
+** Accessing and updating parts of the task data structure
+
+Below are low-level functions for manipulating the logbook, followed by higher-level functions for updating various parts of a task. In general, the high-level interface tries to log everything it does, but since the task also exists as text in an Org file that a user can change arbitrarily, these should be seen as a convenience, and not any kind of guarantee that the log is complete or authoritative.
+
+If you need change control, check project files containing tasks into version control systems. These changes will not be synced with individual changes made to a task, but neither is this package ever likely to try to replicate that functionality. (Automatically checking a project into version control when a task changes is a possible feature, but unplanned.)
+
+A final note: These functions generate tasks with many optional features. Minimally, this usually menas logs of actions taken in the logbook. Additional work may include adding UUIDs and creating cross-references.
+
+*** Logbook
+:PROPERTIES:
+:CUSTOM_ID: sct-logbook
+:END:
+
+We get the logbook using the code in Listing [[src/logbook/get]]. Org ML provides some support for this in =org-ml-headline-get-logbook-items= and =org-ml-headline-set-logbook-items=, but for the interface of this package it would be more convenient to be able to get/set the whole logbook drawer.
+
+#+name: src/logbook/get
+#+begin_src emacs-lisp :results silent
+  (defun pm-task-get-logbook (task)
+    "If TASK has a logbook, returns a copy of it as an org-element
+  expression. If not, returns a new, empty logbook."
+    (let ((logbook-name (org-log-into-drawer)))
+      (-if-let (logbook (org-ml-match
+                         `(section (:and drawer (:drawer-name ,logbook-name)))
+                         task))
+          (nth 0 logbook)
+        (org-ml-build-drawer logbook-name))))
+#+end_src
+
+A task can then be updated with a new logbook using the =pm-task-set-logbook= function in Listing [[src/logbook/set]]. This can be used to completely replace a task's logbook, as shown in Listing [[ex/logbook/set/1/code]] and Listing [[ex/logbook/set/1/results]] for the task in Listing [[ex/logbook/set/1/input]]. Replacing the logbook destroys any history present in the logbook, and should only be used for low-level manipulations. The task update functions are the end-user interface to making programmatic task changes. Listing [[ex/logbook/set/2/code]] uses =pm-task-set-logbook= in conjunction with =pg-org-logbook-prepend-item= to note task changes; the results of this change are in [[ex/logbook/set/2/results]].
+
+
+
+#+name: src/logbook/set
+#+begin_src emacs-lisp :results silent
+  (defun pm-task-set-logbook (new-logbook task)
+    "Make NEW-LOGBOOK the logbook in TASK. If a logbook already
+    exists in TASK, it is replaced with NEW-LOGBOOK."
+    (let ((matcher
+           '(:first section
+                    (:and drawer
+                          (:drawer-name "LOGBOOK")))))
+      (if (org-ml-match matcher task)
+          ;; Replace old logbook with new one
+          (org-ml-match-replace matcher new-logbook task)
+        ;; Insert new logbook after property drawer, if it exists. If
+        ;; not, insert it as the first child.
+        (let* ((section (org-ml-headline-get-section task))
+               (sct-children (org-ml-get-children section))
+               (pdrawer-idx (--find-index
+                             (org-ml-is-type 'property-drawer)
+                             sct-children))
+               (new-children
+                (if (numberp pdrawer-idx)
+                    (-insert-at (+ 1 pdrawer-idx) new-logbook sct-children)
+                  (-insert-at 0 new-logbook sct-children))))
+          (org-ml-headline-set-section new-children)))))
+
+  (defun pm-task-set-logbook-2 (task new-logbook)
+    "Equivalent to `pm-task-set-logbook', but with arguments
+    reversed for easier function composition."
+    (pm-task-set-logbook new-logbook task))
+#+end_src
+
+#+name: ex/logbook/set/1/input
+#+begin_src org :tangle no
+  ,#+seq_todo: TODO DOING(@) BLOCKED(@) | DONE(@)
+
+
+  ,* DOING Rewire the security system
+    :PROPERTIES:
+    :ASSIGNEE: Bart Starr
+    :END:
+    :LOGBOOK:
+    - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+      Third item added
+    - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+      Second item added
+    - State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+      First item added
+    :END:
+
+  This is the description.
+#+end_src
+
+
+#+name: ex/logbook/set/1/code
+#+caption: Associating a new logbook with a task.
+#+begin_src emacs-lisp :tangle no :noweb no-export :wrap src org
+  <<src/logbook/get>>
+  <<src/logbook/set>>
+
+  (pg-org-with-src-doc ex/logbook/set/1/input
+
+    (let* ((lb-item
+            (org-ml-build-log-note
+             (ts-unix (ts-now))
+             "New item"))
+           (new-logbook
+            (->> (pg-org-logbook t)
+                 (pg-org-logbook-prepend-item lb-item))))
+      (assert new-logbook)
+      (->> doc
+           (org-ml-match '(:first headline))
+           (nth 0)
+           (pm-task-set-logbook new-logbook)
+           (org-ml-to-trimmed-string))))
+#+end_src
+
+#+name: ex/logbook/set/1/results
+#+caption: The result of replacing a logbook using pm-task-set-logbook.
+#+begin_src org :tangle no
+,* DOING Rewire the security system
+:PROPERTIES:
+:ASSIGNEE: Bart Starr
+:END:
+:LOGBOOK:
+- Note taken on [2022-01-21 Fri 07:14] \\
+  New item
+:END:
+This is the description.
+#+end_src
+
+
+#+name: ex/logbook/set/2/code
+#+caption: Using pm-task-get-logbook to update an existing logbook
+#+begin_src emacs-lisp :tangle no :noweb no-export :wrap src org
+  <<src/logbook/get>>
+  <<src/logbook/set>>
+
+  (pg-org-with-src-doc ex/logbook/set/1/input
+
+    (let* ((task (->> doc
+                      (org-ml-match '(:first headline))
+                      (nth 0)))
+           (lb-item
+            (org-ml-build-log-note
+             (ts-unix (ts-now)) "New item"))
+           (new-logbook
+            (->> (pm-task-get-logbook task)
+                 (pg-org-logbook-prepend-item lb-item))))
+      (assert new-logbook)
+      (->> (pm-task-set-logbook new-logbook task)
+           (org-ml-to-trimmed-string))))
+#+end_src
+
+#+name: ex/logbook/set/2/results
+#+caption: Results of updating a task logbook
+#+begin_src org :tangle no
+  ,* DOING Rewire the security system
+  :PROPERTIES:
+  :ASSIGNEE: Bart Starr
+  :END:
+  :LOGBOOK:
+  - Note taken on [2022-01-21 Fri 10:47] \\
+    New item
+  - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+    Third item added
+  - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+    Second item added
+  - State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+    First item added
+  :END:
+  This is the description.
+#+end_src
+
+We can combine these techniques into a general-purpose logging function, as seen in Listing [[src/logbook/log]]. Example [[ex/logbook/log]] shows an example of use, generating the output in [[ex/logbook/log/result]].
+
+#+name: src/logbook/log
+#+begin_src emacs-lisp :results silent
+  (defun pm-task-log (header msg task)
+    "Create a new task based on TASK, with a new log entry in the
+  logbook. The log entry will contain a header as specified by
+  HEADER, a space, a timestamp, a line break, and the contents of
+  MSG, a string."
+    (let* ((now (->> (ts-now)
+                     (pg-org-build-timestamp-from-ts nil)))
+           (header (or header (format
+                               "Log entry by \"%s\""
+                               user-login-name)))
+           (break (org-ml-build-line-break))
+           (new-entry (if msg
+                          (org-ml-build-paragraph
+                           header " " now  " " break msg)
+                        (org-ml-build-paragraph
+                         header " " now))))
+      (--> (pm-task-get-logbook task)
+           (pg-org-logbook-prepend-paragraph new-entry it)
+           (pm-task-set-logbook it task))))
+#+end_src
+
+
+#+name: ex/logbook/log
+#+begin_src emacs-lisp :tangle no :noweb no-export :wrap src org
+  (pg-org-with-src-doc ex/logbook/set/1/input
+
+    (->> doc
+         (org-ml-match '(:first headline))
+         (nth 0)
+         (pm-task-log "Header test" "This is a message")
+         (pm-task-log "nother test" nil)
+         (pm-task-log nil "Saying something in the msg")
+         (pm-task-log nil nil)
+         (org-ml-to-trimmed-string)))
+#+end_src
+
+#+RESULTS: ex/logbook/log
+#+begin_src org
+,* DOING Rewire the security system
+:PROPERTIES:
+:ASSIGNEE: Bart Starr
+:END:
+:LOGBOOK:
+- Log entry by "pgroce" [2022-02-02 Wed 20:15]
+- Log entry by "pgroce" [2022-02-02 Wed 20:15] \\
+  Saying something in the msg
+- nother test [2022-02-02 Wed 20:15]
+- Header test [2022-02-02 Wed 20:15] \\
+  This is a message
+- State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+  Third item added
+- State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+  Second item added
+- State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+  First item added
+:END:
+This is the description.
+#+end_src
+
+** Updating a task
+
+The task update functions all take tasks represented as Org elements and return new tasks as Org elements. All changes are noted in the updated task's logbook, unless the changes themselves are updates to the logbook, such as new notes.
+
+
+*** Adding an annotation
+
+The =pg-task-annotate= function in Listing [[src/logbook/annotate]] uses the techniques demonstrated in Section [[sct-logbook]] to add an annotation to the task. (Org already has something called a note, and /comment/ is a better name for a planned feature, leaving /annotation/ as the best available term for this concept.)
+
+
+#+name: src/logbook/annotate
+#+begin_src emacs-lisp :results silent
+  ;; This method of interpolation borrowed from org-ml--log-replace-*
+  (defun pm-task-annotate (msg task)
+    "Annotate TASK with MSG. User and time are also logged in this
+  message. User is taken from `user-login-name'; if this is not
+  set, the empty string will be used."
+    (let* ((user (or user-login-name ""))
+           (now (->> (ts-now)
+                     (pg-org-build-timestamp-from-ts nil)))
+           (break (org-ml-build-line-break))
+           (new-entry (org-ml-build-paragraph
+                       "Annotation by \"" user "\" on " now  " " break msg)))
+      (->> (pm-task-get-logbook task)
+           (pg-org-logbook-prepend-paragraph new-entry)
+           (pm-task-set-logbook-2 task))))
+
+#+end_src
+
+Use of =pm-task-annotate= is shown in Listing [[ex/logbook/1]], with results in [[ex/logbook/1/results]]. (Assuming the logged-in user is =asmithee=.)
+
+#+name: ex/logbook/1
+#+begin_src emacs-lisp :tangle no :noweb no-export :wrap src org
+  <<src/logbook/annotate>>
+
+  (pg-org-with-src-doc ex/logbook/set/1/input
+    (->> doc
+         (org-ml-match '(:first headline))
+         (nth 0)
+         (pm-task-annotate "Just a test")
+         (org-ml-to-trimmed-string)))
+#+end_src
+
+#+name: ex/logbook/1/results
+#+begin_src org
+,* DOING Rewire the security system
+:PROPERTIES:
+:ASSIGNEE: Bart Starr
+:END:
+:LOGBOOK:
+- Annotation by "asmithee" on [2022-01-27 Thu 20:01] \\
+  Just a test
+- State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+  Third item added
+- State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+  Second item added
+- State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+  First item added
+:END:
+This is the description.
+#+end_src
+
+*** Assigning/Reassigning a task
+
+The =pm-task-reassign= function changes the assignee. The function is defined in Listing [[src/reassign]], and used in Example [[ex/reassign/1]] on the task in Example [[ex/logbook/1/set/input]], with results in Example [[ex/reassign/1/results]].
+
+
+#+name: src/reassign
+#+begin_src emacs-lisp :results silent
+  (defun pm-task-reassign (new-assignee task)
+    (let* ((old-assignee (or (pm-task-assignee task) ""))
+           (header
+            (format
+             "User \"%s\" changed assignee from \"%s\" to \"%s\""
+             user-login-name old-assignee new-assignee)))
+      (->> task
+           (pg-org-headline-set-node-property
+            nil 'replace
+            "ASSIGNEE" (list new-assignee))
+           (pm-task-log header nil))))
+#+end_src
+
+#+name: ex/reassign/1
+#+begin_src emacs-lisp :tangle no :noweb no-export :wrap src org
+  <<src/reassign>>
+
+  (pg-org-with-src-doc ex/logbook/set/1/input
+    (->> doc
+         (org-ml-match '(:first headline))
+         (nth 0)
+         (pm-task-reassign "Bret Farvrvre")
+         (org-ml-to-trimmed-string)))
+#+end_src
+
+#+name: ex/reassign/1/results
+#+begin_src org
+,* DOING Rewire the security system
+:PROPERTIES:
+:ASSIGNEE: Bret Farvrvre
+:END:
+:LOGBOOK:
+- User "pgroce" changed assignee from "Bart Starr" to "Bret Farvrvre" [2022-02-02 Wed 20:23]
+- State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+  Third item added
+- State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+  Second item added
+- State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+  First item added
+:END:
+This is the description.
+#+end_src
+
+
+*** Not implemented
+
+The following update functions were considered and rejected.
+
+- Task title :: This is easily done programmatically with =org-ml-headline-set-title!=.
+- Task description :: Programmatically, this can be done with =org-ml-headline-set-section= and, perhaps, adding additional headlines with =org-ml-set-children=. More fundamentally, this makes /much/ more sense to do simply by editing the text.
+
+These design decisions may be revisited in the future, probably only in order to do logging.
+
+
+
+
+** Accessing task information
 
 The code in Listing [[src/accessors]] extracts information from tasks represented as Org element trees.
 
 #+name: src/accessors
-#+begin_src emacs-lisp :noweb-ref src
+#+begin_src emacs-lisp :noweb-ref src :results silent
   (defun pm-task-status-changes (task)
     "Returns all status change logbook entries for TASK as a list
-    of records `(from to when notes)', where `from' and `to' are
-    the original and changed statuses, `when' is the org-element
-    representation of the timestamp, and `notes' is an Org
-    secondary string containing any associated notes."
+      of records `(from to when notes)', where `from' and `to' are
+      the original and changed statuses, `when' is the org-element
+      representation of the timestamp, and `notes' is an Org
+      secondary string containing any associated notes."
     (->> (pg-org-headline-logbook-entries task)
          (-keep #'pg-org-paragraph-parse-status-change)))
 
   (defun pm-task-status-last-change (task)
     "Returns the most recent status change logbook entry for
-    TASK. For the format of this record see
-    `pm-task-status-changes'"
+      TASK. For the format of this record see
+      `pm-task-status-changes'"
     (nth 0 (pm-task-status-changes task)))
 
   (defun pm-task-status-last-change-from (task)
     "Returns the status changed from in the most recent logbook
-  entry for TASK."
+    entry for TASK."
     (nth 0 (pm-task-status-last-change task)))
 
   (defun pm-task-status-last-change-to (task)
     "Returns the status changed to in the most recent logbook entry
-  for TASK."
+    for TASK."
     (nth 1 (pm-task-status-last-change task)))
 
   (defun pm-task-status-last-change-timestamp (task)
     "Returns the timestamp in the most recent logbook entry for
-  TASK, as a ts.el timestamp object."
+    TASK, as a ts.el timestamp object."
     (->> (nth 2 (pm-task-status-last-change task))
          (ts-parse-org-element)))
 
   (defun pm-task-status-last-change-org-timestamp (task)
     "Returns the timestamp in the most recent logbook entry for
-  TASK, as an org-element."
+    TASK, as an org-element."
     (nth 2 (pm-task-status-last-change task)))
 
   (defun pm-task-status-last-change-notes (task)
     "Returns the notes in the most recent logbook entry for
-  TASK."
+    TASK."
     (nth 3 (pm-task-status-last-change task)))
 
-  ;; I'm making a Big Assumption that entries in the logbook will
-  ;; already be sorted by time.
+    ;; I'm making a Big Assumption that entries in the logbook will
+    ;; already be sorted by time.
 
   (defun pm-task-current-status (task)
     "Returns the current status of TASK. The current status is the
-    todo keyword of the headline; if the headline has no todo
-    keyword, it is `nil'.
+      todo keyword of the headline; if the headline has no todo
+      keyword, it is `nil'.
 
-  This may not be synchronized with the most recent logbook entry;
-  if the user wants this, they must call ()`pm-task-is-synced'
-  first."
+    This may not be synchronized with the most recent logbook entry;
+    if the user wants this, they must call ()`pm-task-is-synced'
+    first."
     (org-ml-get-property :todo-keyword task))
 
   (defun pm-task-assignee (task)
     "Returns the user to whom the task is assigned. Returns `nil'
-    if there is no assignee."
+      if there is no assignee."
     (or (org-ml-headline-get-node-property "assignee" task)
         (org-ml-headline-get-node-property "ASSIGNEE" task)))
 
 
   (defun pm-task-created-on (task)
     "Returns the time of this tasks creation, as a ts
-    structure. Returns `nil' if TASK has no \"CREATED\" or
-    \"created\" property drawer, or if the contents of that
-    property are not a valid org-mode timestamp."
+      structure. Returns `nil' if TASK has no \"CREATED\" or
+      \"created\" property drawer, or if the contents of that
+      property are not a valid org-mode timestamp."
     (when-let* ((created (or (org-ml-headline-get-node-property "created" task)
                              (org-ml-headline-get-node-property "CREATED" task)))
                 (created-ts (ts-parse-org created)))
@@ -682,7 +993,7 @@ This is a work in progress. As predicates are defined to satisfy use cases in [[
      (t (error "user-or-users must a string or list of strings"))))
 #+end_src
 
-**** Testing
+''**** Testing
 
 ***** =pm-task-is-synced=                                 :worked:tested:
 
@@ -974,7 +1285,7 @@ We use Listing [[input/unsynced-tasks]] to test this, as [[input/basic]] lacks u
 
 #+name: input/unsynced-tasks
 #+caption: Sample used for testing
-#+begin_src org
+#+begin_src org :tangle no
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
 
 
@@ -1124,7 +1435,7 @@ For demonstration purposes,  we will augment our example to include tasks with o
 
 
 #+name: ex/tasks-assigned-to
-#+begin_src emacs-lisp :noweb yes :wrap src emacs-lisp :results code
+#+begin_src emacs-lisp :tangle no :noweb yes :wrap src emacs-lisp :results code
   <<src>>
 
   (pg-org-with-src-doc input/basic
@@ -1134,9 +1445,6 @@ For demonstration purposes,  we will augment our example to include tasks with o
          (-map (-partial #'org-ml-get-property :raw-value))))
 #+end_src
 
-#+RESULTS: ex/tasks-assigned-to
-#+begin_src emacs-lisp
-("Rewire the security system")
 
 **** Tasks assigned to \upsilon since \tau
 This use case requires that assignment changes be fully tracked, with timestamps for task creation and reassignment.
