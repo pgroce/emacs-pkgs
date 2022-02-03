@@ -1235,8 +1235,8 @@ Listing [[src/match]] shows the very simple =pg-org-match= function. Clearly, al
       "Match PATTERN against NODE, in the form of `org-ml-match', but with a more powerful extended syntax.
 
     `pg-org-match' supports the following additional match patterns:
-  ()
-    `(:lookahead SUBPATTERN)' runs a second `org-ml-match' on the
+
+   `(:lookahead SUBPATTERN)' runs a second `org-ml-match' on the
     children of the current node, returning a true value if
     SUBPATTERN matches any of the node's children. In other words, it
     matches nodes based on the properties of the nodes' children. In
