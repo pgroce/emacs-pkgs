@@ -16,7 +16,7 @@ Many of these functions come from [[mwd5i@mwd5i.org][Michael Duggan]]. Thanks, D
   ;; Copyright (C) 2017-2022 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.3.3
+  ;; Version: 0.3.4
   ;; Package-Requires: ((dash "2.13.0"))
   ;; Keywords: utility
 #+END_SRC
@@ -27,7 +27,8 @@ Many of these functions come from [[mwd5i@mwd5i.org][Michael Duggan]]. Thanks, D
 * Requires
 
 #+BEGIN_SRC emacs-lisp
-  (require 'cl-lib)
+  (eval-when-compile (require 'cl-macs))
+  ;(require 'cl-lib)
   (require 'find-func)
   (require 'dash)
 #+END_SRC
@@ -63,7 +64,8 @@ I use [[https://github.com/magnars/dash.el][dash.el]] for most list manipulation
 
 #+begin_src emacs-lisp
   (defgroup pg nil
-    "Customization group for pg-* family of libraries.")
+    "Customization group for pg-* family of libraries."
+    :group 'Emacs)
 
   (defcustom pg-error-on-deprecation nil
     "Set to `t' to change deprecation warnings to (traceable) errors."
@@ -230,8 +232,8 @@ In some lists, it can be helpful to move some specific elements to the front. Th
   (pg-util-prioritize '(e d) '(a b c d e)) => '(e d a b c)
   (pg-util-prioritize nil '(a b c d e)) => '(a b c d e)
   (pg-util-prioritize '(e d) '(a b c)) => '(a b c)"
-    (assert (listp prioritized-items))
-    (assert (listp l))
+    (cl-assert (listp prioritized-items))
+    (cl-assert (listp l))
     (setq prioritized-items (reverse prioritized-items))
     (while prioritized-items
       (let ((i (pop prioritized-items)))
@@ -654,7 +656,7 @@ The main function.
            (symbtype (if symb
                         (cadr symbcell)
                       nil)))
-      (case symbtype
+      (cl-case symbtype
         ('lib
          (find-library symb))
         ('fun
