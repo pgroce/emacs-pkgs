@@ -86,7 +86,7 @@ Listing [[input/sample-tasks]] provides some example code that will be used late
 
   ;; Author: Phil Groce <pgroce@gmail.com>
   ;; Version: 0.3.2.7
-  ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649") (helm "20210826.553") (pg-util "0.3") (pg-ert "0.1") (pg-org "0.1"))
+  ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649") (helm "20210826.553") (pg-util "0.3") (pg-ert "0.1") (pg-org "0.4") (pm-task "0.1.3"))
   ;; Keywords: productivity
 #+END_SRC
 
@@ -112,6 +112,7 @@ I still need functions from both =ert= and =pg-ert=, so I'm requiring both. In p
   (require 'pg-ert)
   (require 'pg-org)
   (require 'pg-util)
+  (require 'pm-task)
 #+end_src
 
 
@@ -300,369 +301,10 @@ Org can be configured to automatically track changes to todo items; this informa
 
 In this section we discuss some of the ways Org stores this additional information. We then use it to define an expanded notion of Org todo items, called /tasks/, which make task-tracking information more accessible.
 
-*** Commentary
+More information on tasks–and the bulk of the task-specific code this package uses–can be found in [[pm-task.html][pm-task]] package.
 
-**** Defining Tasks
 
-We can now parse all the components of the headline that contains task information. But not all headlines are tasks. We define a task as a headline containing:
 
-- A todo keyword
-- A most recent (i.e., topmost) status change entry for the current todo keyword
-
-The task can contain other status change entries as well, but if a status change entry does not exist for the current todo status, the headline will not be considered a task.
-
-
-*** Code
-
-**** Model Org file
-
-Most of the tests for this section will use this org file
-
-#+name: ex/logbook
-#+caption: Org-mode model file
-#+begin_src org
-  ,#+name: Model file
-
-  For reasons I don't fully understand, the following will be parse as an itemized list without some obvious preamble showing that it's an Org file, which this is.
-
-  ,* DONE Do a Thing
-  :LOGBOOK:
-  - State "DONE"       from "DOING"      [2021-08-06 Fri 12:52] \\
-    Doing this thing was *difficult,* and required a lot of description here, but it was eventually done.
-  - State "DOING"      from "TODO"       [2021-08-06 Fri 11:52] \\
-    Finally got around to doing this thing. Yeah!
-  - This is just an extraneous logbook entry done at [2021-09-15 Wed]
-  -
-  -
-  :END:
-
-  ,* Another headline I don't care about
-
-  Hi.
-
-
-#+end_src
-
-
-**** Extracting logbook items
-#+name: hd-extracting-logbook-items
-
-Org-mode headlines can contain a property drawer called =LOGBOOK=. This is primarily used by org-mode to track changes in the todo keyword.
-
-We can get the logbook items using =org-ml-headline-get-logbook-items=. This requires a logging config, which could change, so we define and depend on a custom variable for that config.
-
-A better way to do this might be to generate it dynamically from the values of =org-log-into-drawer= and =org-clock-into-drawer=.
-
-
-#+name: src/headline-logbook-items
-#+begin_src emacs-lisp
-  (defcustom pg-pm-project-file-logging-config
-    '(:log-into-drawer "LOGBOOK" :clock-into-drawer t)
-    "Logging format for drawers in project files."
-    :type '(plist)
-    :group 'pm)
-
-
-  (defun pg-pm--headline-logbook-items (headline)
-    "Use `org-ml-headline-get-logbook-items' to pull logbook items
-  off HEADLINE."
-    (org-ml-headline-get-logbook-items
-     pg-pm-project-file-logging-config
-     headline))
-#+end_src
-
-***** Testing
-#+name: hd-extracting-logbook-items-testing
-
-#+name: t/headline-logbook-items
-#+begin_src emacs-lisp :noweb eval :tangle no :results drawer
-<<src/headline-logbook-items>>
-
-  (pg-org-deftest pm/headline-logbook-items ex/logbook
-    (-let (((i1 i2 i3) (->> (org-ml-match '(headline) doc)
-                            (car)
-                            (pg-pm--headline-logbook-items)
-                            (--map (->> (org-ml-match '(:first paragraph) it)
-                                        (car)))
-                            (-map #'org-ml-to-trimmed-string))))
-      (should (s-starts-with? "State \"DONE\""  i1))
-      (should (s-starts-with? "State \"DOING\"" i2))
-      (should (eq nil i3))))
-
-  (pg-ert-run-tests-string "pm/headline-logbook-items")
-#+end_src
-
-
-Notice that even though there's a third item in the logbook (that doesn't correspond to the regex for a state change) it isn't parsed.
-
-As it happens, the output from =org-ml-logbookget-items= is a list of only the two =item= elements that conform to the logbook regex. This appears to be a decision made in =org-element=. Presumably clocks would also be returned.
-
-
-**** Logging task status changes
-Org can be configured to write a logbook entry when certain todo keywords are set. This entry contains useful information, and has a regular form which we can parse.
-
-[[ex/logbook]] shows a headline containing several logbook entries. The top two were set by org-mode when the todo status of the headline was changed from =TODO= to =DOING=, and again from =DOING= to =DONE=. We will call entries of this type /status change/ entries, or just status changes.
-
-Logbook entries are just bullet lists, so the logbook can also contain entries for things other than status changes. These entries, however, do not appear to be parsed, as discussed in [[hd-extracting-logbook-items-testing]].
-
-
-***** Logbook entry regular expression
-
-The regular expression in [[status-change-regex]] parses status change logbook entries.
-
-I've had issues using this regex with strings, possibly because the backslashes required to escape quotation marks are represented in the string somehow. (I was using =org-ml--from-string= which is, of course, private, and may have subtleties in it I do not yet appreciate.)
-
-#+name: src/status-change-regex
-#+begin_src emacs-lisp
-  (defcustom pg-pm-rx-logbook-status-change
-    (rx "State"
-        (+ whitespace)
-        "\"" (group (+ (not "\""))) "\""
-        (+ whitespace)
-        "from"
-        (+ whitespace)
-        "\"" (group (+ (not "\""))) "\"")
-    "Regex matching log entries of to-do status changes, per the
-    default state format string in
-    `org-log-note-headings'. Capturing accomplishments will break
-    if that entry in `org-log-note-headings' is changed. (As will
-    large chunks of org-agenda.) In that case, it will be necessary
-    to customize this regex to correspond."
-    :type 'regexp
-    :group 'pm)
-#+end_src
-
-****** Testing
-
-
-We can create this one as a normal ERT test.
-
-#+name: t/status-change-regex
-#+begin_src emacs-lisp :noweb eval :tangle no :noweb-ref ert-deftest :results drawer
-  <<src/status-change-regex>>
-
-  (ert-deftest pm/re-test ()
-    (let ((s "State \"DONE\"       from \"DOING\"      [2021-08-06 Fri 12:52]"))
-      (should (s-match pg-pm-rx-logbook-status-change s))
-      (should (equal (s-match pg-pm-rx-logbook-status-change s)
-                     (list "State \"DONE\"       from \"DOING\""
-                           "DONE"
-                           "DOING")))))
-
-  (pg-org-ert-run-tests "pm/re-test")
-#+end_src
-
-
-
-
-***** Parsing status change information
-
-This function parses an individual logbook entry, pulling out the status change information if it's an autologged status change.
-
-The format for this entry is technically settable in a variable (todo: find and cite) but the org-agenda code apparently makes assumptions about this format that make it difficult to change in practice.
-
-#+name: src/parse-task-status-change
-#+begin_src emacs-lisp
-  (defun pg-pm--parse-task-status-change (lb-item)
-    "Attempt to parse LB-ITEM as if it were a task status
-  change. If successful, return a list of the state it was changed
-  to (as a symbol), the state it was changed from (as a symbol),
-  the timestamp, and an org paragraph element representing any
-  additional notes provided by the user.
-
-  If LB-ITEM does not conform to the standard form for status
-  changes, return nil."
-    ;; parse out the to and from states
-    (-when-let* (((s ts . the-rest) (org-ml-item-get-paragraph lb-item))
-                 ((_ to from) (s-match pg-pm-rx-logbook-status-change (org-ml-to-trimmed-string s)))
-                 ;; if notes exist, create as new paragraph
-                 (notes (if (org-ml-is-type 'line-break (first the-rest))
-                            ;; trick to inline (cdr the-rest) as args
-                            (let ((para-objs (-map (lambda (x) `(quote ,x)) (cdr the-rest))))
-                              (eval `(org-ml-build-paragraph ,@para-objs)))
-                          ;; no additional notes == empty paragraph
-                          (org-ml-build-paragraph))))
-      (list (intern to) (intern from) ts notes)))
-#+end_src
-
-****** Testing
-
-
-
-#+name: t/parse-task-status-change
-#+begin_src emacs-lisp :noweb eval :tangle no :results drawer
-  <<src/parse-task-status-change>>
-
-  (pg-org-deftest pm/status-change-items-test ex/logbook
-    (-let* (((i1 i2) (->> (org-ml-match '(:any * item) doc)
-                          (-map #'pg-pm--parse-task-status-change))))
-      (should (equal `(DONE DOING ,(ts-parse-org "[2021-08-06 Fri 12:52]"))
-                     (list (first i1) (second i1) (ts-parse-org-element (third i1)))))
-      (should (equal `(DOING TODO ,(ts-parse-org "[2021-08-06 Fri 11:52]"))
-                     (list (first i2) (second i2) (ts-parse-org-element (third i2)))))
-      ))
-
-  (pg-org-ert-run-tests "pm/status-change-items-test")
-#+end_src
-
-
-
-
-
-***** Building and querying tasks
-
-=pg-pm-task-query= permits the selection of tasks in a document based on the current status, the previous status, or the time of the last update. There are more possibilities for search, but these catch a fair number of use cases. The code is modular enough that it could be extended (for instance, to the timestamps of status changes other than the most recent one) without too much work, I think/hope.
-
-#+name: src/task-query
-#+begin_src emacs-lisp
-  (defun pg-pm--task (search-pred node)
-    "Returns a task if the search criteria represented by
-  SEARCH-PRED are met. Otherwise, returns nil.
-
-  To qualify as a task, the node must have a logbook containing
-  items that match the format for status changes. (See
-  `pg-pm--parse-task-status-change'.) The most recent such entry
-  must be for the current todo status, represented by CURR-STATUS.
-
-  If so, the current status, previous status, timestamp, and
-  additional notes from the most recent status change are passed
-  into SEARCH-PRED, which should return non-nil if the status
-  change matches the search criteria.
-
-  The return value of this function is a list representing the
-  task. The first item is the symbol 'task, tagging the list as a
-  task. Subsequent items, in order, are: The org-element node for
-  the headline representing the task; the list of parsed status
-  changes as returned from `pg-pm--parse-task-status-change'; and a
-  list of any other logbook items that do not conform to the
-  `pg-pm--parse-task-status-change' format."
-    (-when-let* ((status-changes
-                  (->> (org-ml-headline-get-logbook-items
-                        pg-pm-project-file-logging-config node)
-                       (-map #'pg-pm--parse-task-status-change)))
-
-                 ((to from ts notes) (car status-changes)))
-      (when (and (eq curr-status to)
-                 (funcall search-pred to from ts))
-        (list 'task node status-changes other))))
-
-  (defun pg-pm--search-pred (curr-status prev-status after before)
-    "Build a function that will return true if the criteria for
-  time bounding and current/previous status are met. Semantics of
-  these values are described in `pg-pm-task-query'."
-    (let ((always-true (lambda (x) t))
-
-          ;; Current status
-          (cs-pred (if curr-status
-                       (lexical-let ((-val curr-status))
-                         (lambda (x) (eq -val (symbol-name x))))
-                     always-true))
-          ;; Previous status
-          (ps-pred (if prev-status
-                       (lexical-let ((-val prev-status))
-                         (lambda (x) (eq -val (symbol-name x))))
-                     always-true))
-          ;; Before and after the timestamp
-          (after-pred (if after
-                          (lexical-let ((-val after))
-                            (lambda (x) (ts> x -val)))
-                        always-true))
-          (before-pred (if before
-                           (lexical-let ((-val before))
-                             (lambda (x) (ts<= x -val))))))
-      (lambda (task-todo task-cs task-ps task-ts)
-        (and (funcall cs-pred task-cs)
-             (funcall ps-pred task-ps)
-             (funcall after-pred task-ts)
-             (funcall before-pred task-ts)))))
-
-
-  (cl-defun pg-pm-task-query (&key curr-status prev-status after before node)
-    "Fetch all tasks in NODE that meet the criteria set by
-    CURR-STATUS, PREV-STATUS, AFTER, and BEFORE.
-
-  The first four parameters represent search criteria in the task.
-
-  CURR-STATUS is the current status (i.e., todo keyword) of the
-  task. PREV-STATUS is the previous status of the test, as
-  determined by the most recent logbook entry. Both of these should
-  be expressed as capitalized strings. If either of these are nil,
-  they are ignored.
-
-  AFTER should be a `ts' struct, representing a point in time after
-  which the last status change should have taken place. BEFORE
-  should be a `ts' struct, representing a point in time before or
-  at which the last status change should have taken place. If
-  either are nil, they represent an open interval.
-
-  Examples:
-
-  (pg-pm-task-query \"DONE\" \"DOING\" <May 1 2000> <July 1 2000>)
-  would fetch tasks with a status DONE that were transitions from
-  DOING between May 1 and July 1 2000. (parameters in square
-  brackets should be ts structs representing those times.)
-
-  (pg-pm-task-query nil \"DOING\" <May 1 2000> <July 1 2000>) will
-  fetch tasks between May and July 2000 with any todo status that
-  were transitioned from DOING.
-
-  (pg-pm-task-query \"DONE\" nil <May 1 2000> <July 1 2000>) will
-  fetch tasks transitioned between May and July 2000 with the DONE
-  todo status, irrespective of what status they were transitioned
-  from.
-
-  (pg-pm-task-query \"DONE\" \"DOING\" nil <July 1 2000>) will
-  fetch tasks transitioned to DONE from DOING at any time up
-  to (and including) July 2000.
-
-  (pg-pm-task-query \"DONE\" \"DOING\" <MAY 1 2000>) will fetch
-  tasks transitioned to DONE from DOING at any time after May 1
-  2000."
-    (let* ((search-pred
-            (pg-pm--search-pred curr-status prev-status after before))
-           (match-criteria (if curr-status
-                           `(:and headline (:todo-keyword ,curr-status))
-                         `headline)))
-      (->> (org-ml-match `(:any * ,match-criteria)
-                         node)
-           (-filter (-partial #'pg-pm--task search-pred)))))
-
-#+end_src
-
-****** Testing
-
-#+name: input/task-query
-#+caption: Test input for pg-pm-task-query test
-#+begin_src org :exports code :tangle no
-
-  ,* Tasks
-
-  ,** DONE Do a Thing
-   :LOGBOOK:
-   - State "DONE"       from "DOING"      [2021-08-06 Fri 12:52] \\
-     Notes
-   - State "DOING"      from "TODO"       [2021-08-06 Fri 11:52] \\
-     Notes 2
-   - Not a status change [2021-09-15 Wed]
-   -
-   -
-   :END:
-
-  ,** TODO Not a task (yet)
-
-  Just noodling
-#+end_src
-
-
-#+name: t/task-query
-#+begin_src emacs-lisp :noweb eval :tangle no
-  <<src/task-query>>
-
-  (pg-org-deftest pg-pm/task-query input/task-query
-    (should (not (equal nil (pg-pm-task-query :curr-status "DONE")))))
-
-  (pg-org-ert-run-tests "pg-pm/task-query")
-#+end_src
 
 ** Accomplishments
 
@@ -1195,10 +837,10 @@ The reporting is basically fine, but separating the document structure from the 
 
 TODO:
 
-- [0/4] Use =pg-org= constructs for
-  - [ ] defining tests
-  - [ ] parsing logbook items
-  - [ ] matching tasks (via =:-pred= and =:lookahead=)
+- [3/4] Use =pg-org= constructs for
+  - [X] defining tests
+  - [X] parsing logbook items
+  - [X] matching tasks (via =:-pred= and =:lookahead=)
   - [ ] building the report (via the soon-to-be renamed =org-ml-build=)
 - [ ] Reporting API
   - Select tasks with code + declaration
@@ -1207,10 +849,23 @@ TODO:
     - Accomplishments: Resolved as done within =$duration=
     - Progress: Open tasks with new logbook entries with =$duration=
     - Project status: All open tasks in project, with description and last update
+- [ ] GUI
+  - Popup buffers for
+    - new annotations
+      - Action: commit change
+    - search results
+      - Action: Save tasks into new file
+      - Action: Save tasks back to original projects (or into different/new projects, if project reference modified!)
+      - Action: Mass updates
+        - Change assignee
+        - Change parent project
+        - Remove from parent project
+        - Working on copy, only changes original if saved back to original project
 - Additional structure for tasks
-  - Another drawer for logging things beside status changes
-    - Comments
-    - Changes to the description
+  - ~Another drawer for logging things beside status changes~ Nope! Instead, put /everything/ in the logbook!
+  - Comments
+    - Short comments called /annotations/ are already implemented in the logbook. More elaborate comments implemented as subheads are possible Future Work.
+    - ~Changes to the description~ Meh, nothing's easier than just editing it. Nothing programmatic has come up that shouldn't be an event log or metadata change instead. If it does, the section element can be rewritten using Org ML or Org Element.
 
 
 * Provide
