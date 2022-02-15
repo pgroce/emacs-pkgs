@@ -622,9 +622,41 @@ These design decisions may be revisited in the future, probably only in order to
 
 ** Accessing task information
 
+Input for tests in this section is in Listing [[ex/test/basic-test]].
+
+#+name: input/basic
+#+caption: Sample used for testing
+#+begin_src org :tangle no
+  ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
+
+
+  ,* DOING Rewire the security system
+    :PROPERTIES:
+    :ASSIGNEE: Bart Starr
+    :CREATED:  [2021-12-01 Wed 10:00]
+    :CREATOR: Vince Lombardi
+    :END:
+    :LOGBOOK:
+    - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:36] \\
+      Back on the case
+    - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:25] \\
+      Waiting on parts from the supplier
+    - State "DOING"      from "TODO"       [2021-12-11 Sat 20:14] \\
+      In process, it's harder than it looks
+    :END:
+
+  ,* DONE Get past the guard
+    :LOGBOOK:
+    - State "DONE"       from "TODO"       [2021-12-31 Fri 17:48] \\
+      Got past 'em, easy peasy
+    :END:
+#+end_src
+
+
+*** Status changes
 The code in Listing [[src/accessors]] extracts information from tasks represented as Org element trees.
 
-#+name: src/accessors
+#+name: src/accessors/status
 #+begin_src emacs-lisp :noweb-ref src :results silent
   (defun pm-task-status-changes (task)
     "Returns all status change logbook entries for TASK as a list
@@ -680,64 +712,9 @@ The code in Listing [[src/accessors]] extracts information from tasks represente
     first."
     (org-ml-get-property :todo-keyword task))
 
-  (defun pm-task-assignee (task)
-    "Returns the user to whom the task is assigned. Returns `nil'
-      if there is no assignee."
-    (or (org-ml-headline-get-node-property "assignee" task)
-        (org-ml-headline-get-node-property "ASSIGNEE" task)))
-
-
-  (defun pm-task-created-on (task)
-    "Returns the time of this tasks creation, as a ts
-      structure. Returns `nil' if TASK has no \"CREATED\" or
-      \"created\" property drawer, or if the contents of that
-      property are not a valid org-mode timestamp."
-    (when-let* ((created (or (org-ml-headline-get-node-property "created" task)
-                             (org-ml-headline-get-node-property "CREATED" task)))
-                (created-ts (ts-parse-org created)))
-      created-ts))
-
-  (defun pm-task-creator (task)
-    "Returns the creator of this task, or `nil' if none is specified."
-    (or (org-ml-headline-get-node-property "CREATOR" task)
-        (org-ml-headline-get-node-property "creator" task)))
-
-
 #+end_src
 
-*** Testing
-
-A set of tests demonstrates their usage. The input for these tests is in Listing [[ex/test/basic-test]].
-
-#+name: input/basic
-#+caption: Sample used for testing
-#+begin_src org :tangle no
-  ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
-
-
-  ,* DOING Rewire the security system
-    :PROPERTIES:
-    :ASSIGNEE: Bart Starr
-    :CREATED:  [2021-12-01 Wed 10:00]
-    :CREATOR: Vince Lombardi
-    :END:
-    :LOGBOOK:
-    - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:36] \\
-      Back on the case
-    - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:25] \\
-      Waiting on parts from the supplier
-    - State "DOING"      from "TODO"       [2021-12-11 Sat 20:14] \\
-      In process, it's harder than it looks
-    :END:
-
-  ,* DONE Get past the guard
-    :LOGBOOK:
-    - State "DONE"       from "TODO"       [2021-12-31 Fri 17:48] \\
-      Got past 'em, easy peasy
-    :END:
-#+end_src
-
-**** =pm-task-status-last-change=
+**** Testing: =pm-task-status-last-change=
 
  #+name: t/status-last-change
 #+begin_src emacs-lisp :noweb eval :tangle no  :wrap src text
@@ -795,7 +772,7 @@ A set of tests demonstrates their usage. The input for these tests is in Listing
 
 #+end_src
 
-**** =pm-task-current-status=
+**** Testing: =pm-task-current-status=
 
 This test uses an additional input, shown in Listing [[input/current-status]]. (Technically, a bare headline is not a task, but a core design principle of this library is to be liberal in what is accepted.)
 
@@ -806,7 +783,7 @@ This test uses an additional input, shown in Listing [[input/current-status]]. (
 
 #+name: t/current-status
 #+begin_src emacs-lisp :tangle no :noweb eval :tangle no  :wrap src text
-  <<src/accessors>>
+  <<src/accessors/status>>
   (pg-org-deftest pm-task/current-status/1
       input/basic
     (let ((status (->> (org-ml-match '(headline) doc)
@@ -823,11 +800,25 @@ This test uses an additional input, shown in Listing [[input/current-status]]. (
   (pg-ert-run-tests-string "pm-task/current-status")
 #+end_src
 
-**** =pm-task-assignee=
+
+
+
+*** Assignee
+
+#+name: src/accessors/assignee
+#+begin_src emacs-lisp :noweb-ref src :results silent
+  (defun pm-task-assignee (task)
+    "Returns the user to whom the task is assigned. Returns `nil'
+      if there is no assignee."
+    (or (org-ml-headline-get-node-property "assignee" task)
+        (org-ml-headline-get-node-property "ASSIGNEE" task)))
+#+end_src
+
+**** Testing: =pm-task-assignee=
 
 #+name: t/assignee
 #+begin_src emacs-lisp :tangle no :noweb eval :wrap src text
-  <<src/accessors>>
+  <<src/accessors/assignee>>
 
   (pg-org-deftest  pm-task/assignee
       input/basic
@@ -841,11 +832,32 @@ This test uses an additional input, shown in Listing [[input/current-status]]. (
 
 
 
-**** =pm-task-created-on=
+
+*** Creator and creation time
+
+#+name: src/accessors/creation
+#+begin_src emacs-lisp :noweb-ref src :results silent
+  (defun pm-task-created-on (task)
+    "Returns the time of this tasks creation, as a ts
+      structure. Returns `nil' if TASK has no \"CREATED\" or
+      \"created\" property drawer, or if the contents of that
+      property are not a valid org-mode timestamp."
+    (when-let* ((created (or (org-ml-headline-get-node-property "created" task)
+                             (org-ml-headline-get-node-property "CREATED" task)))
+                (created-ts (ts-parse-org created)))
+      created-ts))
+
+  (defun pm-task-creator (task)
+    "Returns the creator of this task, or `nil' if none is specified."
+    (or (org-ml-headline-get-node-property "CREATOR" task)
+        (org-ml-headline-get-node-property "creator" task)))
+#+end_src
+
+**** Testing: =pm-task-created-on=
 
 #+name: t/created-on
 #+begin_src emacs-lisp :tangle no :noweb eval :wrap src text
-  <<src/accessors>>
+  <<src/accessors/creation>>
 
   (pg-org-deftest  pm-task/created-on
       input/basic
@@ -857,11 +869,11 @@ This test uses an additional input, shown in Listing [[input/current-status]]. (
   (pg-ert-run-tests-string "pm-task/created-on")
 #+end_src
 
-**** =pm-task-creator=
+**** Testing: =pm-task-creator=
 
 #+name: t/creator
 #+begin_src emacs-lisp :tangle no :noweb eval :wrap src text
-  <<src/accessors>>
+  <<src/accessors/creation>>
 
   (pg-org-deftest  pm-task/creator
       input/basic
