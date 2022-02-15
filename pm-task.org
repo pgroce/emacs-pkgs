@@ -38,31 +38,18 @@ That said, this package is focused only on the construction of a rich task const
 :CUSTOM_ID: sct-future-work
 :END:
 
+** Expanded comments
 
-** Comments: Possible approaches
+[[#annotation-2ACD0A96-9F62-4DD4-B04C-FE094CA3FA8A][Annotations]] provide a mechanism for single-paragraph comments, and are mainly intended for providing timestamped updates on the completion of a task. Descriptive material longer than a single paragraph can be put in the description.
 
-Some UI pointers in the =org-add-note= and =org-add-log-setup= functions. (Note that you can't add new note types, but may want to borrow the technique.)
+There are one or two compelling arguments for a more expressive comment mechanism, mainly in the event that this system gets multiple users. In such an environment, the task description is a more privileged space than it is with a single user, so a space for richer per-user elaboration would be welcome.  Headlines can also accommodate metadata more easily, which would be needed to support, say, threaded conversations. Finally, this sort of comment system may be necessary if interoperability with other issue trackers such as Jira were ever required.
 
-Annotations (short comments stored in the logbook) have been implemented. It is not yet clear that more elaborate comments are necessary, since the description can be arbitrarily complex.
+A possible format for such a change is in Listing [[ex/future/comments/1]]. Note that each comment is both dated and has a corresponding logbook entry, also dated. Without this denormalizing, it would be harder to compute recent changes, or access date information from the comment when it is accessed as an Org element. The duplication adds to the size of the task, but shouldn't require updating, since log entries should never be modified.
 
-*** Headlines
+At any rate, this is all notional for now.
 
-Pros:
-- Very easy to read
-- Very expressive
-
-Cons:
-- Imposes some structure on the body of the headline
-  - Unfortunate precedent
-  - May not be fully backward-compatible
-- Creates linkage problem
-  - Unversioned metadata (e.g., "creator") can be stored with comment
-  - Versioned metadata (e.g., "comment edited") should be stored as log entry
-  - Requires thinking about key relationships (org-id?)
-
-
-#+name: ex/task/3
-#+caption: A fully elaborated task
+#+name: ex/future/comments/1
+#+caption: A notional future task with comments
 #+begin_src org :tangle no
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
 
@@ -73,8 +60,8 @@ Cons:
     :CUSTOM_ID: task-12345
     :END:
     :LOGBOOK:
-    - Note taken on [2021-12-10 Fri 09:06] \\
-      Comment [[task-12345-comment-9875]] edited by "Tobin Rote"
+    - New comment [[#comment-9876]] from "Vince Lombardi" on [2021-12-10 Fri 09:10]
+    - New comment [[#comment-9875]] from "Tobin Rote" on [2021-12-10 Fri 09:05]
     - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:36] \\
       Back on the case
     - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:25] \\
@@ -93,11 +80,12 @@ Cons:
 
   ,** Comments
 
-  ,*** Bart jst won Super Bowl I
+  ,*** Bart just won Super Bowl I
       :PROPERTIES:
       :CUSTOM_ID: comment-9876
       :CREATED:  [2021-12-10 Fri 09:10]
       :CREATOR: Vince Lombardi
+      :IN_REPLY_TO: comment-9875
       :END:
 
       He'll be back in the office in a few weeks.
@@ -111,16 +99,6 @@ Cons:
 
       A customer asked about the security system. Just checking....
 
-  ,*** Microphone check
-      :PROPERTIES:
-      :CUSTOM_ID: comment-9874
-      :CREATED:  [2021-12-10 Fri 09:00]
-      :CREATOR: Bart Starr
-      :END:
-      :CHANGES:
-      -
-      :END:
-      1, 2, what is this?
 #+end_src
 
 
@@ -287,13 +265,19 @@ Foo the bar!
 
 ** Accessing and updating parts of the task data structure
 
+These functions access and update parts of a task. They operate on and return tasks as Org element data structures.
+
+These functions are obviously useful for programmatic manipulation of tasks, and users may always, if they wish, modify the text representations of tasks in any way they see fit. However, these functions also perform additional housekeeping on tasks, such as change logging and (possibly, in the future) adding appropriate cross-references. Several other functions in this package require this metadata to work (as noted in their documentation), so users may find it advantageous to use these functions when possible.
+
 Below are low-level functions for manipulating the logbook, followed by higher-level functions for updating various parts of a task. In general, the high-level interface tries to log everything it does, but since the task also exists as text in an Org file that a user can change arbitrarily, these should be seen as a convenience, and not any kind of guarantee that the log is complete or authoritative.
 
 If you need change control, check project files containing tasks into version control systems. These changes will not be synced with individual changes made to a task, but neither is this package ever likely to try to replicate that functionality. (Automatically checking a project into version control when a task changes is a possible feature, but unplanned.)
 
+The task update functions all take tasks represented as Org elements and return new tasks as Org elements. All changes are noted in the updated task's logbook, unless the changes themselves are updates to the logbook, such as new notes.
+
 A final note: These functions generate tasks with many optional features. Minimally, this usually menas logs of actions taken in the logbook. Additional work may include adding UUIDs and creating cross-references.
 
-*** Logbook
+*** Getting and setting the logbook
 :PROPERTIES:
 :CUSTOM_ID: sct-logbook
 :END:
@@ -513,12 +497,10 @@ We can combine these techniques into a general-purpose logging function, as seen
 This is the description.
 #+end_src
 
-** Updating a task
-
-The task update functions all take tasks represented as Org elements and return new tasks as Org elements. All changes are noted in the updated task's logbook, unless the changes themselves are updates to the logbook, such as new notes.
-
-
 *** Adding an annotation
+:PROPERTIES:
+:CUSTOM_ID:       annotation-2ACD0A96-9F62-4DD4-B04C-FE094CA3FA8A
+:END:
 
 The =pg-task-annotate= function in Listing [[src/logbook/annotate]] uses the techniques demonstrated in Section [[sct-logbook]] to add an annotation to the task. (Org already has something called a note, and /comment/ is a better name for a planned feature, leaving /annotation/ as the best available term for this concept.)
 
