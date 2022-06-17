@@ -20,14 +20,16 @@
        (pg-ert
 	(0 1))
        (pg-org
-	(0 1)))
+	(0 4))
+       (pm-task
+	(0 1 3)))
       "Project Management" single
       ((:authors
 	("Phil Groce" . "pgroce@gmail.com"))
        (:maintainer "Phil Groce" . "pgroce@gmail.com")
        (:keywords "productivity"))])
  (pm-task .
-	  [(0 1 3)
+	  [(0 1 5)
 	   ((emacs
 	     (26 1))
 	    (dash
@@ -113,8 +115,14 @@
 		(:maintainer "Phil Groce" . "pgroce@gmail.com")
 		(:keywords "gui"))])
  (pg-pandoc .
-	    [(0 6)
-	     nil "Convert document formats with Pandoc" single
+	    [(0 7)
+	     ((emacs
+	       (26 1))
+	      (dash
+	       (2 19))
+	      (f
+	       (20220608 943)))
+	     "Convert document formats with Pandoc" single
 	     ((:authors
 	       ("Phil Groce" . "pgroce@gmail.com"))
 	      (:maintainer "Phil Groce" . "pgroce@gmail.com")

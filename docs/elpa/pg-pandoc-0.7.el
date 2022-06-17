@@ -3,21 +3,24 @@
 ;; Copyright (C) 2020 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.6
+;; Version: 0.7
+;; Package-Requires: ((emacs "26.1") (dash "2.19") (f "20220608.943"))
 ;; Keywords: pandoc markdown org-mode latex pdf docx
 
 (require 'pg-util)
 (require 'cl-lib)
+(require 'dash)
+(require 'f)
 
 (defcustom pg-pandoc-executable-name "pandoc"
   "name (and path, if necessary) of pandoc executable")
 
 (defcustom pg-pandoc-commands
-  '(("docx" . "%(pandoc) --citeproc -t docx -f %(in-format) -o %(out-name) --reference-doc=reference.docx")
-    ("tex"  . "%(pandoc) --citeproc -t latex -f %(in-format) -o %(out-name) --template=pdf-template.tex")
-    ("pdf"  . "%(pandoc) --citeproc -t pdf -f %(in-format) -o %(out-name) --template=pdf-template.tex --pdf-engine xelatex -N")
-    ("md"   . "%(pandoc) -t markdown -f %(in-format) -o %(out-name)")
-    ("org"  . "%(pandoc) -t org -f %(in-format) -o %(out-name)"))
+  '(("docx" . "%(pandoc) --citeproc -t docx -f %(in-format) -o %(out-name) %(refdoc-clause)")
+    ("tex" . "%(pandoc) --citeproc -t latex -f %(in-format) -o %(out-name) %(refdoc-clause)")
+    ("pdf" . "%(pandoc) --citeproc -t pdf -f %(in-format) -o %(out-name) %(refdoc-clause) --pdf-engine xelatex -N")
+    ("md"  . "%(pandoc) -t markdown -f %(in-format) -o %(out-name)")
+    ("org" . "%(pandoc) -t org -f %(in-format) -o %(out-name)"))
   "Commands to be used to invoke pandoc on org-mode output using
   `pg-pandoc-subtree'")
 
@@ -63,25 +66,18 @@ remove everything else"
       bad-chars-regexp ""
       (downcase unclean)))))
 
-(defun pg-pandoc--buffer-info-to-file-name (output-format)
-  (if (buffer-file-name)
-      (concat (file-name-base) "." output-format)
-    (concat
-     (pg-pandoc--sanitize-for-file-name (buffer-name)) "." output-format)))
-
-(defun pg-pandoc--apply-command-template (tplt out-name in-fmt)
-  (let ((vars-alist (list (list "out-name" out-name)
-                          (list "in-format" in-fmt)
-                          (list "pandoc" pg-pandoc-executable-name))))
-    (cl-reduce (lambda (acc n)
-                 (let ((lbl (car n))
-                       (val (cadr n)))
-                   (replace-regexp-in-string (format "%%(%s)" lbl) val acc)))
-               vars-alist
-               :initial-value tplt)))
-
-(defun pg-pandoc--get-command-template (key)
-  (alist-get key pg-pandoc-commands nil nil 'equal))
+(defun pg-pandoc--apply-template (tplt vars-alist)
+  "Apply VARS-ALIST to TPLT to generate a new string. VARS-ALIST
+  is an alist of parameter names and their string values. The
+  values are indicated as such in TPLT by surrouding them with
+  parentheses and prepending a percent sign. So the key \"foo\"
+  in a template would be referenced as \"%(foo)\"."
+  (cl-reduce (lambda (acc n)
+               (let ((lbl (car n))
+                     (val (cadr n)))
+                 (replace-regexp-in-string (format "%%(%s)" lbl) val acc)))
+             vars-alist
+             :initial-value tplt))
 
 (defun pg-pandoc--convert-citations-in-buffer ()
   "Convert citations in the current buffer from the org-ref
@@ -118,6 +114,48 @@ remove everything else"
     (kill-whole-line)
     (insert (concat "#+TITLE: " title "\n"))))
 
+(defun pg-pandoc--reference-doc-clause (ext fmtstr)
+  "Ask user for a pandoc reference document for the format
+  EXT. FMTSTR is used to generate the clause on the command line
+  relevant to the output format, using the user-supplied filename
+  as input."
+  ;; NOTE: Only implemented for docx right now, but theoretically this
+  ;; could appy to latex too....
+  (let ((cand (read-file-name "Reference doc: " nil nil 'confirm nil
+                              (lambda (f) (or (f-directory? f) (f-ext? f ext))))))
+    (if (f-directory? cand)
+        ""
+      (format fmtstr cand))))
+
+
+(defun pg-pandoc--build-command (input-format fname-base)
+  "Build the pandoc command from user input and
+arguments. INPUT-FORMAT is the input format, FNAME-BASE is the
+output file name without extension. (Extension will be based on output format.)"
+  (let* ((output-format (completing-read "Output format: "
+                                         (pg-util-alist-keys
+                                          pg-pandoc-commands)))
+         (template (alist-get output-format pg-pandoc-commands nil nil 'equal))
+         (refdoc-clause (cond ((string-equal output-format "docx")
+                               (pg-pandoc--reference-doc-clause "docx" "--reference-doc=\"%s\""))
+                              ((string-equal input-format "tex")
+                               (pg-pandoc--reference-doc-clause "tex" "--template=\"%s\""))
+                              ((string-equal input-format "pdf")
+                               (pg-pandoc--reference-doc-clause "tex" "--template=\"%s\""))
+                              (t "")))
+         (default-command (pg-pandoc--apply-template
+                           template
+                           `(("out-name" ,(concat fname-base "." output-format))
+                             ("in-format" ,input-format)
+                             ("refdoc-clause" ,refdoc-clause)
+                             ("pandoc" ,pg-pandoc-executable-name)))))
+    ;; Give user final chance to adjust
+    (read-string
+     "Command: "
+     default-command pg-pandoc--pandoc-command-history
+     default-command)))
+
+
 (defun pg-pandoc-org-subtree (invert-top-is-title)
   (interactive "P")
   (let* ((top-is-title (if invert-top-is-title
@@ -126,26 +164,10 @@ remove everything else"
          (input-format (if (equal "org-mode" (format "%s" major-mode))
                            "org"
                          (error "pg-pandoc-org-subtree only works on org-mode files")))
-         (headline (pg-pandoc--org-headline))
-         (headline-level (car headline))
-         (headline-title (cadr headline))
-         ;; Ask user for desired output format
-         (output-format (completing-read "Output format: "
-                                         (pg-util-alist-keys
-                                          pg-pandoc-commands)))
-         ;; Compute (default) filename from output format
-         (fname (concat
-                 (pg-pandoc--sanitize-for-file-name
-                  headline-title)
-                 "." output-format))
-         ;; Ask user for pandoc command (with default)
-         (default-command (pg-pandoc--apply-command-template
-                           (pg-pandoc--get-command-template output-format)
-                           fname input-format))
-         (pandoc-command (read-string
-                          "Command: "
-                          default-command pg-pandoc--pandoc-command-history
-                          default-command)))
+
+         (headline-title (cadr (pg-pandoc--org-headline)))
+         (fname-base (pg-pandoc--sanitize-for-file-name headline-title))
+         (pandoc-command (pg-pandoc--build-command input-format fname-base)))
     (save-excursion
       (save-restriction
         (org-narrow-to-subtree)
@@ -173,7 +195,6 @@ remove everything else"
           ;; debug
           (write-file "debug-out.org")
           (when pg-pandoc-convert-citations
-            (message "converting!!!")
             (pg-pandoc--convert-citations-in-buffer))
           (shell-command-on-region
            (point-min) (point-max)
@@ -186,20 +207,10 @@ remove everything else"
   (interactive)
   (let* ((input-format (replace-regexp-in-string
                         "-mode$" "" (format "%s" major-mode)))
-         ;; Ask user for desired output format
-         (output-format (completing-read "Output format: "
-                                         (pg-util-alist-keys
-                                          pg-pandoc-commands)))
-         ;; Compute (default) filename from output format
-         (fname (pg-pandoc--buffer-info-to-file-name output-format))
-         ;; Ask user for pandoc command (with default)
-         (default-command (pg-pandoc--apply-command-template
-                           (pg-pandoc--get-command-template output-format)
-                           fname input-format))
-         (pandoc-command (read-string
-                          "Command: "
-                          default-command pg-pandoc--pandoc-command-history
-                          default-command)))
+         (fname-base (if (buffer-file-name)
+                         (file-name-base)
+                       (pg-pandoc--sanitize-for-file-name (buffer-name))))
+         (pandoc-command (pg-pandoc--build-command input-format fname-base)))
     (save-excursion
       (save-restriction
         (kill-ring-save (point-min) (point-max))
