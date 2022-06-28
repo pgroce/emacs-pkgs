@@ -266,9 +266,9 @@ The declarations of =pg-pandoc-org-subtree= and =pg-pandoc-current-buffer=. Both
               (exchange-point-and-mark)
               ;; promote subtree to top level
               (let ((cur-level (org-current-level)))
-                (loop repeat (/ (- cur-level 1)
-                                (org-level-increment))
-                      do (org-promote-subtree)))
+                (cl-loop repeat (/ (- cur-level 1)
+                                   (org-level-increment))
+                         do (org-promote-subtree)))
               ;; Adjust for top-is-title
               ;;
               ;; (Get the position of all the level-1 subheads, promote
