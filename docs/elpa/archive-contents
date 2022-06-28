@@ -115,7 +115,7 @@
 		(:maintainer "Phil Groce" . "pgroce@gmail.com")
 		(:keywords "gui"))])
  (pg-pandoc .
-	    [(0 7 4)
+	    [(0 7 5)
 	     ((emacs
 	       (26 1))
 	      (dash
