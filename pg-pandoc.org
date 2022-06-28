@@ -49,7 +49,7 @@ The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the av
   ;; Copyright (C) 2020 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.7.1
+  ;; Version: 0.7.2
   ;; Package-Requires: ((emacs "26.1") (dash "2.19") (f "20220608.943"))
   ;; Keywords: pandoc markdown org-mode latex pdf docx
 
@@ -294,7 +294,7 @@ The declarations of =pg-pandoc-org-subtree= and =pg-pandoc-current-buffer=. Both
     (let* ((input-format (replace-regexp-in-string
                           "-mode$" "" (format "%s" major-mode)))
            (fname-base (if (buffer-file-name)
-                           (file-name-base)
+                           (file-name-base (buffer-file-name))
                          (pg-pandoc--sanitize-for-file-name (buffer-name))))
            (pandoc-command (pg-pandoc--build-command input-format fname-base)))
       (save-excursion
