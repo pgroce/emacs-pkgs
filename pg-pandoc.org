@@ -49,7 +49,7 @@ The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the av
   ;; Copyright (C) 2020 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.7.2
+  ;; Version: 0.7.3
   ;; Package-Requires: ((emacs "26.1") (dash "2.19") (f "20220608.943"))
   ;; Keywords: pandoc markdown org-mode latex pdf docx
 
@@ -80,6 +80,7 @@ The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the av
 
   (defcustom pg-pandoc-commands
     '(("docx" . "%(pandoc) --citeproc -t docx -f %(in-format) -o %(out-name) %(refdoc-clause)")
+      ("pptx" . "%(pandoc) --citeproc -t pptx -f %(in-format) -o %(out-name) %(refdoc-clause)")
       ("tex" . "%(pandoc) --citeproc -t latex -f %(in-format) -o %(out-name) %(refdoc-clause)")
       ("pdf" . "%(pandoc) --citeproc -t pdf -f %(in-format) -o %(out-name) %(refdoc-clause) --pdf-engine xelatex -N")
       ("md"  . "%(pandoc) -t markdown -f %(in-format) -o %(out-name)")
@@ -224,6 +225,8 @@ The declarations of =pg-pandoc-org-subtree= and =pg-pandoc-current-buffer=. Both
            (template (alist-get output-format pg-pandoc-commands nil nil 'equal))
            (refdoc-clause (cond ((string-equal output-format "docx")
                                  (pg-pandoc--reference-doc-clause "docx" "--reference-doc=\"%s\""))
+                                (string-equal output-format "pptx")
+                                (pg-pandoc--reference-doc-clause "docx" "--reference-doc=\"%s\"")
                                 ((string-equal input-format "tex")
                                  (pg-pandoc--reference-doc-clause "tex" "--template=\"%s\""))
                                 ((string-equal input-format "pdf")
