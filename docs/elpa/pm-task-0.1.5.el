@@ -3,7 +3,8 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.1.3
+;; Version: 0.1.5
+
 ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (pg-ert "0.1") (pg-org "0.4"))
 ;; Keywords: productivity
 
@@ -117,15 +118,8 @@ MSG, a string."
   "Annotate TASK with MSG. User and time are also logged in this
 message. User is taken from `user-login-name'; if this is not
 set, the empty string will be used."
-  (let* ((user (or user-login-name ""))
-         (now (->> (ts-now)
-                   (pg-org-build-timestamp-from-ts nil)))
-         (break (org-ml-build-line-break))
-         (new-entry (org-ml-build-paragraph
-                     "Annotation by \"" user "\" on " now  " " break msg)))
-    (->> (pm-task-get-logbook task)
-         (pg-org-logbook-prepend-paragraph new-entry)
-         (pm-task-set-logbook-2 task))))
+  (pm-task-log
+   (format "Annotation by \"%s\" on" (or user-login-name "")) msg task))
 
 (defun pm-task-reassign (new-assignee task)
   (let* ((old-assignee (or (pm-task-assignee task) ""))
@@ -138,6 +132,58 @@ set, the empty string will be used."
           nil 'replace
           "ASSIGNEE" (list new-assignee))
          (pm-task-log header nil))))
+
+(defun pm-task--logbook-item-get-parts (item)
+  "Return the different parts of ITEM.
+
+Returns a three-element list of the message header (as a
+paragraph object), the timestamp (as a timestamp object), and the
+message (as a paragraph object)"
+  (cl-letf (((symbol-function 'is-long-inactive-timestamp)
+             (lambda (node)
+               (when (and (org-ml-is-type 'timestamp node)
+                          (org-ml--property-is-eq :type 'inactive node)
+                          (-some->> (org-ml--timestamp-get-start-time node)
+                            (org-ml-time-is-long)))
+                 (org-ml--timestamp-get-start-unixtime node))))
+
+            ((symbol-function 'is-line-break)
+             (lambda (node)
+               (or (org-ml-is-type 'line-break node)
+                   (and (org-ml-is-type 'plain-text node)
+                        (equal "\n" node)))))
+
+            ((symbol-function 'get-paragraph-children)
+             (lambda (item)
+               (-when-let (first-child (car (org-ml-get-children item)))
+                 (when (org-ml-is-type 'paragraph first-child)
+                   (org-ml-get-children first-child))))))
+
+    ;; Split the children on the line break, if it exists
+    (-let* (((left right) (->> item
+                               (get-paragraph-children)
+                               (-split-when #'is-line-break)
+                               ))
+            (timestamp (when (is-long-inactive-timestamp (-last-item left))
+                         (-last-item left)))
+            (left-parts (if timestamp
+                            (-slice left 0 -1)
+                          left))
+            (left-para (apply #'org-ml-build-paragraph left-parts))
+            (right-para (apply #'org-ml-build-paragraph right)))
+      (list left-para timestamp right-para))))
+
+(defun pm-task-logbook-item-get-header (item)
+  "Return the header associated with the logbook item ITEM."
+  (nth 0 (pm-task--logbook-item-get-parts item)))
+
+(defun pm-task-logbook-item-get-timestamp (item)
+  "Return the timestamp associated with the logbook item ITEM."
+  (nth 1 (pm-task--logbook-item-get-parts item)))
+
+(defun pm-task-logbook-item-get-message (item)
+  "Return the message associated with the logbook item ITEM."
+  (nth 2 (pm-task--logbook-item-get-parts item)))
 
 (defun pm-task-status-changes (task)
   "Returns all status change logbook entries for TASK as a list
@@ -199,7 +245,6 @@ set, the empty string will be used."
   (or (org-ml-headline-get-node-property "assignee" task)
       (org-ml-headline-get-node-property "ASSIGNEE" task)))
 
-
 (defun pm-task-created-on (task)
   "Returns the time of this tasks creation, as a ts
     structure. Returns `nil' if TASK has no \"CREATED\" or
@@ -214,6 +259,24 @@ set, the empty string will be used."
   "Returns the creator of this task, or `nil' if none is specified."
   (or (org-ml-headline-get-node-property "CREATOR" task)
       (org-ml-headline-get-node-property "creator" task)))
+
+(defun pm-task-last-change (task)
+  (cl-letf* (((symbol-function '-ts-val)
+              (lambda (item)
+                (-some->>
+                    (org-ml-logbook-item-get-timestamp item)
+                  (ts-parse-org-element))))
+
+             ((symbol-function 'cmp)
+              (lambda (l r)
+                (let ((ts-l (-ts-val l))
+                      (ts-r (-ts-val r)))
+                  (and (and ts-l ts-r)
+                       (ts< ts-l ts-r))))))
+    (->> (pm-task-get-logbook task)
+         (pg-org-logbook-get-items)
+         (-sort 'cmp)
+         (nth 0))))
 
 ;; Everything has to deal with unsynced tasks. It's the caller's
 ;; responsibility to check if the task is synced before using.
@@ -291,6 +354,29 @@ will return `t' if TASK is unassigned."
    ((listp user-or-users)
     (--some (pm-task-is-assigned-to it task) user-or-users))
    (t (error "user-or-users must a string or list of strings"))))
+
+(defun pm-ui--annotate-finish-function ()
+  (if (not org-note-abort)
+      (let ((txt (buffer-substring-no-properties (point-min) (point-max)))
+            lines)
+        ;; Strip comments and format a la org-mode
+        ;; (especially org-store-log-note)
+        (while (string-match "\\`# .*\n[ \t\n]*" txt)
+          (setq txt (replace-match "" t t txt)))
+        (when (string-match "\\s-+\\'" txt)
+          (setq txt (replace-match "" t t txt)))
+        (message txt))
+    (message "aborted"))
+  (kill-buffer))
+
+(defun pm-ui-annotate ()                ;(task)
+  "Create annotation for TASK, editing content of message in a temporary buffer"
+  (interactive)
+  (org-switch-to-buffer-other-window "*PM Task Annotate*")
+  (erase-buffer)
+  (let ((org-inhibit-startup t)) (org-mode))
+  (insert "# Insert annotation. Finish with C-c C-c, cancel with C-c C-k\n\n")
+  (setq-local org-finish-function #'pm-ui--annotate-finish-function))
 
 (provide 'pm-task)
 ;;; pm-task.el ends here
