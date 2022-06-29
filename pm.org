@@ -306,11 +306,69 @@ More information on tasks–and the bulk of the task-specific code this package 
 
 
 
-** Accomplishments
+
+** Reports
+
+*** Status
+
+The goal of the status report is to pull the latest status updates out of the task logbooks and compile them into a report, broken down by project and task. For example, given the project file
+
+#+name: example/report/status/input
+#+begin_src org
+  ,#+title: Sample project
+  ,#+startup: indent
+  ,#+project_status: active
+  ,#+category: sample-1
+  ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@) CANCELLED(@)
+
+
+  ,* Tasks
+  :PROPERTIES:
+  :CONTAINS_TASKS: t
+  :END:
+
+  ,** DOING Rewire the security system
+  :PROPERTIES:
+  :ASSIGNEE: Bart Starr
+  :END:
+  :LOGBOOK:
+  - Annotation by "asmithee" on [2022-01-27 Thu 20:01] \\
+    Just a test
+  - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+    Third item added
+  - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+    Second item added
+  - State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+    First item added
+  :END:
+  This is the description.
+
+
+  ,** DOING Get past the guards()
+  :PROPERTIES:
+  :ASSIGNEE: Bart Starr
+  :END:
+  :LOGBOOK:
+  - Annotation by "asmithee" on [2022-01-27 Thu 20:01] \\
+    Just another test, but in a different task
+  - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+    Third item added
+  - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+    Second item added
+  - State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+    First item added
+  :END:
+  This is the description.
+#+end_src
+
+
+*** Accomplishments
 
 Accomplishments are similar to milestones, but perhaps a bit less premeditated.
 
-*** Selecting headlines
+This code was written before a substantial amount of work was done in =pm=, =pm-task=, and =pg-org= to facilitate searching and reporting, so its use as an example should be limited.
+
+**** Selecting headlines
 Consider the selection of =DONE= headlines.
 
 #+begin_src  emacs-lisp :tangle no :exports code
@@ -346,7 +404,7 @@ Let's test this out.
        (-map #'pg-pm--headline-logbook-items))
 #+end_src
 
-*** Parsing logbook entries
+**** Parsing logbook entries
 
 There's a lot of useful, parseable information in logbook entries, but it isn't part of the Org format, so the Org element tree just stores it as strings. We need to write some additional code to take full advantage of the information they contain.
 
@@ -448,7 +506,7 @@ The string version is a bit easier to read.
 #+end_src
 
 
-*** Tasks
+**** Tasks
 
 Tasks are regular todo items that have been logged with some discipline. Don't have those? No problem, but they won't be picked up as tasks.
 
@@ -486,7 +544,7 @@ Specifically, something is a capital-t Task if the /last/ logbook entry for the 
 #+end_src
 
 
-*** Time manipulation
+**** Time manipulation
 
 This library uses [[https://github.com/alphapapa/ts.el][ts.el]] to do time manipulation. These functions make =ts-adjust= a little easier to use with dynamic input.
 
@@ -554,7 +612,7 @@ In addition to =ts-adjust=, we also use =ts-parse-org-element= to convert betwee
 So that's how we bridge the gap between =org-ml= and =ts=.
 
 
-*** Building an accomplishment record
+**** Building an accomplishment record
 
 With all these tools in place, we can now match to-do items that we define as accomplishments. A finished task is an accomplishment if and only if:
 
@@ -645,7 +703,7 @@ Used thusly:
 
 As you can see, =pg-pm--build-accomplishment= is both a constructor and a predicate, so we can throw a list of maybe-accomplishments at it and use =-keep= to filter out the non-accomplishments.
 
-*** Org-mode representation of accomplishments
+**** Org-mode representation of accomplishments
 
 The accomplishment record is convenient for processing, but we'll eventually want to represent accomplishments in Org. Building that now also gives us a "free" string representation. Here's what we're shooting
 
@@ -717,7 +775,7 @@ Used thusly:
 
 
 
-*** Building the accomplishment report
+**** Building the accomplishment report
 
 
 Time to build the report.
@@ -796,7 +854,7 @@ Time to build the report.
       (switch-to-buffer buff)))
 #+end_src
 
-**** Testing
+***** Testing
 
 We will use a simplified version of the example above, which includes a lot of edge cases.
 
