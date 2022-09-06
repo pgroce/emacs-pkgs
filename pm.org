@@ -821,7 +821,6 @@ Time to build the report.
   ;;  headline -> section -> plain-list -> [item -> paragraph]
 
 
-
   (defun pg-pm-accomplishment-report (&optional time-offset)
     "Compile an accomplishment report from the tasks that have
   been closed in a time period. Accomplishments are extracted from
@@ -852,6 +851,58 @@ Time to build the report.
          (insert (org-ml-to-string it))
          headlines))
       (switch-to-buffer buff)))
+
+
+
+  (defun pg-pm--status-build-string (begin end headlines)
+    "Build an org document representing a status report."
+    (let* ((fmt "%Y/%m/%d")
+           (begin-str (ts-format fmt begin))
+           (end-str (ts-format fmt end))
+           (the-spec `(org-data
+                        (section
+                         (keyword "TITLE"
+                                  ,(format "pgroce Status %s-%s" begin-str end-str)))
+                        (headline! :title-text "Accomplishments"
+                                   :section-children ((paragraph! "NSTR")))
+                        (headline! :title-text "Status"
+                                   ;; headlines is a list of literal org headline
+                                   ;; elements. Each one must be quoted so it will
+                                   ;; be ignored by org-ml-build.
+                                   ,@(--map `(quote ,it) headlines))))
+           (the-tree (pg-org-ml-build the-spec)))
+      (org-ml-to-trimmed-string the-tree)))
+
+
+
+
+
+  (defun pg-pm-status-report (&optional time-offset)
+    "Compile a status report from the tasks that have been closed in
+  a time period. Accomplishments are extracted from the files
+  returned by `pg-pm-active-projects'.
+
+  If TIME-OFFSET is nil, prompt the user for a time specification,
+  indicating how old an accomplishment can be before it is included
+  in the report. The syntax for this specification is given in
+  `pg-time-spec-from-string'."
+    (interactive)
+    (let* ((time-offset (or time-offset
+                            (read-string "Find since: " "-7d")))
+           (end (ts-now))
+           (begin (pg-pm--beginning-time end time-offset))
+           (headlines
+            (--map (pg-pm--headlines-from-project-file begin end it)
+                   (pg-pm-active-projects)))
+           (buff (get-buffer-create "*Accomplishments*")))
+      (with-current-buffer buff
+        (erase-buffer)
+        (cd pg-pm-project-dir)
+        (org-mode)
+        (org-indent-mode)
+        (insert (pg-pm--status-build-string begin end headlines)))
+      (switch-to-buffer buff)))
+
 #+end_src
 
 ***** Testing
