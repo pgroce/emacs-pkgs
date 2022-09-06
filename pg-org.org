@@ -265,8 +265,8 @@ We can't, of course, pass =hello-org-template= to =eval= as we have done here. B
   corresponding to that symbol. A SPEC for a headline element, for
   instance, might be:
 
-    (headline :title (secondary-string! \"foo\")
-      (section (paragraph! \"paragraph text\")))
+    '(headline :title (secondary-string! \"foo\")
+       (section (paragraph! \"paragraph text\")))
 
   This function will convert that specification into the result of
   calling:
@@ -274,10 +274,23 @@ We can't, of course, pass =hello-org-template= to =eval= as we have done here. B
     (org-ml-build-headline
       :title (org-ml-build-secondary-string! \"foo\")
       (org-ml-build-section
-        (org-ml-build-paragraph! \"paragraph text\")))"
+        (org-ml-build-paragraph! \"paragraph text\")))
+
+  Literal org-element nodes can be spliced into SPEC by wrapping
+  them in a quote, like so:
+
+    ;; paragraph contains a literal org-element of a paragraph
+    `(headline :title (secondary-string! \"foo\")
+       (section ,(quote paragraph)))
+
+
+  "
     (eval (pg-org--ml-build-spec spec)))
 
   (defalias 'org-ml-build 'pg-org-ml-build)
+
+
+
 #+end_src
 
 #+RESULTS: src/org-ml-build
