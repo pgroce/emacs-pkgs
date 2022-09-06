@@ -236,6 +236,10 @@ We can't, of course, pass =hello-org-template= to =eval= as we have done here. B
      (lambda (node)
        (let ((head (car node)))
          (cond
+          ;; Return list un-transformed. The elements of this list will
+          ;; still be transformed.
+          ((listp head)
+           `(:node (list ,@node)))
           ((not (symbolp head))
            (error "Unexpected non-symbol %s" head))
           ((eq head 'quote)
