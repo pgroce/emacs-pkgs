@@ -128,12 +128,29 @@ I still need functions from both =ert= and =pg-ert=, so I'm requiring both. In p
     :type 'directory
     :group 'pm)
 
+  (defcustom pg-pm-additional-agenda-files nil
+    "List of Org-mode files to include in `org-agenda-files'
+    besides the active project files."
+    :type '(repeat file)
+    :group 'pm)
+
+  (defcustom pg-pm-prepend-additional-agenda-files nil
+    "If t, add files in `pg-pm-additional-agenda-files' to
+    `org-agenda-files' before the active project files. Otherwise
+    append the files after the active project files, which is the
+    default."
+    :type 'boolean)
+
   (defun pg-pm-set-agenda-files ()
     "Set `org-agenda-files' according to the contents of
     `pg-pm-active-projects'. Called as a hook in
     `pg-pm-active-projects-refreshed-hook'."
-    (setq org-agenda-files (pg-pm-active-projects))
+    (setq org-agenda-files
+          (if pg-pm-prepend-additional-agenda-files
+              (-concat pg-pm-additional-agenda-files (pg-pm-active-projects))
+            (-concat (pg-pm-active-projects) pg-pm-additional-agenda-files)))
     (message "pm: Agenda refreshed"))
+
 
   (defcustom pg-pm-active-projects-refreshed-hook
     '(pg-pm-set-agenda-files)
