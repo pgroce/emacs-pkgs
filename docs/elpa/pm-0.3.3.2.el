@@ -512,7 +512,6 @@ in the report. The syntax for this specification is given in
     (switch-to-buffer buff)))
 
 
-
 (defun pg-pm--status-build-string (begin end headlines)
   "Build an org document representing a status report."
   (let* ((fmt "%Y/%m/%d")

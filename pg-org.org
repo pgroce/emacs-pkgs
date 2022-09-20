@@ -24,7 +24,7 @@ Where such an accomodation is more trouble than it's worth, you may still see so
   ;; Copyright (C) 2022 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.4.5
+  ;; Version: 0.4.5.1
   ;; Package-Requires: ((emacs "26.1") (org-ml "5.7") (dash "2.19") (s "1.12") (ts "0.3") (pg-ert "0.1"))
   ;; Keywords: productivity
 #+END_SRC
@@ -858,7 +858,7 @@ The =pg-org-paragraph-parse-status-change= function is tested in Listing [[t/par
 
 #+name: input/logbook-status-changes
 #+caption: Sample used for testing
-#+begin_src org
+#+begin_src org :tangle no
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
 
 

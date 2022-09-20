@@ -3,7 +3,7 @@
 ;; Copyright (C) 2022 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.4.5
+;; Version: 0.4.5.1
 ;; Package-Requires: ((emacs "26.1") (org-ml "5.7") (dash "2.19") (s "1.12") (ts "0.3") (pg-ert "0.1"))
 ;; Keywords: productivity
 
@@ -489,23 +489,6 @@ logbook entries, return `nil'."
                              (org-ml-build-paragraph))
                            (org-ml-remove-parents)))]
     (list to from (org-ml-remove-parents ts) notes)))
-
-#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
-
-
-* DOING Rewire the security system
-  :PROPERTIES:
-  :ASSIGNEE: Bart Starr
-  :END:
-  :LOGBOOK:
-  - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
-    Back on the case
-  - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
-    Waiting on parts from the supplier
-  - State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
-    In process, it's harder than it looks
-  - Not a status update
-  :END:
 
 (defun pg-org-lookahead (match-criteria)
   "Return a function that takes an org-element node and runs
