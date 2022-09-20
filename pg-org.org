@@ -763,7 +763,7 @@ The =pg-org-headline-logbook-entries= function is tested using the sample Org in
 
 #+name: input/logbook-simple
 #+caption: Org document used in testing =pg-org-headline-logbook entries=
-#+begin_src org
+#+begin_src org :tangle no
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
 
 
@@ -1319,7 +1319,7 @@ But will it blend? Let's find out. Our input for these tests is in Listing [[inp
 
 #+name: input/match
 #+caption: Sample used for testing
-#+begin_src org
+#+begin_src org :tangle no
   ,#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
 
 
