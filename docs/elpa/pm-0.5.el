@@ -3,7 +3,7 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.4
+;; Version: 0.5
 ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649") (helm "20210826.553") (pg-util "0.3") (pg-ert "0.1") (pg-org "0.4") (pm-task "0.1.3"))
 ;; Keywords: productivity
 
@@ -228,7 +228,7 @@ user. Otherwise, return nil."
 (defun pg-pm--build-task (headline)
   "Return a task from HEADLINE, or nil if HEADLINE is not a task."
   (let ((logbook-entries (->> headline
-                              (pg-pm--headline-logbook-items)
+                              (pg-org-headline-get-logbook-items)
                               (-map #'pg-pm--parse-strans-log-entry))))
     (when (pg-pm--accomplishment? headline logbook-entries)
       (list headline (or (first logbook-entries)
@@ -336,7 +336,7 @@ all the elements of the transition log entry, as returned by
 If the headline is not, in fact, an accomplishment, this function
 returns nil."
   (let ((logbook-entries (->> headline
-                              (pg-pm--headline-logbook-items)
+                              (pg-org-headline-get-logbook-items)
                               (-map #'pg-pm--parse-strans-log-entry))))
     (when (pg-pm--accomplishment? headline logbook-entries)
       (list headline (or (first logbook-entries)
