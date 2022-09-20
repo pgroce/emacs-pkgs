@@ -3,7 +3,7 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.3.3.2
+;; Version: 0.3.3.3
 ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649") (helm "20210826.553") (pg-util "0.3") (pg-ert "0.1") (pg-org "0.4") (pm-task "0.1.3"))
 ;; Keywords: productivity
 
@@ -168,56 +168,6 @@ value. If KEY is not defined, return nil."
            (org-ml-match `((:and keyword (:key ,key))))
            (--map (org-ml-get-property :value it))
            (first)))))
-
-#+startup: indent
-#+TITLE: Example
-
-A minimal example.
-
-#+title: Sample project
-#+startup: indent
-#+project_status: active
-#+category: sample-1
-#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@) CANCELLED(@)
-
-
-* Tasks
-:PROPERTIES:
-:CONTAINS_TASKS: t
-:END:
-
-** DOING Rewire the security system
-:PROPERTIES:
-:ASSIGNEE: Bart Starr
-:END:
-:LOGBOOK:
-- Annotation by "asmithee" on [2022-01-27 Thu 20:01] \\
-  Just a test
-- State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
-  Third item added
-- State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
-  Second item added
-- State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
-  First item added
-:END:
-This is the description.
-
-
-** DOING Get past the guards()
-:PROPERTIES:
-:ASSIGNEE: Bart Starr
-:END:
-:LOGBOOK:
-- Annotation by "asmithee" on [2022-01-27 Thu 20:01] \\
-  Just another test, but in a different task
-- State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
-  Third item added
-- State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
-  Second item added
-- State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
-  First item added
-:END:
-This is the description.
 
 (defun pg-pm--accandidates (node)
   "Return headline nodes for all tasks under NODE with the keyword DONE.
@@ -560,21 +510,6 @@ in the report. The syntax for this specification is given in
       (org-indent-mode)
       (insert (pg-pm--status-build-string begin end headlines)))
     (switch-to-buffer buff)))
-
-* Tasks
-
-** DONE Do a Thing
- :LOGBOOK:
- - State "DONE"       from "DOING"      [2021-08-06 Fri 12:52] \\
-   Notes
- - State "DOING"      from "TODO"       [2021-08-06 Fri 11:52] \\
-   Notes 2
- - Not a status change [2021-09-15 Wed]
- -
- -
- :END:
-
-** TODO Not a task (yet)
 
 (provide 'pm)
 ;;; pm.el ends here
