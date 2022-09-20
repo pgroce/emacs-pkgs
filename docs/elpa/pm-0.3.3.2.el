@@ -3,7 +3,7 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.3.2.7
+;; Version: 0.3.3.2
 ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649") (helm "20210826.553") (pg-util "0.3") (pg-ert "0.1") (pg-org "0.4") (pm-task "0.1.3"))
 ;; Keywords: productivity
 
@@ -26,12 +26,29 @@
   :type 'directory
   :group 'pm)
 
+(defcustom pg-pm-additional-agenda-files nil
+  "List of Org-mode files to include in `org-agenda-files'
+  besides the active project files."
+  :type '(repeat file)
+  :group 'pm)
+
+(defcustom pg-pm-prepend-additional-agenda-files nil
+  "If t, add files in `pg-pm-additional-agenda-files' to
+  `org-agenda-files' before the active project files. Otherwise
+  append the files after the active project files, which is the
+  default."
+  :type 'boolean)
+
 (defun pg-pm-set-agenda-files ()
   "Set `org-agenda-files' according to the contents of
   `pg-pm-active-projects'. Called as a hook in
   `pg-pm-active-projects-refreshed-hook'."
-  (setq org-agenda-files (pg-pm-active-projects))
+  (setq org-agenda-files
+        (if pg-pm-prepend-additional-agenda-files
+            (-concat pg-pm-additional-agenda-files (pg-pm-active-projects))
+          (-concat (pg-pm-active-projects) pg-pm-additional-agenda-files)))
   (message "pm: Agenda refreshed"))
+
 
 (defcustom pg-pm-active-projects-refreshed-hook
   '(pg-pm-set-agenda-files)
@@ -151,6 +168,56 @@ value. If KEY is not defined, return nil."
            (org-ml-match `((:and keyword (:key ,key))))
            (--map (org-ml-get-property :value it))
            (first)))))
+
+#+startup: indent
+#+TITLE: Example
+
+A minimal example.
+
+#+title: Sample project
+#+startup: indent
+#+project_status: active
+#+category: sample-1
+#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@) CANCELLED(@)
+
+
+* Tasks
+:PROPERTIES:
+:CONTAINS_TASKS: t
+:END:
+
+** DOING Rewire the security system
+:PROPERTIES:
+:ASSIGNEE: Bart Starr
+:END:
+:LOGBOOK:
+- Annotation by "asmithee" on [2022-01-27 Thu 20:01] \\
+  Just a test
+- State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+  Third item added
+- State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+  Second item added
+- State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+  First item added
+:END:
+This is the description.
+
+
+** DOING Get past the guards()
+:PROPERTIES:
+:ASSIGNEE: Bart Starr
+:END:
+:LOGBOOK:
+- Annotation by "asmithee" on [2022-01-27 Thu 20:01] \\
+  Just another test, but in a different task
+- State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+  Third item added
+- State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+  Second item added
+- State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+  First item added
+:END:
+This is the description.
 
 (defun pg-pm--accandidates (node)
   "Return headline nodes for all tasks under NODE with the keyword DONE.
@@ -413,7 +480,6 @@ returns nil."
 ;;  headline -> section -> plain-list -> [item -> paragraph]
 
 
-
 (defun pg-pm-accomplishment-report (&optional time-offset)
   "Compile an accomplishment report from the tasks that have
 been closed in a time period. Accomplishments are extracted from
@@ -444,6 +510,72 @@ in the report. The syntax for this specification is given in
        (insert (org-ml-to-string it))
        headlines))
     (switch-to-buffer buff)))
+
+
+
+(defun pg-pm--status-build-string (begin end headlines)
+  "Build an org document representing a status report."
+  (let* ((fmt "%Y/%m/%d")
+         (begin-str (ts-format fmt begin))
+         (end-str (ts-format fmt end))
+         (the-spec `(org-data
+                      (section
+                       (keyword "TITLE"
+                                ,(format "pgroce Status %s-%s" begin-str end-str)))
+                      (headline! :title-text "Accomplishments"
+                                 :section-children ((paragraph! "NSTR")))
+                      (headline! :title-text "Status"
+                                 ;; headlines is a list of literal org headline
+                                 ;; elements. Each one must be quoted so it will
+                                 ;; be ignored by org-ml-build.
+                                 ,@(--map `(quote ,it) headlines))))
+         (the-tree (pg-org-ml-build the-spec)))
+    (org-ml-to-trimmed-string the-tree)))
+
+
+
+
+
+(defun pg-pm-status-report (&optional time-offset)
+  "Compile a status report from the tasks that have been closed in
+a time period. Accomplishments are extracted from the files
+returned by `pg-pm-active-projects'.
+
+If TIME-OFFSET is nil, prompt the user for a time specification,
+indicating how old an accomplishment can be before it is included
+in the report. The syntax for this specification is given in
+`pg-time-spec-from-string'."
+  (interactive)
+  (let* ((time-offset (or time-offset
+                          (read-string "Find since: " "-7d")))
+         (end (ts-now))
+         (begin (pg-pm--beginning-time end time-offset))
+         (headlines
+          (--map (pg-pm--headlines-from-project-file begin end it)
+                 (pg-pm-active-projects)))
+         (buff (get-buffer-create "*Accomplishments*")))
+    (with-current-buffer buff
+      (erase-buffer)
+      (cd pg-pm-project-dir)
+      (org-mode)
+      (org-indent-mode)
+      (insert (pg-pm--status-build-string begin end headlines)))
+    (switch-to-buffer buff)))
+
+* Tasks
+
+** DONE Do a Thing
+ :LOGBOOK:
+ - State "DONE"       from "DOING"      [2021-08-06 Fri 12:52] \\
+   Notes
+ - State "DOING"      from "TODO"       [2021-08-06 Fri 11:52] \\
+   Notes 2
+ - Not a status change [2021-09-15 Wed]
+ -
+ -
+ :END:
+
+** TODO Not a task (yet)
 
 (provide 'pm)
 ;;; pm.el ends here

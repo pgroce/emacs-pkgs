@@ -3,7 +3,7 @@
 ;; Copyright (C) 2022 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.4.3
+;; Version: 0.4.5
 ;; Package-Requires: ((emacs "26.1") (org-ml "5.7") (dash "2.19") (s "1.12") (ts "0.3") (pg-ert "0.1"))
 ;; Keywords: productivity
 
@@ -106,6 +106,10 @@ org-element tree, then define an ERT test named TEST-NAME (using
    (lambda (node)
      (let ((head (car node)))
        (cond
+        ;; Return list un-transformed. The elements of this list will
+        ;; still be transformed.
+        ((listp head)
+         `(:node (list ,@node)))
         ((not (symbolp head))
          (error "Unexpected non-symbol %s" head))
         ((eq head 'quote)
@@ -131,8 +135,8 @@ type using org-ml's corresponding \"org-ml-build-*\"
 corresponding to that symbol. A SPEC for a headline element, for
 instance, might be:
 
-  (headline :title (secondary-string! \"foo\")
-    (section (paragraph! \"paragraph text\")))
+  '(headline :title (secondary-string! \"foo\")
+     (section (paragraph! \"paragraph text\")))
 
 This function will convert that specification into the result of
 calling:
@@ -140,7 +144,17 @@ calling:
   (org-ml-build-headline
     :title (org-ml-build-secondary-string! \"foo\")
     (org-ml-build-section
-      (org-ml-build-paragraph! \"paragraph text\")))"
+      (org-ml-build-paragraph! \"paragraph text\")))
+
+Literal org-element nodes can be spliced into SPEC by wrapping
+them in a quote, like so:
+
+  ;; paragraph contains a literal org-element of a paragraph
+  `(headline :title (secondary-string! \"foo\")
+     (section ,(quote paragraph)))
+
+
+"
   (eval (pg-org--ml-build-spec spec)))
 
 (defalias 'org-ml-build 'pg-org-ml-build)
@@ -475,6 +489,23 @@ logbook entries, return `nil'."
                              (org-ml-build-paragraph))
                            (org-ml-remove-parents)))]
     (list to from (org-ml-remove-parents ts) notes)))
+
+#+seq_todo: TODO  DOING(@) BLOCKED(@) | DONE(@)
+
+
+* DOING Rewire the security system
+  :PROPERTIES:
+  :ASSIGNEE: Bart Starr
+  :END:
+  :LOGBOOK:
+  - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+    Back on the case
+  - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+    Waiting on parts from the supplier
+  - State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+    In process, it's harder than it looks
+  - Not a status update
+  :END:
 
 (defun pg-org-lookahead (match-criteria)
   "Return a function that takes an org-element node and runs

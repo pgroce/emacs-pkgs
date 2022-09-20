@@ -36,7 +36,7 @@ ERT is easy to hack, though; this function is adapted from =ert-run-tests-batch=
 
 (It's /so/ hackish, in fact, that for now I have a slightly less hacked version of the original around just for reference as I clean this one up. Apologies for the mess, but this just doesn't have to be bulletproof for me right now.)
 
-  #+begin_src emacs-lisp
+#+begin_src emacs-lisp
     (defun pg-ert-run-tests-string (selector &optional return-stats)
       "Run ERT tests and report the output in a string. Returns the
     string; if RETURN-STATS is non-nil, instead returns a cons cell
@@ -186,7 +186,7 @@ ERT is easy to hack, though; this function is adapted from =ert-run-tests-batch=
             acc-str))))
 
 
-  #+end_src
+#+end_src
 
 ** =shouldmap=
 

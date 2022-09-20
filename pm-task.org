@@ -515,7 +515,7 @@ This is the description.
 :CUSTOM_ID:        sct-annotate
 :END:
 
-The =pg-task-annotate= function in Listing [[src/logbook/annotate]] uses the techniques demonstrated in Section [[sct-logbook]] to add an annotation to the task. (Org already has something called a note, and /comment/ is a better name for a planned feature, leaving /annotation/ as the best available term for this concept.)
+The =pm-task-annotate= function in Listing [[src/logbook/annotate]] uses the techniques demonstrated in Section [[sct-logbook]] to add an annotation to the task. (Org already has something called a note, and /comment/ is a better name for a planned feature, leaving /annotation/ as the best available term for this concept.)
 
 #+name: src/logbook/annotate
 #+begin_src emacs-lisp :noweb-ref src :results silent
@@ -546,21 +546,21 @@ Use of =pm-task-annotate= is shown in Listing [[ex/logbook/1]], with results in 
 
 #+name: ex/logbook/1/results
 #+begin_src org :tangle no
-,* DOING Rewire the security system
-:PROPERTIES:
-:ASSIGNEE: Bart Starr
-:END:
-:LOGBOOK:
-- Annotation by "asmithee" on [2022-01-27 Thu 20:01] \\
-  Just a test
-- State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
-  Third item added
-- State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
-  Second item added
-- State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
-  First item added
-:END:
-This is the description.
+  ,* DOING Rewire the security system
+  :PROPERTIES:
+  :ASSIGNEE: Bart Starr
+  :END:
+  :LOGBOOK:
+  - Annotation by "asmithee" on [2022-01-27 Thu 20:01] \\
+    Just a test
+  - State "DOING"      from "BLOCKED"    [2021-12-11 Sat 20:06] \\
+    Third item added
+  - State "BLOCKED"    from "DOING"      [2021-12-11 Sat 20:05] \\
+    Second item added
+  - State "DOING"      from "TODO"       [2021-12-11 Sat 20:04] \\
+    First item added
+  :END:
+  This is the description.
 #+end_src
 
 
@@ -730,7 +730,7 @@ These design decisions may be revisited in the future, probably only in order to
 
 ** Accessing task information
 
-Input for tests in this section is in Listing [[ex/test/basic-test]].
+Input for tests in this section is in Listing [[input/basic]].
 
 #+name: input/basic
 #+caption: Sample used for testing
@@ -1570,7 +1570,7 @@ For demonstration purposes,  we will augment our example to include tasks with o
          (-map (-partial #'org-ml-get-property :raw-value))))
 #+end_src
 
-
+` `
 **** Tasks assigned to \upsilon since \tau
 This use case requires that assignment changes be fully tracked, with timestamps for task creation and reassignment.
 
@@ -1591,6 +1591,40 @@ This use case requires that assignment changes be fully tracked, with timestamps
 
 
 
+
+** UI
+
+*** Adding annotations
+
+src/ui/logbook/annotate
+#+begin_src emacs-lisp :noweb-ref src :results silent
+
+  (defun pm-ui--annotate-finish-function ()
+    (if (not org-note-abort)
+        (let ((txt (buffer-substring-no-properties (point-min) (point-max)))
+              lines)
+          ;; Strip comments and format a la org-mode
+          ;; (especially org-store-log-note)
+          (while (string-match "\\`# .*\n[ \t\n]*" txt)
+            (setq txt (replace-match "" t t txt)))
+          (when (string-match "\\s-+\\'" txt)
+            (setq txt (replace-match "" t t txt)))
+          (message txt))
+      (message "aborted"))
+    (kill-buffer))
+
+  (defun pm-ui-annotate ()                ;(task)
+    "Create annotation for TASK, editing content of message in a temporary buffer"
+    (interactive)
+    (org-switch-to-buffer-other-window "*PM Task Annotate*")
+    (erase-buffer)
+    (let ((org-inhibit-startup t)) (org-mode))
+    (insert "# Insert annotation. Finish with C-c C-c, cancel with C-c C-k\n\n")
+    (setq-local org-finish-function #'pm-ui--annotate-finish-function))
+
+
+
+#+end_src
 * Provide
 
 #+BEGIN_SRC emacs-lisp :noweb-ref src
