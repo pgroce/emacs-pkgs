@@ -158,6 +158,14 @@ I still need functions from both =ert= and =pg-ert=, so I'm requiring both. In p
     :group 'pm
     :type 'hook)
 
+  (defcustom pg-pm-projectile-switch-project-action
+    nil
+    "Take this action when switching to a project with
+  `pg-pm-switch-to-active-project'. If this value is nil, use the
+  value of `projectile-switch-project-action'"
+    :group 'pm
+    :type 'function)
+
 
   (defvar pg-pm--active-project-cache nil
     "List of active projects. Automatically generated if
@@ -234,13 +242,15 @@ I still need functions from both =ert= and =pg-ert=, so I'm requiring both. In p
 
   ;;;###autoload
   (defun pg-pm-switch-to-active-project (&optional arg)
-    "Switch to one of the acive projects"
+    "Switch to one of the active projects"
     (interactive)
     (let ((proj (->> (pg-pm-active-projects)
                      (-map #'file-name-directory)
                      (completing-read "Switch to Active Project: ")))
           (projectile-switch-project-action
-           #'pg-pm--projectile-switch-project-action))
+           (if pg-pm-projectile-switch-project-action
+               pg-pm-projectile-switch-project-action
+             projectile-switch-project-action)))
       (projectile-switch-project-by-name proj arg)))
 
 #+end_src
