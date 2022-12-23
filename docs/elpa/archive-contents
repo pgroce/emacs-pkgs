@@ -1,6 +1,6 @@
 (1
  (pm .
-     [(0 5)
+     [(0 6)
       ((emacs
 	(26 1))
        (dash
@@ -179,7 +179,7 @@
 	   (:maintainer "Phil Groce" . "pgroce@gmail.com")
 	   (:keywords "utility"))])
  (pg-compile-buffers .
-		     [(0 1 1)
+		     [(0 2 0)
 		      nil "Toggle reuse of compile buffers" single
 		      ((:authors
 			("Phil Groce" . "pgroce@gmail.com"))

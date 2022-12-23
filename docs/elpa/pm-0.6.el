@@ -3,7 +3,7 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.5
+;; Version: 0.6
 ;; Package-Requires: ((emacs "26.1") (dash "2.19") (s "1.12") (org-ml "5.7") (ts "0.3") (projectile "20210825.649") (helm "20210826.553") (pg-util "0.3") (pg-ert "0.1") (pg-org "0.4") (pm-task "0.1.3"))
 ;; Keywords: productivity
 
@@ -55,6 +55,14 @@
   "Hook run when the active projects are refreshed."
   :group 'pm
   :type 'hook)
+
+(defcustom pg-pm-projectile-switch-project-action
+  nil
+  "Take this action when switching to a project with
+`pg-pm-switch-to-active-project'. If this value is nil, use the
+value of `projectile-switch-project-action'"
+  :group 'pm
+  :type 'function)
 
 
 (defvar pg-pm--active-project-cache nil
@@ -132,13 +140,15 @@ sync."
 
 ;;;###autoload
 (defun pg-pm-switch-to-active-project (&optional arg)
-  "Switch to one of the acive projects"
+  "Switch to one of the active projects"
   (interactive)
   (let ((proj (->> (pg-pm-active-projects)
                    (-map #'file-name-directory)
                    (completing-read "Switch to Active Project: ")))
         (projectile-switch-project-action
-         #'pg-pm--projectile-switch-project-action))
+         (if pg-pm-projectile-switch-project-action
+             pg-pm-projectile-switch-project-action
+           projectile-switch-project-action)))
     (projectile-switch-project-by-name proj arg)))
 
 (defmacro pm--to-buffer (buffer-or-file-name &optional err-message)
