@@ -49,8 +49,8 @@ The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the av
   ;; Copyright (C) 2020 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.7.7
-  ;; Package-Requires: ((emacs "26.1") (dash "2.19") (f "20220608.943"))
+  ;; Version: 0.7.8
+  ;; Package-Requires: ((emacs "26.1") (dash "2.19") (f "20220608.943") (pg-org "0.4.7") (pg-util "0.3.4"))
   ;; Keywords: pandoc markdown org-mode latex pdf docx
 
 #+END_SRC
@@ -59,6 +59,7 @@ The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the av
 
 #+BEGIN_SRC emacs-lisp
   (require 'pg-util)
+  (require 'pg-org)
   (require 'cl-lib)
   (require 'dash)
   (require 'f)
@@ -139,7 +140,20 @@ Private code that supports the rest of the public API. =pg-pandoc--org-headline=
     "History variable for use with `pg-pandoc-org-subtree' and
     `pg-pandoc-org'")
 
+  (defcustom pg-pandoc-downcase-default-filenames nil
+    "If non-`nil', downcase default output file names. By default,
+  preserve case in default file names.")
 
+  (defcustom pg-pandoc-bad-chars-regexp "[^a-zA-Z0-9._-]"
+    "Regexp matching illegal characters in an output filename. By
+  default, only the POSIX \"fully portable filenames\" characters
+  are used. (See
+  https://en.wikipedia.org/wiki/Filename#Comparison_of_filename_limitations)")
+
+  (defcustom pg-pandoc-allow-leading-hyphens nil
+    "If non-`nil', allow an output filename to begin with a
+  hyphen. Leading hyphens are not permitted in fully POSIX-portable
+  filenames.")
 
   (defun pg-pandoc--org-headline ()
     "Return the headline level (i.e., number of stars) and title of
@@ -156,16 +170,27 @@ Private code that supports the rest of the public API. =pg-pandoc--org-headline=
                  (match-beginning 4)
                  (match-end 4)))))))
 
+  (defun pg-pandoc--maybe-downcase (str)
+    "Downcase STR according to the value of `pg-pandoc-downcase-default-filenames'."
+    (if pg-pandoc-downcase-default-filenames
+        (downcase str)
+      str))
+
+  (defun pg-pandoc--maybe-remove-leading-hyphens (str)
+    "Strip leading hyphens according to the value of `pg-pandoc-allow-leading-hyphens'."
+    (if (not pg-pandoc-allow-leading-hyphens)
+        (replace-regexp-in-string "^-*" "" str)))
+
   (defun pg-pandoc--sanitize-for-file-name (unclean)
     "Downcase UNCLEAN, convert some dividers to hyphens, and
   remove everything else"
-    (let ((bad-chars-regexp "[^a-z-_,' ]")
-          (to-hyphens-regexp "[_,' ]"))
-      (replace-regexp-in-string
-       to-hyphens-regexp "-"
-       (replace-regexp-in-string
-        bad-chars-regexp ""
-        (downcase unclean)))))
+    (let ((bad-chars-regexp "[^a-zA-Z0-9._-]")
+          (separators-regexp "[,' ]"))
+      (->> unclean
+           (pg-pandoc--maybe-downcase)
+           (replace-regexp-in-string separators-regexp "-")
+           (replace-regexp-in-string bad-chars-regexp "")
+           (pg-pandoc--maybe-remove-leading-hyphens))))
 
   (defun pg-pandoc--apply-template (tplt vars-alist)
     "Apply VARS-ALIST to TPLT to generate a new string. VARS-ALIST
@@ -180,6 +205,150 @@ Private code that supports the rest of the public API. =pg-pandoc--org-headline=
                vars-alist
                :initial-value tplt))
 #+END_SRC
+
+*** Default output file names from buffers
+
+The goal of these functions is for the user  to do as little work as possible to get a usable output file name, by taking maximum advantage of the context in which the =pg-pandoc= functions are called.
+
+More detailed information is available in the docstrings, but in general:
+
+- Buffers with file names use the file basename
+- Context-sensitive default behavior is provided for Org files, Org Src edit buffers, and Org Capture buffers
+- If nothing else works, a user-configurable system-wide default is provided
+- Users can avoid any automatic behavior by setting a buffer-local variable
+
+This applies only to =pg-pandoc-current-buffer=; =pg-pandoc-org-subtree= has its own logic for determining the output file basename.
+
+#+NAME: pandoc/output-file-names
+#+begin_src emacs-lisp
+  (defvar-local pg-pandoc-output-file-basename nil
+    "Local variable defining the base output file name for
+  `pg-pandoc-current-buffer' and `pg-pandoc-org-subtree'. This
+  value will be preferred over other methods of determining the
+  base output file name." )
+
+  (defcustom pg-pandoc-default-output-basename "pandoc-output"
+    "If no other sensible default for output filename can be
+  identified, use this.")
+
+  (defcustom pg-pandoc-org-output-prefer 'title
+    "Specify which heuristic to prefer when converting an org-mode
+  document. Valid values are 'title (prefer the value of the TITLE
+  document keyword) and 'file (prefer basename of the buffer
+  file). If one does not exist, the other is used. If neither
+  exists, a fixed default is used. It is assumed that only one
+  TITLE keyword is defined.
+
+  If `pg-pandoc-output-file-basename' is set, this variable is ignored.")
+
+  ;; Output file name generators.
+
+  ;; Note that all these will eventually be passed through
+  ;; pg-pandoc--sanitize-for-file-name to ensure the name consists
+  ;; entirely of legal characters. These functions may do additional
+  ;; work to convert characters in a context-sensitive way. Slashes,
+  ;; for instance, may treated differently if they appear in labels or
+  ;; file names, for example.
+
+  (defun pg-pandoc--ofn-org ()
+    "Return an output file base name for Org Mode buffers.
+
+  This function assumes the whole buffer will be
+  converted. `pg-pandoc-org-subtree' uses its own logic for
+  determining the output file base name."
+
+    (let* ((buf-fname (if (buffer-file-name)
+                          (file-name-base (buffer-file-name))
+                        nil))
+           (doc-title (-some->> (org-ml-parse-this-buffer)
+                        (pg-org-get-keyword-value "TITLE")
+                        (replace-regexp-in-string "\s*:\s*" "_")))
+           (choice (if (eq pg-pandoc-org-output-prefer 'title)
+                       (or doc-title buf-fname)
+                     (or buf-fname doc-title))))
+      ;; Did both choices suck? Return the default.
+      (or choice pg-pandoc-default-output-basename)))
+
+
+  (defun pg-pandoc--ofn-org-src ()
+    "Return an output file base name for Org Src edit buffers."
+    ;; If the block name is defined, use it. Otherwise, switch to the
+    ;; parent buffer and run pg-pandoc--output-fname-base to determine
+    ;; what its output file name would be. Then use that with a hyphen
+    ;; appended. (Assumption: User will provide additional
+    ;; qualifications.)
+    ;;
+    ;; Call pg-pandoc--output-fname-base instead of the org-buffer
+    ;; specific ofn function in order to get additional default
+    ;; processing, such as the value of pg-pandoc-output-file-basename for
+    ;; the parent buffer.
+    (let ((block-name (pg-org-src-info-get :name)))
+      (if block-name
+          (replace-regexp-in-string "/" "_" block-name)
+        (let ((parent-name (save-excursion
+                             (set-buffer (pg-org-src-parent-buffer))
+                             (pg-pandoc--output-fname-base))))
+          (concat parent-name "-")))))
+
+  (defun pg-pandoc--ofn-org-capture ()
+    "Return an output file base name for Org Capture edit buffers"
+    (or
+     (->> (org-ml-parse-headline-at (point-min))
+          (org-ml-get-property :raw-value)
+          (replace-regexp-in-string "^\\[.*\\] " "") )
+     (error "Can't read initial headline. Malformed capture buffer?")))
+
+
+
+  (defun pg-pandoc--generate-output-file-basename ()
+    "Determine what should be used as the base filename for this
+  buffer.
+
+  The value of the buffer--local variable
+  `pg-pandoc-output-file-basename' is always used to determine the
+  initial base filename if it is defined. Otherwise:
+
+  - If the buffer is an Org Mode buffer, use the value of the
+  TITLE keyword or the buffer file name, depending on the value of
+  `pg-pandoc-org-output-prefer'.
+
+  - If the buffer is a named Org Src edit buffer, the block name is
+  used. Slashes in the name are converted to underscores to prevent
+  misinterpretation as directory separators. If the block is
+  unnamed, the output filename of the parent Org file is used, with
+  a hyphen appended; the user is expected to further qualify the
+  name.
+
+  - If the buffer is an Org Capture buffer, the text of the first
+  headline is used, minus any leading timestamp. If the headline
+  does not exist, this is an error.
+
+  - If the buffer is none of these but has a file name, the
+    basename of the file name is used.
+
+  In all other cases the value of
+  `pg-pandoc-default-output-basename' is used.
+
+  After the initial base filename is chosen, it is sanitized by
+  `pg-pandoc--sanitize-for-file-name' before being returned."
+
+    (->> (or pg-pandoc-output-file-basename
+             (cond
+              ((org-capture-get :original-buffer t)
+               (pg-pandoc--ofn-org-capture))
+              ((org-src-edit-buffer-p)
+               (pg-pandoc--ofn-org-src))
+              ((eq major-mode 'org-mode)
+               (pg-pandoc--ofn-org))
+              ((buffer-file-name)
+               (->> (buffer-file-name)
+                    (file-name-base)))
+              (t
+               pg-pandoc-default-output-basename)))
+         (pg-pandoc--sanitize-for-file-name)))
+
+
+#+end_src
 
 *** Convert citations
 
@@ -287,6 +456,10 @@ Several private helper functions are defined here too.
 
 
 
+  ;;
+  ;; Public functions:
+  ;;
+
   (defun pg-pandoc-org-subtree (invert-top-is-title)
     "Convert the current org-mode subtree to another output format using Pandoc."
     (interactive "P")
@@ -342,9 +515,7 @@ Several private helper functions are defined here too.
     (interactive)
     (let* ((input-format (replace-regexp-in-string
                           "-mode$" "" (format "%s" major-mode)))
-           (fname-base (if (buffer-file-name)
-                           (file-name-base (buffer-file-name))
-                         (pg-pandoc--sanitize-for-file-name (buffer-name))))
+           (fname-base (pg-pandoc--generate-output-file-basename))
            (pandoc-command (pg-pandoc--build-command input-format fname-base)))
       (save-excursion
         (save-restriction
