@@ -24,7 +24,7 @@ Where such an accomodation is more trouble than it's worth, you may still see so
   ;; Copyright (C) 2022 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.4.6
+  ;; Version: 0.4.8
   ;; Package-Requires: ((emacs "26.1") (org-ml "5.7") (dash "2.19") (s "1.12") (ts "0.3") (pg-ert "0.1"))
   ;; Keywords: productivity
 #+END_SRC
@@ -122,6 +122,101 @@ The tests for the timestamp functions above are in Listing [[t/ts]].
 
 
 
+** Document keywords
+
+Document keywords, such =#+STARTUP= and =#+TITLE= are somewhat cumbersome to access, relative to their utility. These functions streamline that access.
+
+The document keywords are properties on the very first section node in the document. As such, these functions require that their argument be an =org-data= node.
+
+#+begin_src emacs-lisp
+
+
+  (defun pg-org-get-all-keyword-nodes (org-data-node)
+    "Get all Org document keyword nodes that are children of ORG-DATA-NODE."
+    ;; The keyword nodes live on the first section node in the org-data node.
+    (if (org-ml-is-type 'org-data org-data-node)
+        (->> org-data-node
+             (org-ml-get-children)
+             (first)
+             (org-ml-get-children)
+             (--filter (org-ml-is-type 'keyword it)))
+      (error "org-element node is not org-data type")))
+
+
+
+
+  (defun pg-org-get-keyword-nodes (key org-data-node)
+    "Returns a list of the keyword nodes with KEY as the :key
+    property, if any such nodes exists as a child of
+    ORG-DATA-NODE. KEY is case-insensitive."
+    (--filter
+     (and (org-ml-is-type 'keyword it)
+          (s-equals? (org-ml-get-property :key it) (upcase key)))
+     (pg-org-get-all-keyword-nodes org-data-node)))
+
+  (defun pg-org-get-keyword-node (key org-data-node)
+    "Get the first keyword node element in ORG-DATA-NODE with KEY as
+  key, for the common case where only one keyword definition is
+  expected/useful."
+    (first (pg-org-get-keyword-nodes key org-data-node)))
+
+  (defun pg-org-get-keyword-values (key org-data-node)
+    "Return the values (i.e., the values of the :value property) of
+  the keyword nodes with KEY as the :key property, if any such
+  nodes exists as a child of ORG-DATA-NODE. KEY is
+  case-insensitive."
+    (--map (org-ml-get-property :value it)
+           (pg-org-get-keyword-nodes key org-data-node)))
+
+  (defun pg-org-get-keyword-value (key org-data-node)
+    "Get the value of the first keyword node element in ORG-DATA-NODE
+  with KEY as key, for the common case where only one keyword
+  definition is expected/useful."
+    (->> (pg-org-get-keyword-values key org-data-node)
+         (first)))
+
+  (defun pg-org-get-keyword-keys (org-data-node)
+    "Get all the strings used as keys in document keyword nodes in ORG-DATA-NODE."
+    (--map (org-ml-get-property :key it)
+           (pg-org-get-all-keyword-nodes org-data-node)))
+
+  (defun pg-org-get-keywords-alist (org-data-node)
+    "Get the keywords associated with the Org document in
+  ORG-DATA-NODE as an alist. Note that, as is the case with Org
+  keywords, alists can have multiple entries for a single key."
+    (--map (cons (org-ml-get-property :key it) (org-ml-get-property :value it))
+           (pg-org-get-all-keyword-nodes org-data-node)))
+
+
+  ;;  TODO: Broken
+  ;; (defun pg-org-set-keyword (key value org-data-node)
+  ;;   "Return ORG-DATA-NODE with keyword KEY updated to have value
+  ;; VALUE. If a keyword for KEY exists, its value is updated. If it
+  ;; does not exist, a new keyword for KEY is added as the first child
+  ;; of ORG-DATA-NODE, with VALUE as its value.
+
+  ;; This function should not be used if a keyword has or should have
+  ;; multiple values."
+  ;;   ;; TODO: The keyword should probably be added in an appropriate
+  ;;   ;; place in the list of children, not at the end.
+  ;;   (let ((new-kw (org-ml-build-keyword key value))
+  ;;         (old-kw (pg-org-get-keyword key org-data-node)))
+  ;;     (if old-kw
+  ;;         ;; Update keyword in place
+  ;;         (org-ml-map-children*
+  ;;           (--map (if (and (org-ml-is-type 'keyword it)
+  ;;                           (s-equals? key (org-ml-get-property :key it)))
+  ;;                      new-kw
+  ;;                    it)
+  ;;            it)
+  ;;           org-data-node)
+  ;;       ;; Add new keyword
+  ;;       (let ((new-children (cons new-kw (org-ml-get-children org-data-node))))
+  ;;         (org-ml-set-children new-children org-data-node)))))
+
+
+#+end_src
+
 ** Working on Source Blocks
 
 Being able to easily operate on blocks comes up during testing, and also in workflows where the Org file is being treated like an executable notebook. (See also: [[https://jupyter.org/][Jupyter Notebook]])
@@ -180,6 +275,54 @@ Speaking of testing, here's a convenience macro for using =ert-deftest= with =pg
        (ert-deftest ,test-name () ,@body)))
 #+end_src
 
+*** Meta-info on source blocks
+
+Source blocks, like all Org blocks, have a lot of meta-info. Within an Org document, this information can be obtained programmatically by running =org-babel-get-src-block-info=. When editing the code in a source block, the same data is available from the local variable =org-src--babel-info=. (This value is populated once when the buffer is created and never updated, so changes to either the header or body of the block will not be reflected.)
+
+The data structure itself is a list with the following elements. The names of these elements are my invention, as none of this seems to be documented anywhere else; I am reverse-documenting from the definition of =org-babel-get-src-block-info=.
+
+- =lang= :: The language of the source block
+- =body= :: The body of the source block as a (big) string.
+- =properties= :: A plist [fn::I think? It's often accessed in code with =assq= ] containing all the properties of the source block. Keys are =:results=, =:exports=, =:tangle=, =:hlines=, =:noweb=, =:cache=, and =:session=. If a property is not defined, this list contains the default/inherited value.
+- =switches= :: The string containing the switches associated with this source block. According to [[https://www.gnu.org/software/emacs/manual/html_node/org/Structure-of-Code-Blocks.html][the documentation]], " \[s]witches provide finer control of the code execution, export, and format". Use of switches is demonstrated in [[https://www.gnu.org/software/emacs/manual/html_node/org/Literal-Examples.html][Literal Examples]]. If no switches are defined, this value is the empty string.
+- =name= :: If the block is named (e.g., with =#+NAME:=), this is the name. If no name is supplied, this is(?) the empty string.
+- =beg= :: The buffer position beginning this element, as from the =:post-affiliated= property of the [[https://orgmode.org/worg//dev/org-element-api.html][Org Element API]].
+- =ref= :: The "\[f]ormat string used to write labels in current block," i.e., the value of the =:label-ref= property if supplied, or the default/inherited value otherwise.
+
+
+
+There seems to be no official API access to this data via Org mode. The following function =pg-org-src-info-get= provides such an access method, but until Org mode makes this part of the public API it could break without notice.
+
+  #+begin_src emacs-lisp
+    (defun pg-org-src-info-get (item &optional src-block)
+      "Access ITEM in the org-src-block either at point (if in an Org
+    file) or associated with the buffer (for the edit buffer of an
+    org-src block). If SRC-BLOCK is supplied, it is used instead."
+
+      (let ((info (or src-block
+                      (if (org-src-edit-buffer-p)
+                          org-src--babel-info
+                        (org-babel-get-src-block-info)))))
+        (cl-case item
+          (:lang (nth 0 info))
+          (:body (nth 1 info))
+          (:properties (nth 2 info))
+          (:switches (nth 3 info))
+          (:name (nth 4 info))
+          (:begin (nth 5 info))
+          (:label-ref (nth 6 info)))))
+  #+end_src
+
+It's also helpful sometimes to be able to access an edit buffer's "parent" buffer. This is also not supported directly, but it is possible. The local variables =org-src--beg-marker= and =org-src--end-marker= (both ostensibly private, of course) are [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Markers.html][markers]] referring to the beginning and end of the source block in the parent buffer. One can therefore use =marker-buffer= to get the buffer.
+
+#+begin_src emacs-lisp
+  (defun pg-org-src-parent-buffer ()
+    "If in an Org Src edit buffer, return a reference to the parent
+  buffer. If not, emit an error."
+    (if (org-src-edit-buffer-p)
+        (marker-buffer org-src--beg-marker)
+      (error "Cannot get parent buffer: Not in Org Src edit buffer")))
+#+end_src
 
 ** Org-ml as a template engine
 
