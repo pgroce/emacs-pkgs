@@ -3,7 +3,7 @@
 ;; Copyright (C) 2017 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.1
+;; Version: 0.2
 ;; Package-Requires: ((dash "2.13.0"))
 ;; Keywords: ibuffer
 

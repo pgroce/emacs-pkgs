@@ -3,7 +3,7 @@
 ;; Copyright (C) 2021 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.1.3
+;; Version: 0.1.6
 ;; Package-Requires: ((dash "2.13.0"))
 ;; Keywords: utility
 

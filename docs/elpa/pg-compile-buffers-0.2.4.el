@@ -3,7 +3,7 @@
 ;; Copyright (C) 2017 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.2.0
+;; Version: 0.2.4
 ;; Keywords: utility
 
 (defun pg-compile-buffers--buffer-per-buffer (mm &optional buff-name)
