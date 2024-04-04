@@ -13,7 +13,7 @@
 
 (defun pg-shell-path--pathify (pathlist)
   "Convert a list of strings into a shell path specification."
-  (assert (listp pathlist))
+  (cl-assert (listp pathlist))
   (if (equal pathlist nil)
       ""
     (--reduce (concat acc ":" (s-trim it)) pathlist)))
@@ -23,7 +23,7 @@
   "Convert a shell path specification PATHSPEC into a list of
 strings. If PATHSPEC is an empty string or whitespace, returns
 nil."
-  (assert (stringp pathspec))
+  (cl-assert (stringp pathspec))
   (let ((pathspec (s-trim pathspec)))
     (if (s-present? pathspec)
         (split-string pathspec ":")

@@ -376,7 +376,7 @@ A task can then be updated with a new logbook using the =pm-task-set-logbook= fu
            (new-logbook
             (->> (pg-org-logbook t)
                  (pg-org-logbook-prepend-item lb-item))))
-      (assert new-logbook)
+      (cl-assert new-logbook)
       (->> doc
            (org-ml-match '(:first headline))
            (nth 0)
@@ -416,7 +416,7 @@ This is the description.
            (new-logbook
             (->> (pm-task-get-logbook task)
                  (pg-org-logbook-prepend-item lb-item))))
-      (assert new-logbook)
+      (cl-assert new-logbook)
       (->> (pm-task-set-logbook new-logbook task)
            (org-ml-to-trimmed-string))))
 #+end_src
