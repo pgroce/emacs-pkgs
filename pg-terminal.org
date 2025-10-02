@@ -16,7 +16,7 @@ Since these macros add code to =emacs-startup-hook=, the wrapped code will run a
   ;; Copyright (C) 2017 Phil Groce
 
   ;; Author: Phil Groce <pgroce@gmail.com>
-  ;; Version: 0.2
+  ;; Version: 0.2.1
   ;; Keywords: gui
 #+END_SRC
 
@@ -26,6 +26,7 @@ Since these macros add code to =emacs-startup-hook=, the wrapped code will run a
 This package has no dependencies.
 
 * Code
+
 
 
 #+BEGIN_SRC emacs-lisp
