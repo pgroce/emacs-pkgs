@@ -1,192 +1,99 @@
 (1
- (pm .
-     [(0 6)
-      ((emacs
-	(26 1))
-       (dash
-	(2 19))
-       (s
-	(1 12))
-       (org-ml
-	(5 7))
-       (ts
-	(0 3))
-       (projectile
-	(20210825 649))
-       (helm
-	(20210826 553))
-       (pg-util
-	(0 3))
-       (pg-ert
-	(0 1))
-       (pg-org
-	(0 4))
-       (pm-task
-	(0 1 3)))
-      "Project Management" single
-      ((:authors
-	("Phil Groce" . "pgroce@gmail.com"))
-       (:maintainer "Phil Groce" . "pgroce@gmail.com")
-       (:keywords "productivity"))])
- (pm-task .
-	  [(0 1 6)
-	   ((emacs
-	     (26 1))
-	    (dash
-	     (2 19))
-	    (s
-	     (1 12))
-	    (org-ml
-	     (5 7))
-	    (ts
-	     (0 3))
-	    (pg-ert
-	     (0 1))
-	    (pg-org
-	     (0 4)))
-	   "Task handling for project management" single
-	   ((:authors
-	     ("Phil Groce" . "pgroce@gmail.com"))
-	    (:maintainer "Phil Groce" . "pgroce@gmail.com")
-	    (:keywords "productivity"))])
- (pg-util .
-	  [(0 3 4)
-	   ((dash
-	     (2 13 0)))
-	   "Utility functions" single
-	   ((:authors
-	     ("Phil Groce" . "pgroce@gmail.com"))
-	    (:maintainer "Phil Groce" . "pgroce@gmail.com")
-	    (:keywords "utility"))])
- (pg-url-armor .
-	       [(0 1)
-		nil "Set off URLs in text" single
-		((:authors
-		  ("Phil Groce" . "pgroce@gmail.com"))
-		 (:maintainer "Phil Groce" . "pgroce@gmail.com"))])
- (pg-terminal .
-	      [(0 2)
-	       nil "Window system configuration" single
-	       ((:authors
-		 ("Phil Groce" . "pgroce@gmail.com"))
-		(:maintainer "Phil Groce" . "pgroce@gmail.com")
-		(:keywords "gui"))])
- (pg-solarized-theme .
-		     [(0 1)
-		      ((solarized-theme
-			(0)))
-		      "Custom theme" single
-		      ((:authors
-			("Phil Groce" . "pgroce@gmail.com"))
-		       (:maintainer "Phil Groce" . "pgroce@gmail.com")
-		       (:keywords "utility"))])
- (pg-shell-path .
-		[(0 2)
-		 ((s
-		   (0))
-		  (dash
-		   (0)))
-		 "Operations on shell paths" single
-		 ((:authors
-		   ("Phil Groce" . "pgroce@gmail.com"))
-		  (:maintainer "Phil Groce" . "pgroce@gmail.com")
-		  (:keywords "gui"))])
- (pg-sh .
-	[(0 4)
-	 nil "Manage local and remote shells" single
-	 ((:authors
-	   ("Phil Groce" . "pgroce@gmail.com"))
-	  (:maintainer "Phil Groce" . "pgroce@gmail.com")
-	  (:keywords "shell"))])
- (pg-s .
-       [(0 1)
-	((s
-	  (1 12 0)))
-	"String functions not in s.el" single
-	((:authors
-	  ("Phil Groce" . "pgroce@gmail.com"))
-	 (:maintainer "Phil Groce" . "pgroce@gmail.com")
-	 (:keywords "string"))])
- (pg-password .
-	      [(0 2)
-	       nil "Password utility functions" single
-	       ((:authors
-		 ("Phil Groce" . "pgroce@gmail.com"))
-		(:maintainer "Phil Groce" . "pgroce@gmail.com")
-		(:keywords "gui"))])
- (pg-pandoc .
-	    [(0 7 8)
-	     ((emacs
-	       (26 1))
-	      (dash
-	       (2 19))
-	      (f
-	       (20220608 943))
-	      (pg-org
-	       (0 4 7))
-	      (pg-util
-	       (0 3 4)))
-	     "Convert document formats with Pandoc" single
-	     ((:authors
-	       ("Phil Groce" . "pgroce@gmail.com"))
-	      (:maintainer "Phil Groce" . "pgroce@gmail.com")
-	      (:keywords "pandoc" "markdown" "org-mode" "latex" "pdf" "docx"))])
- (pg-org .
-	 [(0 4 8)
-	  ((emacs
-	    (26 1))
-	   (org-ml
-	    (5 7))
-	   (dash
-	    (2 19))
-	   (s
-	    (1 12))
-	   (ts
-	    (0 3))
-	   (pg-ert
-	    (0 1)))
-	  "Customizations to org-mode" single
-	  ((:authors
-	    ("Phil Groce" . "pgroce@gmail.com"))
-	   (:maintainer "Phil Groce" . "pgroce@gmail.com")
-	   (:keywords "productivity"))])
- (pg-open .
-	  [(0 6 9)
-	   nil "Open files with the system viewer" single
-	   ((:authors
-	     ("Phil Groce" . "pgroce@gmail.com"))
-	    (:maintainer "Phil Groce" . "pgroce@gmail.com")
-	    (:keywords "shell"))])
- (pg-ibuffer .
-	     [(0 2)
-	      ((dash
-		(2 13 0)))
-	      "Improvements to ibuffer" single
-	      ((:authors
-		("Phil Groce" . "pgroce@gmail.com"))
-	       (:maintainer "Phil Groce" . "pgroce@gmail.com")
-	       (:keywords "ibuffer"))])
- (pg-has-focus .
-	       [(0 3)
-		nil "Detect focus changes" single
-		((:authors
-		  ("Phil Groce" . "pgroce@gmail.com"))
-		 (:maintainer "Phil Groce" . "pgroce@gmail.com")
-		 (:keywords "gui"))])
- (pg-ert .
-	 [(0 1 6)
-	  ((dash
-	    (2 13 0)))
-	  "extensions to ert" single
-	  ((:authors
-	    ("Phil Groce" . "pgroce@gmail.com"))
-	   (:maintainer "Phil Groce" . "pgroce@gmail.com")
-	   (:keywords "utility"))])
- (pg-compile-buffers .
-		     [(0 2 4)
-		      nil "Toggle reuse of compile buffers" single
-		      ((:authors
-			("Phil Groce" . "pgroce@gmail.com"))
-		       (:maintainer "Phil Groce" . "pgroce@gmail.com")
-		       (:keywords "utility"))]))
+ (pm
+  . [(0 6)
+     ((emacs (26 1)) (dash (2 19)) (s (1 12)) (org-ml (5 7))
+      (ts (0 3)) (projectile (20210825 649)) (helm (20210826 553))
+      (pg-util (0 3)) (pg-ert (0 1)) (pg-org (0 4)) (pm-task (0 1 3)))
+     "Project Management" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "productivity"))])
+ (pm-task
+  . [(0 1 6)
+     ((emacs (26 1)) (dash (2 19)) (s (1 12)) (org-ml (5 7))
+      (ts (0 3)) (pg-ert (0 1)) (pg-org (0 4)))
+     "Task handling for project management" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "productivity"))])
+ (pg-util
+  . [(0 3 4) ((dash (2 13 0))) "Utility functions" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "utility"))])
+ (pg-url-armor
+  . [(0 1) nil "Set off URLs in text" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com"))])
+ (pg-terminal
+  . [(0 2 1) nil "Window system configuration" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "gui"))])
+ (pg-solarized-theme
+  . [(0 1) ((solarized-theme (0))) "Custom theme" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "utility"))])
+ (pg-shell-path
+  . [(0 2) ((s (0)) (dash (0))) "Operations on shell paths" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "gui"))])
+ (pg-sh
+  . [(0 4) nil "Manage local and remote shells" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "shell"))])
+ (pg-s
+  . [(0 1) ((s (1 12 0))) "String functions not in s.el" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "string"))])
+ (pg-password
+  . [(0 2) nil "Password utility functions" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "gui"))])
+ (pg-pandoc
+  . [(0 7 9)
+     ((emacs (26 1)) (dash (2 19)) (f (20220608 943)) (pg-org (0 4 7))
+      (pg-util (0 3 4)) (org-ml (20250514 2314)))
+     "Convert document formats with Pandoc" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "pandoc" "markdown" "org-mode" "latex" "pdf" "docx"))])
+ (pg-org
+  . [(0 4 8)
+     ((emacs (26 1)) (org-ml (5 7)) (dash (2 19)) (s (1 12))
+      (ts (0 3)) (pg-ert (0 1)))
+     "Customizations to org-mode" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "productivity"))])
+ (pg-open
+  . [(0 6 9) nil "Open files with the system viewer" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "shell"))])
+ (pg-ibuffer
+  . [(0 2) ((dash (2 13 0))) "Improvements to ibuffer" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "ibuffer"))])
+ (pg-has-focus
+  . [(0 3) nil "Detect focus changes" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "gui"))])
+ (pg-ert
+  . [(0 1 6) ((dash (2 13 0))) "extensions to ert" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "utility"))])
+ (pg-compile-buffers
+  . [(0 2 4) nil "Toggle reuse of compile buffers" single
+     ((:authors ("Phil Groce" . "pgroce@gmail.com"))
+      (:maintainer "Phil Groce" . "pgroce@gmail.com")
+      (:keywords "utility"))]))
 
