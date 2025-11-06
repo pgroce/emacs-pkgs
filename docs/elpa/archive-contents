@@ -95,5 +95,13 @@
   . [(0 2 4) nil "Toggle reuse of compile buffers" single
      ((:authors ("Phil Groce" . "pgroce@gmail.com"))
       (:maintainer "Phil Groce" . "pgroce@gmail.com")
-      (:keywords "utility"))]))
+      (:keywords "utility"))])
+ (pg-autovenv
+  . [(0 1 0) ((cl-lib (0 5)))
+     "Automatically activate Python virtualenvs based on project directory"
+     single
+     ((:authors ("pgroce" . "pgroce@gmail.com"))
+      (:maintainer "pgroce" . "pgroce@gmail.com")
+      (:keywords "python" "virtualenv" "environment" "tools"
+		 "projects"))]))
 
