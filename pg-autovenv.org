@@ -29,7 +29,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;; Copyright (C) 2025 Phil Groce
 
   ;; Author: pgroce <pgroce@gmail.com>
-  ;; Version: 0.1.0
+  ;; Version: 0.1.1
   ;; Keywords: python, virtualenv, environment, tools, projects
   ;; Package-Requires: ((cl-lib "0.5"))
   ;; License: GPL-3.0-or-later
@@ -147,8 +147,9 @@ I'm also adding ~pg-autoenv-mode-line-prefix~ so the user (me) can supply a cust
 
 Besides some minor reformatting, some notable changes here:
 
-  - Using a custom variable to set the mode-line indicator
+  - Using a custom variable to set the mode-line indicator.
   - ~pg-autoenv-activate~ will (hopefully!) reload either Eglot or LSP-Mode servers. (Any PyRight reloading taking place in this code is incidental.)
+    - Replacing ~lsp-restart-workspace~ with ~lsp-workspace-restart~, since the former is deprecated.
 
 
 #+begin_src emacs-lisp :tangle pg-auto-virtualenv.el
@@ -230,10 +231,12 @@ Besides some minor reformatting, some notable changes here:
     ;; Reload `lsp-mode` or `pyright` if enabled
     (when pg-autovenv-reload-lsp
       (cond
-       ((bound-and-true-p lsp-mode)
+       ((bound-and-true-p lsp-workspace-restart)
         (pg-autovenv--debug "Reloading lsp-mode for virtual environment at %s" venv-path)
-        (lsp-restart-workspace))
-       ((and (bound-and-true-p eglot-current-server) (eglot-current-server))
+        (lsp-workspace-restart))
+       ((and (bound-and-true-p eglot-reconnect)
+             (bound-and-true-p eglot-current-server)
+             (eglot-current-server))
         (pg-autovenv--debug "Reloading eglot for virtual environment at %s" venv-path)
         (eglot-reconnect (eglot-current-server)))
        (t
@@ -288,6 +291,8 @@ Besides some minor reformatting, some notable changes here:
           (pg-autovenv-deactivate)))))
 
   ;; auto-virtualenv-setup isn't necessary, so removing
+
+  ;; pg-autovenv.el ends here
 #+end_src
 
 * Provides
