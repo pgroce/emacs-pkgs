@@ -1,8 +1,8 @@
 
 This is a fork of auto-virtualenv.el
 <https://github.com/marcwebbie/auto-virtualenv> by Markwebbie. The
-package name has been changed, and some of the code simplified for
-my use. The original commentary (with the package name updated)
+package name has been changed, and some of the code simplified and
+updated. The original commentary (with the package name updated)
 follows:
 
 Auto Virtualenv is a powerful Emacs package for Python developers, offering

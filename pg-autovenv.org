@@ -29,7 +29,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;; Copyright (C) 2025 Phil Groce
 
   ;; Author: pgroce <pgroce@gmail.com>
-  ;; Version: 0.1.1
+  ;; Version: 0.1.2
   ;; Keywords: python, virtualenv, environment, tools, projects
   ;; Package-Requires: ((cl-lib "0.5"))
   ;; License: GPL-3.0-or-later
@@ -45,8 +45,8 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;;
   ;; This is a fork of auto-virtualenv.el
   ;; <https://github.com/marcwebbie/auto-virtualenv> by Markwebbie. The
-  ;; package name has been changed, and some of the code simplified for
-  ;; my use. The original commentary (with the package name updated)
+  ;; package name has been changed, and some of the code simplified and
+  ;; updated. The original commentary (with the package name updated)
   ;; follows:
   ;;
   ;; Auto Virtualenv is a powerful Emacs package for Python developers, offering
@@ -152,7 +152,7 @@ Besides some minor reformatting, some notable changes here:
     - Replacing ~lsp-restart-workspace~ with ~lsp-workspace-restart~, since the former is deprecated.
 
 
-#+begin_src emacs-lisp :tangle pg-auto-virtualenv.el
+#+begin_src emacs-lisp
   (defvar pg-autovenv-current-virtualenv nil
     "The currently activated virtual environment.")
   (defvar pg-autovenv-last-project nil
