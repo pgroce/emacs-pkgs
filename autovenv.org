@@ -157,7 +157,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
     "Activate the virtual environment at NEW-VENV."
     (run-hooks 'autovenv-pre-activate-hook)
     (let* ((venv-bin (file-name-as-directory
-                      (file-name-concat new-venv "bin"))))
+                      (file-name-concat venv "bin"))))
       (setq exec-path (cons venv-bin exec-path))
       (setenv "VIRTUAL_ENV" venv)
       (setenv "PATH" (concat venv-bin path-separator (getenv "PATH"))))
@@ -203,7 +203,8 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   directory nor any of its parents contain a .venv directory, the function
   fails and nil is returned."
     (when-let* ((dir (locate-dominating-file default-directory ".venv")))
-      (expand-file-name dir)))
+      (file-name-as-directory
+       (file-name-concat (expand-file-name dir) ".venv"))))
 
   ;;;; TODO: Write a global locator that reads project files to identify
   ;; named virtualenvs and find them in well-known locations, then make
