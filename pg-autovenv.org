@@ -198,9 +198,9 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;;;; These functions are solely concerned with manipulating the state
   ;;;; Python and Emacs need to utilize a venv; any other state autovenv
   ;;;; maintains to know when to activate/deactivate is not the problem
-  ;;;; of these functions. Similarly, they only activate or deactivate a
-  ;;;; venv; lifecycle management (e.g., calling (deactivate) before
-  ;;;; calling (activate) when changing between venvs) is not in scope
+  ;;;; of these functions. Similarly, lifecycle management (e.g.,
+  ;;;; calling (deactivate) before calling (activate) when changing
+  ;;;; between venvs) is not in scope
 
   (defun pg-autovenv--activate (venv)
     "Activate the virtual environment at NEW-VENV."
