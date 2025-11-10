@@ -45,55 +45,47 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
 
   ;;; Commentary:
   ;;
+  ;;
+  ;; autovenv aims to automatically manage the use of Python virtual
+  ;; environments in Emacs by always making sure the "right" virtual
+  ;; environment is active for the curent buffer.
+  ;;
+  ;; autovenv only tends to the core configuration of the Emacs
+  ;; environment to support virtual environments: Setting the
+  ;; VIRTUAL_ENV environment variable, and adding the relevant bin
+  ;; directory to exec-path and the PATH environment
+  ;; variable. Furthermore, its algorithm for locating virtual
+  ;; environments is very simple. As a result, it has no dependencies
+  ;; that don't ship with Emacs.
+  ;;
+  ;; That said, the user can override the location process to use a
+  ;; different scheme if desired, and hooks around activation and
+  ;; deactivation permit maintenance of additional state if needed, such
+  ;; as reloading LSPs, so autovenv can serve as the core of a workflow
+  ;; that encompasses many other tools, such as Projectile or LSP Mode.
+  ;;
   ;; This is a fork of auto-virtualenv.el
-  ;; <https://github.com/marcwebbie/auto-virtualenv> by Markwebbie. The
-  ;; package name has been changed, and some of the code simplified and
-  ;; updated. The original commentary (with the package name updated)
-  ;; follows:
+  ;; <https://github.com/marcwebbie/auto-virtualenv> by Markwebbie. Most
+  ;; of it has been rewritten, but some of the original code survives,
+  ;; and the template has been very helpful.
   ;;
-  ;; Auto Virtualenv is a powerful Emacs package for Python developers, offering
-  ;; automatic virtual environment management based on the directory of the current
-  ;; project. This tool simplifies working across multiple Python projects by
-  ;; dynamically detecting and activating virtual environments, reducing the need
-  ;; for manual configuration.
+  ;; To use this package, add the `autoenv-find-and-activate' function
+  ;; to hooks associated with changes to virtual
+  ;; environments. `find-file-hook', for instance, is a good candidate,
+  ;; as are hooks for shell buffers that are run when the
+  ;; default-directory changes. If desired, customize the hooks in the
+  ;; `autovenv' Customize group to execute custom behavior on activation
+  ;; or deactivation, or override the location of a virtual environment
+  ;; with a custom fuction.
   ;;
-  ;; It integrates seamlessly with `lsp-mode` and `pyright`, optionally reloading
-  ;; the LSP workspace upon environment activation to maintain accurate imports and
-  ;; environment settings. Auto Virtualenv identifies Python projects using a
-  ;; customizable set of markers (e.g., `setup.py`, `pyproject.toml`) and supports
-  ;; common virtual environment locations, both local and global (e.g., `~/.pyenv/versions/`).
-  ;;
-  ;; Features:
-  ;; - **Automatic Virtual Environment Detection and Activation**: Based on project root,
-  ;;   autovenv locates and activates virtual environments in either a local
-  ;;   project directory or in specified global directories.
-  ;; - **LSP Reload Support**: With `lsp-mode` or `pyright`, optionally reload the LSP workspace
-  ;;   on environment changes to keep code assistance up-to-date.
-  ;; - **Modeline Integration**: Displays the active environment in the modeline. When no
-  ;;   environment is active, "Venv: N/A" is shown.
-  ;; - **Configurable and Extensible**: Users can add directories for environment searches, set
-  ;;   custom project markers, and control verbosity for debugging.
-  ;;
-  ;; Usage:
-  ;; 1. Add `autovenv` to your `load-path` and enable it with `autovenv-setup`.
-  ;; 2. Configure `autovenv-global-dirs`, `autovenv-python-project-files`,
-  ;;    and `autovenv-reload-lsp` as needed.
-  ;; 3. Use it with project management packages like `projectile` or independently.
-  ;;
-  ;; See the README for detailed setup and configuration examples.
-  ;;
-  ;; (End of original commentary)
-  ;;
-  ;; Recommended usage of this package is via the use-package macro, for instance:
+  ;; The following use-package declaration illustrates one of the
+  ;; simplest configurations:
   ;;
   ;;   (use-package autovenv
   ;;     :ensure t
-  ;;     :custom
-  ;;     (autovenv-verbose t)
   ;;     :hook ((find-file-hook
   ;;             eshell-directory-change-hook) . autovenv-find-and-activate))
   ;;
-  ;; Modes can be changed to suit your application.
   ;;
   ;;; Code:
 
@@ -107,50 +99,9 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
     "Automatically activate Python virtual environments."
     :group 'python)
 
-  (defcustom autovenv-global-dirs
-    '("~/.virtualenvs/" "~/.pyenv/versions/" "~/.envs/" "~/.conda/" "~/.conda/envs/")
-    "List of global directories to search for virtual environments by project name."
-    :type '(repeat string)
-    :group 'autovenv)
-
-  (defcustom autovenv-local-dirs
-    '(".venv" "venv")
-    "List of local directories to search for virtual environments."
-    :type '(repeat string)
-    :group 'autovenv)
-
-  (defcustom autovenv-python-project-files
-    '("requirements.txt" "Pipfile" "pyproject.toml" "setup.py" "manage.py" "tox.ini"
-      ".flake8" "pytest.ini" ".pre-commit-config.yaml" "environment.yml"
-      "__init__.py" "*.py" ".python-version")
-    "List of files that identify a Python project."
-    :type '(repeat string)
-    :group 'autovenv)
-
   (defcustom autovenv-verbose t
     "Enable verbose output for debugging."
     :type 'boolean
-    :group 'autovenv)
-
-  (defcustom autovenv-project-root-locator #'autovenv-python-project-root
-    "Function used to compute the project root for autovenv. The function
-  should take no arguments and return a valid directory at or above the
-  current one that represents the root of the current Python project, or
-  `nil' if the buffer is not in a project.
-
-  The default `autovenv-python-project-root', will look for Python
-  artifacts such as a pyproject.toml or setup.py file in the current
-  directory or parent directories. If this value might be misleading--for
-  instance, if this project exists within a larger project and the
-  virtualenv is defined at the higher level--another function identifying
-  the \"true\" project root may be used. `projectile-project-root' is
-  suitable for this purpose. `autovenv-emacs-project-root' uses Emacs's
-  project.el to find the project root.
-
-  This variable may be overridden on a per-file or directory basis by
-  using Emacs's builtin buffer-local and directory-local variable
-  functionality."
-    :type 'function
     :group 'autovenv)
 
   (defcustom autovenv-pre-activate-hook nil
@@ -243,7 +194,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;;
 
 
-  ;;;; Root locating functions; can be set to autovenv-project-root-locator
+  ;;;; Root locating functions
 
   (defun autovenv-local-locator ()
     "Default locator funtion. Looks for a .venv directory in the default
@@ -360,6 +311,29 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
 * Basement
 
 #+begin_src emacs-lisp :tangle no
+
+  (defcustom autovenv-global-dirs
+    '("~/.virtualenvs/" "~/.pyenv/versions/" "~/.envs/" "~/.conda/" "~/.conda/envs/")
+    "List of global directories to search for virtual environments by project name."
+    :type '(repeat string)
+    :group 'autovenv)
+
+  (defcustom autovenv-local-dirs
+    '(".venv" "venv")
+    "List of local directories to search for virtual environments."
+    :type '(repeat string)
+    :group 'autovenv)
+
+  (defcustom autovenv-python-project-files
+    '("requirements.txt" "Pipfile" "pyproject.toml" "setup.py" "manage.py" "tox.ini"
+      ".flake8" "pytest.ini" ".pre-commit-config.yaml" "environment.yml"
+      "__init__.py" "*.py" ".python-version")
+    "List of files that identify a Python project."
+    :type '(repeat string)
+    :group 'autovenv)
+
+
+
 
   (defun autovenv--debug (msg &rest args)
     "Print MSG formatted with ARGS if `autovenv-verbose' is enabled."
