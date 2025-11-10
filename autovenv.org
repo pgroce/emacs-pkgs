@@ -281,7 +281,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
               ;; directory (with the trailing slash), since the user may
               ;; be inconsistent
               `(,default-directory ,(file-name-as-directory (autovenv--locate-venv)))))
-      (cadr autoenv--info)))
+      (cadr autovenv--info)))
 
 
 
