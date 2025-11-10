@@ -32,7 +32,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;; Copyright (C) 2025 Phil Groce
 
   ;; Author: pgroce <pgroce@gmail.com>
-  ;; Version: 0.1.3
+  ;; Version: 0.1.4
   ;; Keywords: python, virtualenv, environment, tools, projects
   ;; Package-Requires: ((cl-lib "0.5"))
   ;; License: GPL-3.0-or-later
@@ -213,33 +213,42 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;; locator provides good value for now though, and if a user wants to
   ;; do this work they can.
 
-  (defcustom autovenv-locator #'autovenv-local-locator
+  (defcustom autovenv-virtualenv-locator #'autovenv-local-locator
     "Function used to locate a virtual environment. Takes no arguments and
   returns the path to a virtual environment directory, or nil if no
   virtual environment can be found.")
 
+  (defvar autovenv-virtualenv-path nil
+    "If the value of this variable is not nil, it should be a path to a
+  Python virtual environment. autovenv will use this value
+  unconditionally, bypassing any other attempts to locate a
+  virtualenv.
+
+  Though this variable can be set globally, it is principally intended for
+  use as a buffer- or directory-local variable, allowing users to define
+  arbitrary virtualenvs for use in specific files or projects.")
 
   (defun autovenv--locate-venv ()
     "Find the virtualenv directory, if any, for the current buffer.
 
-  If `autovenv-venv' is set, it will be used unconditionally. This
+  If `autovenv-virtualenv-path' is set, it will be used unconditionally. This
   variable can be set globally, but is probably best used as a buffer- or
   directory-local variable.
 
-  If `autovenv-venv' is not set, the function defined in
-  `autovenv-locator' will be used to find a suitable virtualenv for
+  If `autovenv-virtualenv-path' is not set, the function defined in
+  `autovenv-virtualenv-locator' will be used to find a suitable virtualenv for
   this buffer. By default, this variable is set to use
   `autovenv-default-locator'.
 
-  If neither `autovenv-venv' nor `autovenv-locator' are set, or if
-  `autovenv-locator' cannot locate a suitable virtual environment, this
+  If neither `autovenv-virtualenv-path' nor `autovenv-virtualenv-locator' are set, or if
+  `autovenv-virtualenv-locator' cannot locate a suitable virtual environment, this
   function will return nil, indicating no suitable virtual environment is
   present."
     (cond
-     ((stringp autovenv-venv)
-      autovenv-venv)
-     ((and (functionp autovenv-locator))
-      (funcall autovenv-locator))
+     ((stringp autovenv-virtualenv-path)
+      autovenv-virtualenv-path)
+     ((and (functionp autovenv-virtualenv-locator))
+      (funcall autovenv-virtualenv-locator))
      (t nil)))
 
 
