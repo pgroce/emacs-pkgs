@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Phil Groce
 
 ;; Author: pgroce <pgroce@gmail.com>
-;; Version: 0.1.5
+;; Version: 0.1.6
 ;; Keywords: python, virtualenv, environment, tools, projects
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; License: GPL-3.0-or-later
@@ -60,7 +60,7 @@
   "Automatically activate Python virtual environments."
   :group 'python)
 
-(defcustom autovenv-verbose t
+(defcustom autovenv-verbose nil
   "Enable verbose output for debugging."
   :type 'boolean
   :group 'autovenv)
@@ -84,6 +84,10 @@
   "Hook run just after a Python virtualenv is deactivated"
   :type 'hook
   :group 'autovenv)
+
+(defun autovenv--message (msg)
+  (when autovenv-verbose
+    (message "autovenv: %s" msg)))
 
 ;;
 ;; Activation/Deactivation (That is, getting/setting the venv)
@@ -110,6 +114,7 @@
 
 (defun autovenv--activate (venv)
   "Activate the virtual environment at NEW-VENV."
+  (autovenv--message (format "Activating %s" venv))
   (run-hooks 'autovenv-pre-activate-hook)
   (let* ((venv-bin (file-name-as-directory
                     (file-name-concat venv "bin"))))
@@ -123,7 +128,9 @@
   ;; Grab the venv prior to running pre-deactivate-hook. It's bad form
   ;; to mess with that in the hook, but it's not impossible
   (let* ((venv (getenv "VIRTUAL_ENV"))
-         (venv-bin (concat venv "bin")))
+         (venv-bin (file-name-as-directory
+                    (file-name-concat venv "bin"))))
+    (autovenv--message (format "Deactivating %s" venv))
     (run-hooks 'autovenv-pre-deactivate-hook)
     (setq exec-path (delete venv-bin exec-path))
     ;; Split, splice, and rejoin PATH without external dependencies
@@ -236,7 +243,12 @@ cached information as appropriate."
             ;; Ensure the output of the locator is formatted as a
             ;; directory (with the trailing slash), since the user may
             ;; be inconsistent
-            `(,default-directory ,(file-name-as-directory (autovenv--locate-venv)))))
+            (let* ((venv-located (autovenv--locate-venv))
+                   ;; file-name-as-directory can't handle nils so....
+                   (venv-dir (if (eq nil venv-located)
+                                 nil
+                               (file-name-as-directory venv-located))))
+              `(,default-directory ,venv-dir))))
     (cadr autovenv--info)))
 
 
