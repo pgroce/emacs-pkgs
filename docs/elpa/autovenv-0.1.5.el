@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Phil Groce
 
 ;; Author: pgroce <pgroce@gmail.com>
-;; Version: 0.1.4
+;; Version: 0.1.5
 ;; Keywords: python, virtualenv, environment, tools, projects
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; License: GPL-3.0-or-later
@@ -112,7 +112,7 @@
   "Activate the virtual environment at NEW-VENV."
   (run-hooks 'autovenv-pre-activate-hook)
   (let* ((venv-bin (file-name-as-directory
-                    (file-name-concat new-venv "bin"))))
+                    (file-name-concat venv "bin"))))
     (setq exec-path (cons venv-bin exec-path))
     (setenv "VIRTUAL_ENV" venv)
     (setenv "PATH" (concat venv-bin path-separator (getenv "PATH"))))
@@ -158,7 +158,8 @@ directory in the nearest parent directory. If neither the current
 directory nor any of its parents contain a .venv directory, the function
 fails and nil is returned."
   (when-let* ((dir (locate-dominating-file default-directory ".venv")))
-    (expand-file-name dir)))
+    (file-name-as-directory
+     (file-name-concat (expand-file-name dir) ".venv"))))
 
 ;;;; TODO: Write a global locator that reads project files to identify
 ;; named virtualenvs and find them in well-known locations, then make
@@ -236,7 +237,7 @@ cached information as appropriate."
             ;; directory (with the trailing slash), since the user may
             ;; be inconsistent
             `(,default-directory ,(file-name-as-directory (autovenv--locate-venv)))))
-    (cadr pg-autoenv--info)))
+    (cadr autovenv--info)))
 
 
 
