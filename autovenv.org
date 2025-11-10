@@ -1,4 +1,4 @@
-#+TITLE: pg-auto-virtualenv: Automatically find Python Virtual Environments
+#+TITLE: autovenv: Automatically find Python Virtual Environments
 #+STARTUP: indent
 * Introduction
 
@@ -13,12 +13,12 @@ The main effect of these changes is that the library does one thing as well as p
 I recommend installing this via =use-package=:
 
 #+begin_src emacs-lisp :tangle no
-  (use-package pg-autovenv
+  (use-package autovenv
     :ensure t
     :custom
-    (pg-autovenv-verbose t)
+    (autovenv-verbose t)
     :hook ((find-file-hook
-            eshell-directory-change-hook) . pg-autovenv-find-and-activate))
+            eshell-directory-change-hook) . autovenv-find-and-activate))
 #+end_src
 
 One can add other hooks as necessary, even ~projectile-switch-project-hook~ if you use Projectile. (Emacs's builtin Project library seems to lack an analogous hook, sadly.)
@@ -27,7 +27,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
 * Package Header
 
 #+begin_src emacs-lisp
-  ;;; pg-autovenv.el --- Automatically activate Python virtualenvs based on project directory -*- lexical-binding: t; -*-
+  ;;; autovenv.el --- Automatically activate Python virtualenvs based on project directory -*- lexical-binding: t; -*-
 
   ;; Copyright (C) 2025 Phil Groce
 
@@ -65,7 +65,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;;
   ;; Features:
   ;; - **Automatic Virtual Environment Detection and Activation**: Based on project root,
-  ;;   pg-autovenv locates and activates virtual environments in either a local
+  ;;   autovenv locates and activates virtual environments in either a local
   ;;   project directory or in specified global directories.
   ;; - **LSP Reload Support**: With `lsp-mode` or `pyright`, optionally reload the LSP workspace
   ;;   on environment changes to keep code assistance up-to-date.
@@ -75,9 +75,9 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;;   custom project markers, and control verbosity for debugging.
   ;;
   ;; Usage:
-  ;; 1. Add `pg-autovenv` to your `load-path` and enable it with `pg-autovenv-setup`.
-  ;; 2. Configure `pg-autovenv-global-dirs`, `pg-autovenv-python-project-files`,
-  ;;    and `pg-autovenv-reload-lsp` as needed.
+  ;; 1. Add `autovenv` to your `load-path` and enable it with `autovenv-setup`.
+  ;; 2. Configure `autovenv-global-dirs`, `autovenv-python-project-files`,
+  ;;    and `autovenv-reload-lsp` as needed.
   ;; 3. Use it with project management packages like `projectile` or independently.
   ;;
   ;; See the README for detailed setup and configuration examples.
@@ -86,12 +86,12 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;;
   ;; Recommended usage of this package is via the use-package macro, for instance:
   ;;
-  ;;   (use-package pg-autovenv
+  ;;   (use-package autovenv
   ;;     :ensure t
   ;;     :custom
-  ;;     (pg-autovenv-verbose t)
+  ;;     (autovenv-verbose t)
   ;;     :hook ((find-file-hook
-  ;;             eshell-directory-change-hook) . pg-autovenv-find-and-activate))
+  ;;             eshell-directory-change-hook) . autovenv-find-and-activate))
   ;;
   ;; Modes can be changed to suit your application.
   ;;
@@ -103,75 +103,75 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
 * Custom variables
 
 #+begin_src emacs-lisp
-  (defgroup pg-autovenv nil
+  (defgroup autovenv nil
     "Automatically activate Python virtual environments."
     :group 'python)
 
-  (defcustom pg-autovenv-global-dirs
+  (defcustom autovenv-global-dirs
     '("~/.virtualenvs/" "~/.pyenv/versions/" "~/.envs/" "~/.conda/" "~/.conda/envs/")
     "List of global directories to search for virtual environments by project name."
     :type '(repeat string)
-    :group 'pg-autovenv)
+    :group 'autovenv)
 
-  (defcustom pg-autovenv-local-dirs
+  (defcustom autovenv-local-dirs
     '(".venv" "venv")
     "List of local directories to search for virtual environments."
     :type '(repeat string)
-    :group 'pg-autovenv)
+    :group 'autovenv)
 
-  (defcustom pg-autovenv-python-project-files
+  (defcustom autovenv-python-project-files
     '("requirements.txt" "Pipfile" "pyproject.toml" "setup.py" "manage.py" "tox.ini"
       ".flake8" "pytest.ini" ".pre-commit-config.yaml" "environment.yml"
       "__init__.py" "*.py" ".python-version")
     "List of files that identify a Python project."
     :type '(repeat string)
-    :group 'pg-autovenv)
+    :group 'autovenv)
 
-  (defcustom pg-autovenv-verbose t
+  (defcustom autovenv-verbose t
     "Enable verbose output for debugging."
     :type 'boolean
-    :group 'pg-autovenv)
+    :group 'autovenv)
 
-  (defcustom pg-autovenv-project-root-locator #'pg-autovenv-python-project-root
+  (defcustom autovenv-project-root-locator #'autovenv-python-project-root
     "Function used to compute the project root for autovenv. The function
   should take no arguments and return a valid directory at or above the
   current one that represents the root of the current Python project, or
   `nil' if the buffer is not in a project.
 
-  The default `pg-autovenv-python-project-root', will look for Python
+  The default `autovenv-python-project-root', will look for Python
   artifacts such as a pyproject.toml or setup.py file in the current
   directory or parent directories. If this value might be misleading--for
   instance, if this project exists within a larger project and the
   virtualenv is defined at the higher level--another function identifying
   the \"true\" project root may be used. `projectile-project-root' is
-  suitable for this purpose. `pg-autovenv-emacs-project-root' uses Emacs's
+  suitable for this purpose. `autovenv-emacs-project-root' uses Emacs's
   project.el to find the project root.
 
   This variable may be overridden on a per-file or directory basis by
   using Emacs's builtin buffer-local and directory-local variable
   functionality."
     :type 'function
-    :group 'pg-autovenv)
+    :group 'autovenv)
 
-  (defcustom pg-autovenv-pre-activate-hook nil
+  (defcustom autovenv-pre-activate-hook nil
     "Hook run just beore a Python virtualenv is activated"
     :type 'hook
-    :group 'pg-autovenv)
+    :group 'autovenv)
 
-  (defcustom pg-autovenv-post-activate-hook nil
+  (defcustom autovenv-post-activate-hook nil
     "Hook run just after a Python virtualenv is activated"
     :type 'hook
-    :group 'pg-autovenv)
+    :group 'autovenv)
 
-  (defcustom pg-autovenv-pre-deactivate-hook nil
+  (defcustom autovenv-pre-deactivate-hook nil
     "Hook run just before a Python virtualenv is deactivated"
     :type 'hook
-    :group 'pg-autovenv)
+    :group 'autovenv)
 
-  (defcustom pg-autovenv-postdeactivate-hook nil
+  (defcustom autovenv-postdeactivate-hook nil
     "Hook run just after a Python virtualenv is deactivated"
     :type 'hook
-    :group 'pg-autovenv)
+    :group 'autovenv)
 #+end_src
 
 * Code
@@ -202,23 +202,23 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;;;; calling (deactivate) before calling (activate) when changing
   ;;;; between venvs) is not in scope
 
-  (defun pg-autovenv--activate (venv)
+  (defun autovenv--activate (venv)
     "Activate the virtual environment at NEW-VENV."
-    (run-hooks 'pg-autovenv-pre-activate-hook)
+    (run-hooks 'autovenv-pre-activate-hook)
     (let* ((venv-bin (file-name-as-directory
                       (file-name-concat new-venv "bin"))))
       (setq exec-path (cons venv-bin exec-path))
       (setenv "VIRTUAL_ENV" venv)
       (setenv "PATH" (concat venv-bin path-separator (getenv "PATH"))))
-    (run-hooks 'pg-autovenv-post-activate-hook))
+    (run-hooks 'autovenv-post-activate-hook))
 
-  (defun pg-autovenv--deactivate ()
+  (defun autovenv--deactivate ()
     "Deactivate any active virtual environment."
     ;; Grab the venv prior to running pre-deactivate-hook. It's bad form
     ;; to mess with that in the hook, but it's not impossible
     (let* ((venv (getenv "VIRTUAL_ENV"))
            (venv-bin (concat venv "bin")))
-      (run-hooks 'pg-autovenv-pre-deactivate-hook)
+      (run-hooks 'autovenv-pre-deactivate-hook)
       (setq exec-path (delete venv-bin exec-path))
       ;; Split, splice, and rejoin PATH without external dependencies
       (setenv "PATH" (mapconcat
@@ -228,9 +228,9 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
                       path-separator))
       (setq exec-path (delete venv-bin exec-path))
       (setenv "VIRTUAL_ENV" nil)
-      (run-hooks 'pg-autovenv-post-deactivate-hook)))
+      (run-hooks 'autovenv-post-deactivate-hook)))
 
-  (defmacro pg-autovenv--current-venv ()
+  (defmacro autovenv--current-venv ()
     "Return the currently configured venv. Syntax sugar over (getenv
   \"VIRTUAL_ENV\")"
     '(getenv "VIRTUAL_ENV"))
@@ -243,9 +243,9 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;;
 
 
-  ;;;; Root locating functions; can be set to pg-autovenv-project-root-locator
+  ;;;; Root locating functions; can be set to autovenv-project-root-locator
 
-  (defun pg-autovenv-local-locator ()
+  (defun autovenv-local-locator ()
     "Default locator funtion. Looks for a .venv directory in the default
   directory of the current buffer. If one is not found, returns the .venv
   directory in the nearest parent directory. If neither the current
@@ -262,33 +262,33 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;; locator provides good value for now though, and if a user wants to
   ;; do this work they can.
 
-  (defcustom pg-autovenv-locator #'pg-autovenv-local-locator
+  (defcustom autovenv-locator #'autovenv-local-locator
     "Function used to locate a virtual environment. Takes no arguments and
   returns the path to a virtual environment directory, or nil if no
   virtual environment can be found.")
 
 
-  (defun pg-autovenv--locate-venv ()
+  (defun autovenv--locate-venv ()
     "Find the virtualenv directory, if any, for the current buffer.
 
-  If `pg-autovenv-venv' is set, it will be used unconditionally. This
+  If `autovenv-venv' is set, it will be used unconditionally. This
   variable can be set globally, but is probably best used as a buffer- or
   directory-local variable.
 
-  If `pg-autovenv-venv' is not set, the function defined in
-  `pg-autovenv-locator' will be used to find a suitable virtualenv for
+  If `autovenv-venv' is not set, the function defined in
+  `autovenv-locator' will be used to find a suitable virtualenv for
   this buffer. By default, this variable is set to use
-  `pg-autovenv-default-locator'.
+  `autovenv-default-locator'.
 
-  If neither `pg-autovenv-venv' nor `pg-autovenv-locator' are set, or if
-  `pg-autovenv-locator' cannot locate a suitable virtual environment, this
+  If neither `autovenv-venv' nor `autovenv-locator' are set, or if
+  `autovenv-locator' cannot locate a suitable virtual environment, this
   function will return nil, indicating no suitable virtual environment is
   present."
     (cond
-     ((stringp pg-autovenv-venv)
-      pg-autovenv-venv)
-     ((and (functionp pg-autovenv-locator))
-      (funcall pg-autovenv-locator))
+     ((stringp autovenv-venv)
+      autovenv-venv)
+     ((and (functionp autovenv-locator))
+      (funcall autovenv-locator))
      (t nil)))
 
 
@@ -305,22 +305,22 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;; was determined.
   ;;
 
-  (defvar-local pg-autovenv--info nil
+  (defvar-local autovenv--info nil
     "Contains working info about what the appropriate Python virtualenv
   should be for this buffer.")
 
-  (defun pg-autovenv--correct-venv ()
+  (defun autovenv--correct-venv ()
     "Return what the \"correct\" venv should be for this buffer, updating
   cached information as appropriate."
-    (let ((old pg-autovenv--info))
-      (setq pg-autovenv--info
+    (let ((old autovenv--info))
+      (setq autovenv--info
             (if (and (not (equal old nil))
                      (equal (car old) default-directory))
                 old
               ;; Ensure the output of the locator is formatted as a
               ;; directory (with the trailing slash), since the user may
               ;; be inconsistent
-              `(,default-directory ,(file-name-as-directory (pg-autovenv--locate-venv)))))
+              `(,default-directory ,(file-name-as-directory (autovenv--locate-venv)))))
       (cadr pg-autoenv--info)))
 
 
@@ -329,21 +329,21 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;; Entry point -- determine state and activate/deactivate as necessary
   ;;
 
-  (defun pg-autovenv-find-and-activate ()
+  (defun autovenv-find-and-activate ()
     ;; Step 1: Find out what the venv should be
     ;; Step 2: Find out what the current venv is
-    (let* ((new-venv (pg-autovenv--correct-venv))
-           (old-venv (pg-autovenv--current-venv)))
+    (let* ((new-venv (autovenv--correct-venv))
+           (old-venv (autovenv--current-venv)))
       ;; Step 3: If they're different, change it
       (when (not (eq new-venv old-venv))
         (if (eq new-venv nil)
-            (pg-autovenv--deactivate)
+            (autovenv--deactivate)
           (progn
             ;; Always deactivate the old venv before activating the new
             ;; one, to ensure that things like path variables get
             ;; cleaned up.
-            (pg-autovenv--deactivate)
-            (pg-autovenv--activate new-venv))))))
+            (autovenv--deactivate)
+            (autovenv--activate new-venv))))))
 
 
 
@@ -352,44 +352,44 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
 * Provides
 
 #+begin_src emacs-lisp
-  (provide 'pg-autovenv)
+  (provide 'autovenv)
 
-  ;;; pg-autovenv.el ends here
+  ;;; autovenv.el ends here
 #+end_src
 
 * Basement
 
 #+begin_src emacs-lisp :tangle no
 
-  (defun pg-autovenv--debug (msg &rest args)
-    "Print MSG formatted with ARGS if `pg-autovenv-verbose' is enabled."
-    (when pg-autovenv-verbose
-      (message (apply 'format (concat "[pg-autovenv] " msg) args))))
+  (defun autovenv--debug (msg &rest args)
+    "Print MSG formatted with ARGS if `autovenv-verbose' is enabled."
+    (when autovenv-verbose
+      (message (apply 'format (concat "[autovenv] " msg) args))))
 
-  (defun pg-autovenv-read-python-version (project-root)
+  (defun autovenv-read-python-version (project-root)
     "Read the virtual environment name from .python-version file in PROJECT-ROOT, if present."
     (let ((version-file (expand-file-name ".python-version" project-root)))
       (when (file-readable-p version-file)
-        (pg-autovenv--debug "Virtualenv selected from .python-version file at %s" version-file)
+        (autovenv--debug "Virtualenv selected from .python-version file at %s" version-file)
         (string-trim (with-temp-buffer
                        (insert-file-contents version-file)
                        (buffer-string))))))
 
-  (defun pg-autovenv-find-global-venv (env-name)
-    "Search for ENV-NAME in `pg-autovenv-global-dirs`, only at top level of each directory."
-    (pg-autovenv--debug "Searching for %s in global directories" env-name)
+  (defun autovenv-find-global-venv (env-name)
+    "Search for ENV-NAME in `autovenv-global-dirs`, only at top level of each directory."
+    (autovenv--debug "Searching for %s in global directories" env-name)
     (cl-some (lambda (dir)
                (let ((venv-path (expand-file-name env-name dir)))
                  (when (file-directory-p venv-path)
-                   (pg-autovenv--debug "Found global virtualenv in %s" venv-path)
+                   (autovenv--debug "Found global virtualenv in %s" venv-path)
                    venv-path)))
-             pg-autovenv-global-dirs))
+             autovenv-global-dirs))
 
-  (defun pg-autovenv-is-python-project (project-root)
+  (defun autovenv-is-python-project (project-root)
     "Check if PROJECT-ROOT contains Python project files."
-    (pg-autovenv--debug "Checking if %s has Python project files" project-root)
+    (autovenv--debug "Checking if %s has Python project files" project-root)
     (or (cl-some (lambda (file)
                    (file-expand-wildcards (expand-file-name file project-root)))
-                 pg-autovenv-python-project-files)
+                 autovenv-python-project-files)
         (directory-files-recursively project-root "\\.py$" 2)))
 #+end_src
