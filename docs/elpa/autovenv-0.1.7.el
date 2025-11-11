@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Phil Groce
 
 ;; Author: pgroce <pgroce@gmail.com>
-;; Version: 0.1.6
+;; Version: 0.1.7
 ;; Keywords: python, virtualenv, environment, tools, projects
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; License: GPL-3.0-or-later
@@ -258,6 +258,15 @@ cached information as appropriate."
 ;;
 
 (defun autovenv-find-and-activate ()
+  (interactive)
+  "If a Python virtual environment should be active for the
+default-directory of the current buffer, activate it. If not (and one is
+activated already), deactivate it.
+
+This function can be used as a hook to automatically activate a virtual
+environment when relevant events occur, such as a directory change. To
+refresh the virtualenv information when a buffer (more precisely, a
+window) is selected, see `autovenv-window-selection-function'."
   ;; Step 1: Find out what the venv should be
   ;; Step 2: Find out what the current venv is
   (let* ((new-venv (autovenv--correct-venv))
@@ -272,6 +281,16 @@ cached information as appropriate."
           ;; cleaned up.
           (autovenv--deactivate)
           (autovenv--activate new-venv))))))
+
+
+
+(defun autovenv-window-function (window)
+  "Function to find and activate an appropriate Python virtual environment
+from the `window-buffer-change-functions' and
+`window-selection-change-functions' hooks."
+  (let* ((buff (window-buffer window)))
+    (with-current-buffer buff
+      (autovenv-find-and-activate))))
 
 (provide 'autovenv)
 
