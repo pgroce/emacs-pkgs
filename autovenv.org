@@ -301,6 +301,15 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;;
 
   (defun autovenv-find-and-activate ()
+    (interactive)
+    "If a Python virtual environment should be active for the
+  default-directory of the current buffer, activate it. If not (and one is
+  activated already), deactivate it.
+
+  This function can be used as a hook to automatically activate a virtual
+  environment when relevant events occur, such as a directory change. To
+  refresh the virtualenv information when a buffer (more precisely, a
+  window) is selected, see `autovenv-window-selection-function'."
     ;; Step 1: Find out what the venv should be
     ;; Step 2: Find out what the current venv is
     (let* ((new-venv (autovenv--correct-venv))
@@ -318,6 +327,13 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
 
 
 
+  (defun autovenv-window-function (window)
+    "Function to find and activate an appropriate Python virtual environment
+  from the `window-buffer-change-functions' and
+  `window-selection-change-functions' hooks."
+    (let* ((buff (window-buffer window)))
+      (with-current-buffer buff
+        (autovenv-find-and-activate))))
 #+end_src
 
 * Provides
