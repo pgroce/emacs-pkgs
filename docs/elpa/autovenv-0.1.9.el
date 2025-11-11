@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Phil Groce
 
 ;; Author: pgroce <pgroce@gmail.com>
-;; Version: 0.1.8
+;; Version: 0.1.9
 ;; Keywords: python, virtualenv, environment, tools, projects
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; License: GPL-3.0-or-later
@@ -252,9 +252,17 @@ cached information as appropriate."
     (cadr autovenv--info)))
 
 
+;;
+;; Getting the virtual environment
+;;
+
+(defun autovenv-get ()
+  "Return the name of the currently set virtual environment. Convenience
+function for calling (getenv \"\VIRTUAL_ENV\")"
+  (getenv "VIRTUAL_ENV"))
 
 ;;
-;; Entry point -- determine state and activate/deactivate as necessary
+;; Entry points -- determine state and activate/deactivate as necessary
 ;;
 
 (defun autovenv-find-and-activate ()
