@@ -295,9 +295,17 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
       (cadr autovenv--info)))
 
 
+  ;;
+  ;; Getting the virtual environment
+  ;;
+
+  (defun autovenv-get ()
+    "Return the name of the currently set virtual environment. Convenience
+  function for calling (getenv \"\VIRTUAL_ENV\")"
+    (getenv "VIRTUAL_ENV"))
 
   ;;
-  ;; Entry point -- determine state and activate/deactivate as necessary
+  ;; Entry points -- determine state and activate/deactivate as necessary
   ;;
 
   (defun autovenv-find-and-activate ()
