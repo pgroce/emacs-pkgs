@@ -63,6 +63,7 @@ The [[https://pandoc.org/MANUAL.html][Pandoc User's Manual]] contains all the av
   (require 'cl-lib)
   (require 'dash)
   (require 'f)
+  (require 'org-capture)
   (require 'org-ml)
 #+END_SRC
 
