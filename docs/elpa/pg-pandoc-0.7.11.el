@@ -3,7 +3,7 @@
 ;; Copyright (C) 2020 Phil Groce
 
 ;; Author: Phil Groce <pgroce@gmail.com>
-;; Version: 0.7.10
+;; Version: 0.7.11
 ;; Package-Requires: ((emacs "26.1") (dash "2.19") (f "20220608.943") (pg-org "0.4.7") (pg-util "0.3.4") (org-ml "20250514.2314"))
 ;; Keywords: pandoc markdown org-mode latex pdf docx
 
@@ -12,6 +12,7 @@
 (require 'cl-lib)
 (require 'dash)
 (require 'f)
+(require 'org-capture)
 (require 'org-ml)
 
 (defcustom pg-pandoc-executable-name "pandoc"
