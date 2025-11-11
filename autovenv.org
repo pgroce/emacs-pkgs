@@ -327,11 +327,20 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
 
 
 
-  (defun autovenv-window-function (window)
+  (defun autovenv-window-function (frame-or-window)
     "Function to find and activate an appropriate Python virtual environment
   from the `window-buffer-change-functions' and
   `window-selection-change-functions' hooks."
-    (let* ((buff (window-buffer window)))
+    ;; According to the docstring of window-selection-change-functions,
+    ;; frame-or-window is only a window when the function is
+    ;; buffer-local; otherwise, it's a frame. I can't imagine the use
+    ;; case for this, and I can't imagine why this function would be
+    ;; used buffer-locally, but we'll be maximally conservative for now.
+    (let* ((buff (cond
+                  ((framep frame-or-window)
+                   (car (frame-parameter frame-or-window 'buffer-list)))
+                  ((windowp frame-or-window)
+                   (window-buffer frame-or-window)))))
       (with-current-buffer buff
         (autovenv-find-and-activate))))
 #+end_src
