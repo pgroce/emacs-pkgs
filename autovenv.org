@@ -155,10 +155,16 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;;;; calling (deactivate) before calling (activate) when changing
   ;;;; between venvs) is not in scope
 
+
+  (defvar autovenv--venv nil
+    "Currently set virtual environment path.")
+
+
   (defun autovenv--activate (venv)
     "Activate the virtual environment at NEW-VENV."
     (autovenv--message (format "Activating %s" venv))
     (run-hooks 'autovenv-pre-activate-hook)
+
     (let* ((venv-bin (file-name-as-directory
                       (file-name-concat venv "bin"))))
       (setq exec-path (cons venv-bin exec-path))
@@ -186,10 +192,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
       (setenv "VIRTUAL_ENV" nil)
       (run-hooks 'autovenv-post-deactivate-hook)))
 
-  (defmacro autovenv--current-venv ()
-    "Return the currently configured venv. Syntax sugar over (getenv
-  \"VIRTUAL_ENV\")"
-    '(getenv "VIRTUAL_ENV"))
+
 
   ;;
   ;; Locating the appropriate virtualenv
@@ -207,7 +210,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   directory in the nearest parent directory. If neither the current
   directory nor any of its parents contain a .venv directory, the function
   fails and nil is returned."
-    (when-let* ((dir (locate-dominating-file default-directory ".venv")))
+  (when-let* ((dir (locate-dominating-file default-directory ".venv")))
       (file-name-as-directory
        (file-name-concat (expand-file-name dir) ".venv"))))
 
@@ -222,7 +225,9 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   (defcustom autovenv-virtualenv-locator #'autovenv-local-locator
     "Function used to locate a virtual environment. Takes no arguments and
   returns the path to a virtual environment directory, or nil if no
-  virtual environment can be found.")
+  virtual environment can be found."
+    :type function
+    :group 'autovenv)
 
   (defvar autovenv-virtualenv-path nil
     "If the value of this variable is not nil, it should be a path to a
@@ -237,11 +242,11 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   (defun autovenv--locate-venv ()
     "Find the virtualenv directory, if any, for the current buffer.
 
-  If `autovenv-virtualenv-path' is set, it will be used unconditionally. This
+  If `autovenv-virtualenv-path' is non-nil, it will be used unconditionally. This
   variable can be set globally, but is probably best used as a buffer- or
   directory-local variable.
 
-  If `autovenv-virtualenv-path' is not set, the function defined in
+  If `autovenv-virtualenv-path' is nil, the function defined in
   `autovenv-virtualenv-locator' will be used to find a suitable virtualenv for
   this buffer. By default, this variable is set to use
   `autovenv-default-locator'.
@@ -257,6 +262,79 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
       (funcall autovenv-virtualenv-locator))
      (t nil)))
 
+
+  ;;;;;; Python version location
+  (defun autovenv-read-python-version (version-file)
+    "Read a Python version file."
+    (when (file-readable-p version-file)
+      (let* ((version-str
+              (string-trim (with-temp-buffer
+                             (insert-file-contents version-file)
+                             (buffer-string)))))
+        (if (string-equal "" version-str)
+            nil
+          version-str))))
+
+  (defvar autovenv-python-version nil
+    "If the value of this variable is not nil, it will be used as the Python
+  version for Autovenv. This variable should be suitable for use with
+  Pyenv, and with Emacs Pyenv mode.
+
+  This variable can be set globally, or as a directory- or buffer-local
+  variable. If unset, Autovenv will try to find the Python version
+  dynamically.")
+
+  (defun autovenv-pyenv-locator ()
+    "Attempt to determine the desired version of Python to use for the
+  current buffer using (more or less) the Pyenv heuristics:
+
+  1. Try to find a .python-version file and use its contents
+
+  2. Try to find a version file in the directory pointed to by the
+  PYENV_HOME environment variable, if that variable is set, and use that.
+
+  3. Try to find a .pyenv/version file in the user's home directory and
+  use that"
+    (if-let* ((dir (locate-dominating-file
+                    default-directory ".python-version")))
+        (autovenv-read-python-version
+         (file-name-concat (expand-file-name dir) ".python-version"))
+      (if-let* ((dir (getenv "PYENV_HOME")))
+          (autovenv-read-python-version
+           (file-name-concat (expand-file-name dir) "version"))
+        (let* ((homedir (getenv "HOME"))
+               (dir (file-name-concat
+                     (expand-file-name homedir) ".pyenv")))
+          (autovenv-read-python-version
+           (file-name-concat dir "version"))))))
+
+  (defcustom autovenv-python-version-locator #'autovenv-pyenv-locator
+    "Function used to locate a Python version. Takes no arguments and
+  returns the Python version to use, or nil if no suitable Python version
+  can be identified."
+    :type function
+    :group 'autovenv)
+
+
+  (defun autovenv--locate-python-version ()
+    "Locate a suitable Python version for the current buffer.
+
+  If `autovenv-python-version' is non-nil, it will be used as the Python
+  version. This variable can be set globally, or as a buffer- or
+  directory-local variable.
+
+  If `autovenv-python-version' is nil, use the function defined in
+  `autovenv-python-version-locator' to identify a Python version.
+
+  If neither of these are set, or if `autovenv-python-version' cannot find
+  a Python version, this Unction will return nil, indicating a Python
+  version couldn't be found.'"
+    (cond
+     ((stringp autovenv-python-version)
+      autovenv-python-version)
+     ((and (functionp autovenv-python-version-locator))
+      (funcall autovenv-python-version-locator))
+     (t nil)))
 
 
 
@@ -295,6 +373,12 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
       (cadr autovenv--info)))
 
 
+  (defmacro autovenv-current-venv ()
+    "Return the currently configured venv. Syntax sugar over (getenv
+  \"VIRTUAL_ENV\")"
+    '(getenv "VIRTUAL_ENV"))
+
+
   ;;
   ;; Getting the virtual environment
   ;;
@@ -321,7 +405,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
     ;; Step 1: Find out what the venv should be
     ;; Step 2: Find out what the current venv is
     (let* ((new-venv (autovenv--correct-venv))
-           (old-venv (autovenv--current-venv)))
+           (old-venv (autovenv-get)))
       ;; Step 3: If they're different, change it
       (when (not (eq new-venv old-venv))
         (if (eq new-venv nil)
