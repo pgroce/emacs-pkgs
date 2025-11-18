@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Phil Groce
 
 ;; Author: pgroce <pgroce@gmail.com>
-;; Version: 0.1.13
+;; Version: 0.1.14
 ;; Keywords: python, virtualenv, environment, tools, projects
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; License: GPL-3.0-or-later
@@ -188,7 +188,7 @@ fails and nil is returned."
   "Function used to locate a virtual environment. Takes no arguments and
 returns the path to a virtual environment directory, or nil if no
 virtual environment can be found."
-  :type function
+  :type 'function
   :group 'autovenv)
 
 (defvar autovenv-virtualenv-path nil
@@ -273,7 +273,7 @@ use that"
   "Function used to locate a Python version. Takes no arguments and
 returns the Python version to use, or nil if no suitable Python version
 can be identified."
-  :type function
+  :type 'function
   :group 'autovenv)
 
 
