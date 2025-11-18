@@ -97,7 +97,7 @@
       (:maintainer "Phil Groce" . "pgroce@gmail.com")
       (:keywords "utility"))])
  (autovenv
-  . [(0 1 14) ((cl-lib (0 5)))
+  . [(0 1 15) ((cl-lib (0 5)))
      "Automatically activate Python virtualenvs based on project directory"
      single
      ((:authors ("pgroce" . "pgroce@gmail.com"))

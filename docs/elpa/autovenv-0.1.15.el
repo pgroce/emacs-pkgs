@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Phil Groce
 
 ;; Author: pgroce <pgroce@gmail.com>
-;; Version: 0.1.14
+;; Version: 0.1.15
 ;; Keywords: python, virtualenv, environment, tools, projects
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; License: GPL-3.0-or-later
@@ -128,7 +128,7 @@ PYVER."
   (let* ((venv-bin (file-name-as-directory
                     (file-name-concat venv "bin"))))
     (setq autovenv--venv venv
-          autovenv-python-version pyver)
+          autovenv--python-version pyver)
     (setq exec-path (cons venv-bin exec-path))
     (setenv "VIRTUAL_ENV" venv)
     (setenv "PATH" (concat venv-bin path-separator (getenv "PATH"))))
