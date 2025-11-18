@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Phil Groce
 
 ;; Author: pgroce <pgroce@gmail.com>
-;; Version: 0.1.15
+;; Version: 0.1.16
 ;; Keywords: python, virtualenv, environment, tools, projects
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; License: GPL-3.0-or-later
@@ -349,10 +349,12 @@ cached information as appropriate. Sets and returns the value of
 (defun autovenv-get-venv ()
   "Return the name of the currently set virtual environment, or nil if
 unset."
+  (interactive)
   autovenv--venv)
 
 (defun autovenv-get-python-version ()
   "Return the currently set Python version, or nil if unset."
+  (interactive)
   autovenv--python-version)
 
 ;;
