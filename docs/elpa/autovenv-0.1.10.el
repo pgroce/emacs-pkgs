@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Phil Groce
 
 ;; Author: pgroce <pgroce@gmail.com>
-;; Version: 0.1.9
+;; Version: 0.1.10
 ;; Keywords: python, virtualenv, environment, tools, projects
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; License: GPL-3.0-or-later
@@ -112,12 +112,23 @@
 ;;;; calling (deactivate) before calling (activate) when changing
 ;;;; between venvs) is not in scope
 
-(defun autovenv--activate (venv)
-  "Activate the virtual environment at NEW-VENV."
+
+(defvar autovenv--venv nil
+  "Currently set virtual environment path.")
+
+(defvar autovenv--python-version nil
+  "Currently set Python version.")
+
+(defun autovenv--activate (venv pyver)
+  "Activate the virtual environment at NEW-VENV, with the python version at
+PYVER."
   (autovenv--message (format "Activating %s" venv))
   (run-hooks 'autovenv-pre-activate-hook)
+
   (let* ((venv-bin (file-name-as-directory
                     (file-name-concat venv "bin"))))
+    (setq autovenv--venv venv
+          autovenv-python-version pyver)
     (setq exec-path (cons venv-bin exec-path))
     (setenv "VIRTUAL_ENV" venv)
     (setenv "PATH" (concat venv-bin path-separator (getenv "PATH"))))
@@ -143,10 +154,7 @@
     (setenv "VIRTUAL_ENV" nil)
     (run-hooks 'autovenv-post-deactivate-hook)))
 
-(defmacro autovenv--current-venv ()
-  "Return the currently configured venv. Syntax sugar over (getenv
-\"VIRTUAL_ENV\")"
-  '(getenv "VIRTUAL_ENV"))
+
 
 ;;
 ;; Locating the appropriate virtualenv
@@ -164,7 +172,7 @@ directory of the current buffer. If one is not found, returns the .venv
 directory in the nearest parent directory. If neither the current
 directory nor any of its parents contain a .venv directory, the function
 fails and nil is returned."
-  (when-let* ((dir (locate-dominating-file default-directory ".venv")))
+(when-let* ((dir (locate-dominating-file default-directory ".venv")))
     (file-name-as-directory
      (file-name-concat (expand-file-name dir) ".venv"))))
 
@@ -179,7 +187,9 @@ fails and nil is returned."
 (defcustom autovenv-virtualenv-locator #'autovenv-local-locator
   "Function used to locate a virtual environment. Takes no arguments and
 returns the path to a virtual environment directory, or nil if no
-virtual environment can be found.")
+virtual environment can be found."
+  :type function
+  :group 'autovenv)
 
 (defvar autovenv-virtualenv-path nil
   "If the value of this variable is not nil, it should be a path to a
@@ -194,11 +204,11 @@ arbitrary virtualenvs for use in specific files or projects.")
 (defun autovenv--locate-venv ()
   "Find the virtualenv directory, if any, for the current buffer.
 
-If `autovenv-virtualenv-path' is set, it will be used unconditionally. This
+If `autovenv-virtualenv-path' is non-nil, it will be used unconditionally. This
 variable can be set globally, but is probably best used as a buffer- or
 directory-local variable.
 
-If `autovenv-virtualenv-path' is not set, the function defined in
+If `autovenv-virtualenv-path' is nil, the function defined in
 `autovenv-virtualenv-locator' will be used to find a suitable virtualenv for
 this buffer. By default, this variable is set to use
 `autovenv-default-locator'.
@@ -215,6 +225,78 @@ present."
    (t nil)))
 
 
+;;;;;; Python version location
+(defun autovenv-read-python-version (version-file)
+  "Read a Python version file."
+  (when (file-readable-p version-file)
+    (let* ((version-str
+            (string-trim (with-temp-buffer
+                           (insert-file-contents version-file)
+                           (buffer-string)))))
+      (if (string-equal "" version-str)
+          nil
+        version-str))))
+(defvar autovenv-python-version nil
+  "If the value of this variable is not nil, it will be used as the Python
+version for Autovenv. This variable should be suitable for use with
+Pyenv, and with Emacs Pyenv mode.
+
+This variable can be set globally, or as a directory- or buffer-local
+variable. If unset, Autovenv will try to find the Python version
+dynamically.")
+
+(defun autovenv-pyenv-locator ()
+  "Attempt to determine the desired version of Python to use for the
+current buffer using (more or less) the Pyenv heuristics:
+
+1. Try to find a .python-version file and use its contents
+
+2. Try to find a version file in the directory pointed to by the
+PYENV_HOME environment variable, if that variable is set, and use that.
+
+3. Try to find a .pyenv/version file in the user's home directory and
+use that"
+  (if-let* ((dir (locate-dominating-file
+                  default-directory ".python-version")))
+      (autovenv-read-python-version
+       (file-name-concat (expand-file-name dir) ".python-version"))
+    (if-let* ((dir (getenv "PYENV_HOME")))
+        (autovenv-read-python-version
+         (file-name-concat (expand-file-name dir) "version"))
+      (let* ((homedir (getenv "HOME"))
+             (dir (file-name-concat
+                   (expand-file-name homedir) ".pyenv")))
+        (autovenv-read-python-version
+         (file-name-concat dir "version"))))))
+
+(defcustom autovenv-python-version-locator #'autovenv-pyenv-locator
+  "Function used to locate a Python version. Takes no arguments and
+returns the Python version to use, or nil if no suitable Python version
+can be identified."
+  :type function
+  :group 'autovenv)
+
+
+(defun autovenv--locate-python-version ()
+  "Locate a suitable Python version for the current buffer.
+
+If `autovenv-python-version' is non-nil, it will be used as the Python
+version. This variable can be set globally, or as a buffer- or
+directory-local variable.
+
+If `autovenv-python-version' is nil, use the function defined in
+`autovenv-python-version-locator' to identify a Python version.
+
+If neither of these are set, or if `autovenv-python-version' cannot find
+a Python version, this Unction will return nil, indicating a Python
+version couldn't be found.'"
+  (cond
+   ((stringp autovenv-python-version)
+    autovenv-python-version)
+   ((and (functionp autovenv-python-version-locator))
+    (funcall autovenv-python-version-locator))
+   (t nil)))
+
 
 
 
@@ -230,11 +312,13 @@ present."
 
 (defvar-local autovenv--info nil
   "Contains working info about what the appropriate Python virtualenv
-should be for this buffer.")
+should be for this buffer. Nil, or else a triple of the form (DIR VENV-DIR
+PY-VERSION).")
 
 (defun autovenv--correct-venv ()
   "Return what the \"correct\" venv should be for this buffer, updating
-cached information as appropriate."
+cached information as appropriate. Sets and returns the value of
+`autovenv--info'."
   (let ((old autovenv--info))
     (setq autovenv--info
           (if (and (not (equal old nil))
@@ -243,23 +327,33 @@ cached information as appropriate."
             ;; Ensure the output of the locator is formatted as a
             ;; directory (with the trailing slash), since the user may
             ;; be inconsistent
-            (let* ((venv-located (autovenv--locate-venv))
+            (let* ((version-located (autovenv--locate-python-version))
+                   (venv-located (autovenv--locate-venv))
                    ;; file-name-as-directory can't handle nils so....
                    (venv-dir (if (eq nil venv-located)
                                  nil
                                (file-name-as-directory venv-located))))
-              `(,default-directory ,venv-dir))))
-    (cadr autovenv--info)))
+              `(,default-directory ,venv-dir ,version-located))))))
+
+
+(defmacro autovenv-current-venv ()
+  "Return the currently configured venv. Syntax sugar over (getenv
+\"VIRTUAL_ENV\")"
+  '(getenv "VIRTUAL_ENV"))
 
 
 ;;
 ;; Getting the virtual environment
 ;;
 
-(defun autovenv-get ()
-  "Return the name of the currently set virtual environment. Convenience
-function for calling (getenv \"\VIRTUAL_ENV\")"
-  (getenv "VIRTUAL_ENV"))
+(defun autovenv-get-venv ()
+  "Return the name of the currently set virtual environment, or nil if
+unset."
+  autovenv--venv)
+
+(defun autovenv-get-python-version ()
+  "Return the currently set Python version, or nil if unset."
+  autovenv--python-version)
 
 ;;
 ;; Entry points -- determine state and activate/deactivate as necessary
@@ -277,8 +371,10 @@ refresh the virtualenv information when a buffer (more precisely, a
 window) is selected, see `autovenv-window-selection-function'."
   ;; Step 1: Find out what the venv should be
   ;; Step 2: Find out what the current venv is
-  (let* ((new-venv (autovenv--correct-venv))
-         (old-venv (autovenv--current-venv)))
+  (let* ((info (autovenv--correct-venv))
+         (new-venv (nth 1 info))
+         (new-pyver (nth 2 info))
+         (old-venv (autovenv-get-venv)))
     ;; Step 3: If they're different, change it
     (when (not (eq new-venv old-venv))
       (if (eq new-venv nil)
@@ -288,7 +384,7 @@ window) is selected, see `autovenv-window-selection-function'."
           ;; one, to ensure that things like path variables get
           ;; cleaned up.
           (autovenv--deactivate)
-          (autovenv--activate new-venv))))))
+          (autovenv--activate new-venv new-pyver))))))
 
 
 
