@@ -392,10 +392,12 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   (defun autovenv-get-venv ()
     "Return the name of the currently set virtual environment, or nil if
   unset."
+    (interactive)
     autovenv--venv)
 
   (defun autovenv-get-python-version ()
     "Return the currently set Python version, or nil if unset."
+    (interactive)
     autovenv--python-version)
 
   ;;
