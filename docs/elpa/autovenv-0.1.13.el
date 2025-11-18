@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Phil Groce
 
 ;; Author: pgroce <pgroce@gmail.com>
-;; Version: 0.1.11
+;; Version: 0.1.13
 ;; Keywords: python, virtualenv, environment, tools, projects
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; License: GPL-3.0-or-later
@@ -359,7 +359,7 @@ unset."
 ;; Entry points -- determine state and activate/deactivate as necessary
 ;;
 
-;;;###autoload
+
 (defun autovenv-find-and-activate ()
   (interactive)
   "If a Python virtual environment should be active for the
@@ -388,7 +388,7 @@ window) is selected, see `autovenv-window-selection-function'."
           (autovenv--activate new-venv new-pyver))))))
 
 
-;;;###autoload
+
 (defun autovenv-window-function (frame-or-window)
   "Function to find and activate an appropriate Python virtual environment
 from the `window-buffer-change-functions' and
