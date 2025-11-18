@@ -231,7 +231,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
     "Function used to locate a virtual environment. Takes no arguments and
   returns the path to a virtual environment directory, or nil if no
   virtual environment can be found."
-    :type function
+    :type 'function
     :group 'autovenv)
 
   (defvar autovenv-virtualenv-path nil
@@ -316,7 +316,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
     "Function used to locate a Python version. Takes no arguments and
   returns the Python version to use, or nil if no suitable Python version
   can be identified."
-    :type function
+    :type 'function
     :group 'autovenv)
 
 
