@@ -30,7 +30,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;; Copyright (C) 2025 Phil Groce
 
   ;; Author: pgroce <pgroce@gmail.com>
-  ;; Version: 0.1.16
+  ;; Version: 0.1.17
   ;; Keywords: python, virtualenv, environment, tools, projects
   ;; Package-Requires: ((cl-lib "0.5"))
   ;; License: GPL-3.0-or-later
@@ -406,7 +406,6 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
 
 
   (defun autovenv-find-and-activate ()
-    (interactive)
     "If a Python virtual environment should be active for the
   default-directory of the current buffer, activate it. If not (and one is
   activated already), deactivate it.
@@ -415,6 +414,8 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   environment when relevant events occur, such as a directory change. To
   refresh the virtualenv information when a buffer (more precisely, a
   window) is selected, see `autovenv-window-selection-function'."
+    (interactive)
+
     ;; Step 1: Find out what the venv should be
     ;; Step 2: Find out what the current venv is
     (let* ((info (autovenv--correct-venv))
