@@ -3,7 +3,7 @@
 ;; Copyright (C) 2025 Phil Groce
 
 ;; Author: pgroce <pgroce@gmail.com>
-;; Version: 0.1.18
+;; Version: 0.1.19
 ;; Keywords: python, virtualenv, environment, tools, projects
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; License: GPL-3.0-or-later
@@ -390,7 +390,7 @@ window) is selected, see `autovenv-window-selection-function'."
          (old-pyver (autovenv-get-python-version)))
     ;; Step 3: If they're different, change it
     (when (or (not (eq new-venv old-venv))
-              (net (eq new-pyver old-pyver)))
+              (not (eq new-pyver old-pyver)))
       (if (and (null new-venv) (null new-pyver))
           (autovenv--deactivate)
         (progn
