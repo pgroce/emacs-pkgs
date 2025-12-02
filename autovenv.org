@@ -30,7 +30,7 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
   ;; Copyright (C) 2025 Phil Groce
 
   ;; Author: pgroce <pgroce@gmail.com>
-  ;; Version: 0.1.17
+  ;; Version: 0.1.18
   ;; Keywords: python, virtualenv, environment, tools, projects
   ;; Package-Requires: ((cl-lib "0.5"))
   ;; License: GPL-3.0-or-later
@@ -393,11 +393,19 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
     "Return the name of the currently set virtual environment, or nil if
   unset."
     (interactive)
+    (when (called-interactively-p 'interactive)
+      (if (not (null autovenv--venv))
+          (message "autovenv: Current virtualenv is '%s'" autovenv--venv)
+        (message "autovenv: Virtualenv is unset")))
     autovenv--venv)
 
   (defun autovenv-get-python-version ()
     "Return the currently set Python version, or nil if unset."
     (interactive)
+    (when (called-interactively-p 'interactive)
+      (if (not (null autovenv--python-version))
+          (message "autovenv: Python version is '%s'" autovenv--python-version)
+        (message "autovenv: Python version is unset")))
     autovenv--python-version)
 
   ;;
@@ -421,10 +429,12 @@ One can add other hooks as necessary, even ~projectile-switch-project-hook~ if y
     (let* ((info (autovenv--correct-venv))
            (new-venv (nth 1 info))
            (new-pyver (nth 2 info))
-           (old-venv (autovenv-get-venv)))
+           (old-venv (autovenv-get-venv))
+           (old-pyver (autovenv-get-python-version)))
       ;; Step 3: If they're different, change it
-      (when (not (eq new-venv old-venv))
-        (if (eq new-venv nil)
+      (when (or (not (eq new-venv old-venv))
+                (net (eq new-pyver old-pyver)))
+        (if (and (null new-venv) (null new-pyver))
             (autovenv--deactivate)
           (progn
             ;; Always deactivate the old venv before activating the new
